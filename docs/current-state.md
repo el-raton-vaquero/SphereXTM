@@ -238,3 +238,73 @@ Full pytest: 104 passed (M101 dataset prepared locally with `spherex.prepare`).
 Known Windows issue outside this workstream: `scripts/validate_irsa.py` prints "λ",
 which raises UnicodeEncodeError on a cp1252 console and records a spurious rejection
 (the observation is still kept); run with `PYTHONUTF8=1`.
+
+## PRISM integration — 2026-11-14
+
+Branch `prism` now contains backend-live, science, explorer-ui and cosmos-3d (merged with
+`--no-ff`). The only conflict was in `frontend/public/snapshots/*`. Those files were then
+regenerated with the integrated pipeline.
+
+**Routes.** `/` is the 3D landing (real BSC5 stars, SPHEREx orbit, sweep pattern labelled
+illustrative). `/prism` is the explorer. `/classic` is the previous observatory (its
+links and embed URLs were updated). `/cosmos` redirects to `/`, and `/cosmos/cube` is
+the cube demo. Fonts are loaded once in `app/layout.tsx` via `next/font`.
+
+**Backend wiring.** `server/spherex/v2_providers.py` registers the science handlers
+(`spherex.science.routes`) as the `/v2/gaia|skybot|spectrum|verdict` providers. It feeds
+them native-pixel frames from `spherex.live`: S3 byte ranges, with the IRSA cutout
+service as fallback. The ePSF comes from one ~8.7 kB EPSF table row, so frames without
+it report an uncorrected aperture flux and say so. Spectrum and verdict share one
+memoised download per position (80 frames, 21×21 native px), and concurrent requests
+wait on it. The Next proxy timeout is 180 s.
+
+**Measured end-to-end through the Next proxy** (WISE 0855, `next start` + uvicorn):
+- `/api/v2/search`, 60 frames: 200 in 22 s, 3 seasons, D1–D6.
+- `/api/v2/spectrum` and `/api/v2/verdict` sent concurrently: both 200 after ~47–49 s.
+  80/80 frames loaded, 67 with ePSF. Best template Y1 (χ²ᵣ 1.15; the coldest available,
+  and WISE 0855 is colder). Verdict known_star, confidence 0.8 (heuristic).
+- `/api/v2/gaia`: 26 sources. `/api/v2/skybot`: 0 objects, 0 failed epochs.
+
+**Snapshots** (`frontend/public/snapshots`, live IRSA + Gaia + SkyBoT, fov 4′, 160 frames
+each, 0 failed frames, 3.0–3.4 MB each). Each file is `{kind:'prism-snapshot', search,
+gaia, spectrum, verdict}`.
+
+| Target | Frames used / available | Seasons | Saturated at centre | Verdict |
+|---|---|---|---|---|
+| Barnard | 160/358 | 3 | 160 | known_star 0.75 (saturated 80/80; no classification) |
+| Eps Ind B | 160/463 | 4 | 1 | variable 0.9 (see below) |
+| WISE 0855 | 160/258 | 3 | 0 | known_star 0.8 |
+| RW Aur | 160/335 | 3 | 152 | known_star 0.65 |
+| R Dra | 160/540 | 3 | 159 | known_star 0.75 (0 usable flux points) |
+| M101 | 160/376 | 3 | 0 | known_star 0.45 (see below) |
+
+Notes on the table:
+- **Eps Ind B:** measured shift 6.34″ against 6.31″ predicted (consistent within 3σ). The
+  ~6% inter-season flux change is flagged as "variable", but it may be systematic: 17/79
+  frames are flagged HALO/TRANSIENT near ε Indi A, and T6.5 is the best template at a poor
+  χ²ᵣ of 129 (the target is an unresolved T1+T6 binary).
+- **M101:** the Gaia DR3 counterpart on the nucleus has no significant parallax or proper
+  motion. The verdict now lowers confidence and says the source may be extragalactic.
+
+**Static hosting.** On Vercel without a backend (`VERCEL` set, no
+`SPHEREX_API_INTERNAL_URL` / `NEXT_PUBLIC_PRISM_API_BASE`), the build has no `/api` proxy
+and `NEXT_PUBLIC_PRISM_LIVE=0`. The six presets load from the snapshots, labelled as
+snapshots. Any other position shows "La búsqueda en vivo necesita el servidor
+científico". This was verified with headless Chrome and showed no exceptions. See
+`docs/deploy.md`.
+
+**Checks.**
+- Backend `uv run --locked pytest -q`: 151 passed.
+- Frontend `npm run lint`: 0 problems. `tsc --noEmit`: clean. `npm run build`: passed.
+
+**Known limitations.**
+- Cold spectrum/verdict take ~40–50 s, which is over the 30 s goal.
+- λ comes from WCS-WAVE, not calibrated CWAVE. There is no PSF homogenisation and no ZODI
+  subtraction.
+- Classifier templates go no colder than Y1 and no warmer than T6.5 for brown dwarfs.
+  Stars are blackbodies and the asteroid model is a toy.
+- The verdict confidence is a heuristic.
+- SkyBoT samples at most 12 epochs.
+- The 3D sweep is illustrative.
+- `/classic` "real" mode needs the backend and the M101 dataset.
+- The C: drive has only ~2–3 GB free.

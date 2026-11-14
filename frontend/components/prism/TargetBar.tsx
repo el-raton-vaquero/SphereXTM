@@ -82,7 +82,7 @@ export default function TargetBar({ targets, activeId, ra, dec, fov, locale, tex
                 title={(locale === 'en' && (t as { why_en?: string }).why_en) || t.why || ''}
               >
                 <span className="preset-name">{t.name}</span>
-                <span className="preset-cat p-data">{t.category}{t.expected?.pm_arcsec_yr ? ` · ${t.expected.pm_arcsec_yr}″/yr` : ''}{t.expected?.saturated ? ' · SAT' : ''}</span>
+                <span className="preset-cat p-data">{t.category.replace(/_/g, ' ')}{t.expected?.pm_arcsec_yr ? ` · ${t.expected.pm_arcsec_yr.toFixed(1)}″/yr` : ''}{t.expected?.saturated ? ' · SAT' : ''}</span>
               </button>
             </li>
           ))}

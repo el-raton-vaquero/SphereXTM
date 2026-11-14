@@ -17,7 +17,9 @@ FROM base AS runtime
 ENV PATH="/app/.venv/bin:${PATH}" \
     SPHEREX_DATA_DIR=/data/m101 \
     MPLCONFIGDIR=/tmp/matplotlib \
-    XDG_CACHE_HOME=/tmp/cache
+    XDG_CACHE_HOME=/tmp/cache \
+    PRISM_CACHE_DIR=/tmp/prism-cache \
+    PRISM_SCIENCE_CACHE=/tmp/prism-science-cache
 RUN groupadd --gid 10001 app && useradd --uid 10001 --gid app --create-home app \
     && mkdir -p /data/m101 && chown -R app:app /data
 COPY --from=dependencies /app/.venv /app/.venv

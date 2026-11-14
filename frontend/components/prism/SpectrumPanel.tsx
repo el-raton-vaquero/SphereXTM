@@ -60,7 +60,9 @@ export default function SpectrumPanel({ data, source, status, error, probe, curr
     return () => ro.disconnect();
   }, []);
 
-  const pts = useMemo(() => data?.points ?? [], [data]);
+  // Only measured points: the backend also lists frames where no flux could be measured
+  // (off_frame / incomplete / no_background), with flux = null and a status.
+  const pts = useMemo(() => (data?.points ?? []).filter((p) => p.flux != null && p.err != null && Number.isFinite(p.flux) && Number.isFinite(p.lambda_um)), [data]);
   const seasons = useMemo(() => [...new Set(pts.map((p) => p.season))].sort((a, b) => a - b), [pts]);
   const unit = pts[0]?.unit ?? 'mJy';
   const visible = pts.filter((p) => !hidden.has(p.season));
@@ -75,7 +77,7 @@ export default function SpectrumPanel({ data, source, status, error, probe, curr
     const spread = Math.max(p95 - p05, Math.abs(p95) * 0.1, 1e-6);
     let lo = Math.max(use[0], p05 - 0.6 * spread);
     let hi = Math.min(use[use.length - 1], p95 + 0.6 * spread);
-    const curve = data?.classification?.best.curve;
+    const curve = data?.classification?.best?.curve;
     if (curve?.length) { lo = Math.min(lo, ...curve.map((c) => c.flux)); hi = Math.max(hi, ...curve.map((c) => c.flux)); }
     lo = Math.min(lo, 0);
     const pad = (hi - lo) * 0.1 || 1;
@@ -87,7 +89,8 @@ export default function SpectrumPanel({ data, source, status, error, probe, curr
   const clampY = (v: number) => Math.min(H - M.bottom, Math.max(M.top, v));
 
   const srcLabel = source === 'live' ? text.specLive : source === 'snapshot' ? text.specSnapshot : text.specClient;
-  const cls = data?.classification ?? null;
+  const cls = data?.classification?.best ? data.classification : null;
+  const clsCaveats = !cls && data?.classification?.caveats?.length ? data.classification.caveats.join(' ') : '';
 
   return (
     <section className="panel" aria-labelledby="spec-h">
@@ -172,7 +175,7 @@ export default function SpectrumPanel({ data, source, status, error, probe, curr
           <p className="panel-note">{cls.method}. {cls.caveats.join(' ')}</p>
         </div>
       ) : (
-        <p className="panel-note">{text.noClassification}</p>
+        <p className="panel-note">{text.noClassification}{clsCaveats ? ` ${clsCaveats}` : ''}</p>
       )}
       {data?.caveats && data.caveats.length > 0 && (
         <ul className="caveats">{data.caveats.map((c) => <li key={c}>{c}</li>)}</ul>

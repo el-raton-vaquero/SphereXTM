@@ -202,8 +202,13 @@ class LiveFrameSource:
 
 
 FRAME_SOURCE = LiveFrameSource()
-_SCIENCE_CACHE = live.cache_root() / "science"
-_SCIENCE_CACHE.mkdir(parents=True, exist_ok=True)
+try:
+    _SCIENCE_CACHE = live.cache_root() / "science"
+    _SCIENCE_CACHE.mkdir(parents=True, exist_ok=True)
+except OSError:  # read-only install dir: science default (PRISM_SCIENCE_CACHE or system temp)
+    from spherex.science.http import default_cache_dir
+
+    _SCIENCE_CACHE = default_cache_dir()
 _router = build_router(get_frames=FRAME_SOURCE, cache_dir=_SCIENCE_CACHE)
 _ENDPOINTS = {route.path: route.endpoint for route in _router.routes}
 

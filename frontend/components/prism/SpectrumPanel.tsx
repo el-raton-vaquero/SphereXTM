@@ -113,7 +113,7 @@ export default function SpectrumPanel({ data, source, status, error, probe, curr
             </g>
           ))}
           <text x={W - M.right} y={H - 3} textAnchor="end" className="spec-label">λ [µm]</text>
-          <text x={M.left + 4} y={M.top + 8} className="spec-label">F [{unit}]</text>
+          <text x={W - M.right} y={M.top - 4} textAnchor="end" className="spec-label">F [{unit}]</text>
           <line x1={M.left} x2={W - M.right} y1={H - M.bottom} y2={H - M.bottom} className="spec-axis" />
           {cls?.best.curve && cls.best.curve.length > 1 && (
             <polyline points={cls.best.curve.map((c) => `${x(c.lambda_um)},${clampY(y(c.flux))}`).join(' ')} className="spec-model" />

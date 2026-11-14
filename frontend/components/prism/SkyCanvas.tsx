@@ -35,7 +35,8 @@ interface Props {
   onProbe: (x: number, y: number) => void;
 }
 
-const MARGIN = { top: 26, right: 58, bottom: 30, left: 58 };
+const WIDE = { top: 26, right: 16, bottom: 30, left: 56 };
+const NARROW = { top: 26, right: 12, bottom: 30, left: 44 };
 const ARCSEC_STEPS = [5, 10, 15, 20, 30, 60, 120, 300, 600, 1200];
 const RA_SEC_STEPS = [0.5, 1, 2, 5, 10, 15, 30, 60, 120];
 const ALERT_FLAGS = ['OVERFLOW', 'BLOOM', 'NONFUNC', 'SUR_ERROR'];
@@ -50,6 +51,8 @@ export default function SkyCanvas(props: Props) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [size, setSize] = useState(480);
+  const [narrow, setNarrow] = useState(false);
+  const MARGIN = narrow ? NARROW : WIDE;
   const proj = useMemo(() => makeProjector(grid), [grid]);
 
   // Camera: visible window in pixel units [x0, y0, w]. Animated toward the target window.
@@ -100,8 +103,10 @@ export default function SkyCanvas(props: Props) {
     const el = wrapRef.current;
     if (!el) return;
     const ro = new ResizeObserver(() => {
-      const w = el.clientWidth - MARGIN.left - MARGIN.right;
-      setSize(Math.max(200, Math.min(w, 720)));
+      const isNarrow = el.clientWidth < 520;
+      const m = isNarrow ? NARROW : WIDE;
+      setNarrow(isNarrow);
+      setSize(Math.max(200, Math.min(el.clientWidth - m.left - m.right, 720)));
     });
     ro.observe(el);
     return () => ro.disconnect();
@@ -115,7 +120,7 @@ export default function SkyCanvas(props: Props) {
     const ctx = c.getContext('2d');
     if (!ctx) return null;
     const img = ctx.createImageData(n, n);
-    if (kind === 'diverging') renderDiverging(image, divScale, img.data);
+    if (kind === 'diverging') renderDiverging(image, divScale, img.data, n);
     else if (kind === 'depth') renderDepth(image, divScale, img.data);
     else renderGray(image, levels, stretch, img.data);
     ctx.putImageData(img, 0, 0);
@@ -269,6 +274,11 @@ export default function SkyCanvas(props: Props) {
           role="img"
           aria-label={props.caption}
         />
+        {!image && (
+          <div className="pv-empty p-data" style={{ left: MARGIN.left, top: MARGIN.top, width: size, height: size }}>
+            <span>{props.caption}</span>
+          </div>
+        )}
         <svg className="pv-overlay" width={full} height={size + MARGIN.top + MARGIN.bottom} aria-hidden>
           <g transform={`translate(${MARGIN.left},${MARGIN.top})`}>
             <rect x={-0.5} y={-0.5} width={size + 1} height={size + 1} className="pv-frame" />

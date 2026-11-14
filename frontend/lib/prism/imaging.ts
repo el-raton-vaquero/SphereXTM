@@ -97,13 +97,16 @@ export function renderGray(data: ArrayLike<number>, levels: Levels, stretch: Str
 }
 
 /** Diverging render centred on zero: negative -> cool ramp blue, positive -> signal orange. */
-export function renderDiverging(data: ArrayLike<number>, scale: number, out: Uint8ClampedArray) {
+export function renderDiverging(data: ArrayLike<number>, scale: number, out: Uint8ClampedArray, n = 0) {
   const s = scale || 1;
   for (let i = 0; i < data.length; i++) {
     const v = data[i];
     const o = i * 4;
     if (!Number.isFinite(v)) {
-      out[o] = MASK[0]; out[o + 1] = MASK[1]; out[o + 2] = MASK[2]; out[o + 3] = 255;
+      // Neutral checker (not --p-mask blue, which would read as a negative residual).
+      const odd = n ? ((i % n) + Math.floor(i / n)) % 2 : 0;
+      const g = odd ? 38 : 28;
+      out[o] = g; out[o + 1] = g - 1; out[o + 2] = g - 3; out[o + 3] = 255;
       continue;
     }
     let t = v / s;
@@ -172,7 +175,7 @@ export interface Centroid { x: number; y: number; sx: number; sy: number; snr: n
 
 /**
  * Background-subtracted, intensity-weighted centroid in a radius around (x0,y0).
- * Uncertainty per axis ≈ sqrt(second moment)/SNR (photon-noise-limited approximation).
+ * Uncertainty per axis ≈ sqrt(second moment)/SNR (photon-noise approximation) ⊕ 0.1 px systematic floor.
  */
 export function measureCentroid(pix: ArrayLike<number>, n: number, x0: number, y0: number, r = 2.5): Centroid | null {
   const ann: number[] = [];
@@ -205,7 +208,11 @@ export function measureCentroid(pix: ArrayLike<number>, n: number, x0: number, y
   mxx /= sw; myy /= sw;
   const snr = sw / (st.sigma * Math.sqrt(npx));
   if (snr < 3) return null;
-  return { x: cx, y: cy, sx: Math.sqrt(Math.max(mxx, 0.09)) / snr, sy: Math.sqrt(Math.max(myy, 0.09)) / snr, snr, flux: sw };
+  // Statistical term plus a 0.1 px systematic floor (reprojection + undersampled PSF), in quadrature.
+  const floor = 0.1;
+  const ex = Math.hypot(Math.sqrt(Math.max(mxx, 0.09)) / snr, floor);
+  const ey = Math.hypot(Math.sqrt(Math.max(myy, 0.09)) / snr, floor);
+  return { x: cx, y: cy, sx: ex, sy: ey, snr, flux: sw };
 }
 
 /**

@@ -1,0 +1,55 @@
+/*
+ * PRISM design tokens — shared by /prism (explorer) and /cosmos (3D landing).
+ *
+ * Direction: "instrument logbook". A real observatory control room, not a SaaS
+ * dashboard. Warm photographic black, paper-white ink, hairline rules, tick
+ * marks and coordinate grids. Colour is reserved for DATA: the only chromatic
+ * scale is the wavelength ramp (0.75–5.0 µm) and a single signal orange for
+ * the one thing the user must look at. No glassmorphism, no purple/blue
+ * gradients, no emoji, no glowing blobs, no pill-shaped everything.
+ *
+ * Fonts (loaded in app/layout.tsx via next/font or Google Fonts):
+ *   display: "Instrument Serif"  — titles, target names, big numbers
+ *   body:    "IBM Plex Sans"     — UI text
+ *   data:    "IBM Plex Mono"     — coordinates, dates, λ, flags, tables
+ */
+:root {
+  --p-bg: #0b0a09;            /* warm black, like exposed plate */
+  --p-bg-2: #121110;          /* raised surface */
+  --p-bg-3: #1a1917;          /* hover / selected surface */
+  --p-ink: #ece8e1;           /* paper white */
+  --p-ink-2: #a8a39a;         /* secondary text */
+  --p-ink-3: #6d6961;         /* tertiary, tick labels */
+  --p-rule: #2a2825;          /* hairlines */
+  --p-rule-2: #3a3733;        /* stronger hairline */
+
+  --p-signal: #ff5a1f;        /* the ONE accent: "look here" */
+  --p-signal-ink: #120600;
+  --p-ok: #9fc28a;            /* check passed (muted, not neon) */
+  --p-warn: #e2b54a;          /* check warning */
+  --p-bad: #e0644f;           /* check failed / artifact */
+  --p-mask: #2b3d5b;          /* masked pixels (kept from existing app) */
+
+  /* Wavelength ramp 0.75 → 5.0 µm, used ONLY to encode λ. 6 stops = 6 detectors. */
+  --p-l1: #5b6cff;  /* D1 0.75–1.09 µm */
+  --p-l2: #3fb6e8;  /* D2 1.10–1.62 µm */
+  --p-l3: #59d1a0;  /* D3 1.63–2.41 µm */
+  --p-l4: #d9d45b;  /* D4 2.42–3.82 µm */
+  --p-l5: #f29a3e;  /* D5 3.83–4.41 µm */
+  --p-l6: #e5533d;  /* D6 4.42–5.00 µm */
+
+  --p-font-display: "Instrument Serif", "Times New Roman", serif;
+  --p-font-body: "IBM Plex Sans", system-ui, sans-serif;
+  --p-font-data: "IBM Plex Mono", ui-monospace, monospace;
+
+  --p-r: 2px;                 /* one radius. Instruments have corners. */
+  --p-gap: 8px;               /* 8px grid */
+  --p-ease: cubic-bezier(0.2, 0.7, 0.1, 1);
+  --p-t-fast: 120ms;
+  --p-t: 280ms;
+}
+
+.p-data { font-family: var(--p-font-data); font-feature-settings: "tnum" 1, "zero" 1; letter-spacing: 0; }
+.p-display { font-family: var(--p-font-display); font-weight: 400; letter-spacing: -0.01em; }
+.p-label { font-family: var(--p-font-data); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--p-ink-3); }
+.p-rule { border-color: var(--p-rule); }

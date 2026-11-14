@@ -250,16 +250,38 @@ def skybot(ra: float, dec: float, radius_arcmin: float, mjd: float) -> dict:
     return out | {"mjd": mjd, "objects": epoch.get("objects") or []}
 
 
+# Finished spectrum/verdict results, so a repeated request (reload, preset revisit, a request
+# abandoned by the browser and re-sent) answers at once instead of recomputing.
+_RESULTS: OrderedDict[tuple, dict] = OrderedDict()
+_RESULTS_LOCK = threading.Lock()
+_RESULTS_SIZE = 24
+
+
+def _memo(key: tuple, compute) -> dict:
+    with _RESULTS_LOCK:
+        if key in _RESULTS:
+            _RESULTS.move_to_end(key)
+            return _RESULTS[key]
+    out = compute()
+    with _RESULTS_LOCK:
+        _RESULTS[key] = out
+        while len(_RESULTS) > _RESULTS_SIZE:
+            _RESULTS.popitem(last=False)
+    return out
+
+
 def spectrum(ra: float, dec: float, aperture_arcsec: float) -> dict:
     if not (3.0 <= aperture_arcsec <= 30.0):
         raise live.LiveError(422, "invalid_parameter", "aperture_arcsec must be in [3, 30]")
-    return _invoke("/v2/spectrum", ra=ra, dec=dec, aperture_arcsec=aperture_arcsec,
-                   max_frames=FRAMES_PER_ANALYSIS, track=True)
+    return _memo(("spectrum", round(ra, 6), round(dec, 6), round(aperture_arcsec, 2)),
+                 lambda: _invoke("/v2/spectrum", ra=ra, dec=dec, aperture_arcsec=aperture_arcsec,
+                                 max_frames=FRAMES_PER_ANALYSIS, track=True))
 
 
 def verdict(ra: float, dec: float, fov: float) -> dict:
-    return _invoke("/v2/verdict", ra=ra, dec=dec, fov=float(min(max(fov, 1.0), 6.0)),
-                   max_frames=FRAMES_PER_ANALYSIS)
+    fov = float(min(max(fov, 1.0), 6.0))
+    return _memo(("verdict", round(ra, 6), round(dec, 6), round(fov, 3)),
+                 lambda: _invoke("/v2/verdict", ra=ra, dec=dec, fov=fov, max_frames=FRAMES_PER_ANALYSIS))
 
 
 for _name, _fn in (("gaia", gaia), ("skybot", skybot), ("spectrum", spectrum), ("verdict", verdict)):

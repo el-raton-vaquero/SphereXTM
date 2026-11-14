@@ -88,10 +88,13 @@ def test_search_stream_emits_progress_then_result(monkeypatch):
     with client.stream("GET", "/v2/search/stream", params={"ra": 1, "dec": 1}) as res:
         assert res.status_code == 200
         assert res.headers["content-type"].startswith("text/event-stream")
+        # Proxies (Next's rewrite) must not gzip/buffer the stream.
+        assert "no-transform" in res.headers["cache-control"]
         text = "".join(res.iter_text())
     events = [blk for blk in text.split("\n\n") if blk.startswith("event:")]
     names = [blk.split("\n")[0].split(": ")[1] for blk in events]
-    assert names == ["progress", "progress", "result"]
+    # An immediate named progress event resets the browser's silence timer.
+    assert names == ["progress", "progress", "progress", "result"]
     assert json.loads(events[-1].split("data: ", 1)[1])["cache"] == "live"
 
 
@@ -136,3 +139,29 @@ def test_legacy_frames_route_still_mounted():
     paths = set(app.openapi()["paths"])
     assert {"/frames", "/health", "/v2/search", "/v2/search/stream", "/v2/targets"} <= paths
     assert client.get("/frames", params={"ra": 999, "dec": 0}).status_code == 422
+
+
+def test_concurrent_identical_searches_share_one_download(monkeypatch):
+    import threading
+    import time
+
+    calls = []
+
+    def slow_search(ra, dec, fov, max_frames, collections, progress=None, **_):
+        calls.append(1)
+        time.sleep(0.3)
+        return {"frames": [], "cache": "live"}
+
+    monkeypatch.setattr(live, "search", slow_search)
+    results = []
+
+    def run():
+        results.append(client.get("/v2/search", params={"ra": 5, "dec": 5}).status_code)
+
+    threads = [threading.Thread(target=run) for _ in range(3)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert results == [200, 200, 200]
+    assert len(calls) == 1

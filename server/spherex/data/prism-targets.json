@@ -102,10 +102,10 @@
       "ra": 133.76002060465208,
       "dec": -7.242203206138758,
       "category": "brown_dwarf",
-      "blurb": "La enana marr\u00f3n m\u00e1s fr\u00eda conocida (~285 K); ~8.1\"/a\u00f1o.",
+      "blurb": "La enana marr\u00f3n m\u00e1s fr\u00eda conocida (~285 K); ~8.2\"/a\u00f1o.",
       "why": "Invisible por debajo de ~3.5 \u00b5m: aparece s\u00f3lo en D5/D6. Color y movimiento separados.",
       "en": {
-        "blurb": "Coldest known brown dwarf (~285 K); ~8.1\"/yr.",
+        "blurb": "Coldest known brown dwarf (~285 K); ~8.2\"/yr.",
         "why": "Invisible below ~3.5 um: only D5/D6 see it. Colour and motion, separated."
       },
       "expected": {

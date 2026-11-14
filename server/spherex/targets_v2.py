@@ -61,9 +61,9 @@ PRESETS = [
         "catalog": "simbad", "simbad_id": "WISE J085510.83-071442.5",
         "expected": {"saturated": False, "best_detectors": [5, 6],
                      "basis": "Y dwarf, [4.5]=13.9 vs [3.6]=17.4 (Luhman 2014): only long-wave detectors"},
-        "blurb": "La enana marrón más fría conocida (~285 K); ~8.1\"/año.",
+        "blurb": "La enana marrón más fría conocida (~285 K); ~8.2\"/año.",
         "why": "Invisible por debajo de ~3.5 µm: aparece sólo en D5/D6. Color y movimiento separados.",
-        "en": {"blurb": "Coldest known brown dwarf (~285 K); ~8.1\"/yr.",
+        "en": {"blurb": "Coldest known brown dwarf (~285 K); ~8.2\"/yr.",
                "why": "Invisible below ~3.5 um: only D5/D6 see it. Colour and motion, separated."},
     },
     {

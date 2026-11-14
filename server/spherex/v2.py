@@ -18,13 +18,15 @@ Provider call signatures (keyword arguments; return a JSON-serialisable dict, ra
 """
 from __future__ import annotations
 
+import asyncio
 import importlib
 import json
 import queue
 import threading
+from concurrent.futures import Future, ThreadPoolExecutor
 from typing import Callable
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from spherex import live, targets_v2
@@ -102,6 +104,36 @@ _COMMON = dict(
 )
 
 
+# One live.search per (position, fov, frames, collections) at a time: the plain /search
+# fallback (or a second tab) joins the download already running instead of doubling it.
+_INFLIGHT: dict[tuple, Future] = {}
+_INFLIGHT_LOCK = threading.Lock()
+
+
+def shared_search(ra, dec, fov, max_frames, cols, progress=None) -> dict:
+    key = (round(ra, 6), round(dec, 6), round(float(fov), 3), int(max_frames), tuple(cols))
+    with _INFLIGHT_LOCK:
+        fut = _INFLIGHT.get(key)
+        owner = fut is None
+        if owner:
+            fut = Future()
+            _INFLIGHT[key] = fut
+    if not owner:
+        if progress:
+            progress({"stage": "query", "message": "joining a search already in progress"})
+        return fut.result()
+    try:
+        result = live.search(ra, dec, fov, max_frames, cols, progress=progress)
+        fut.set_result(result)
+        return result
+    except BaseException as exc:
+        fut.set_exception(exc)
+        raise
+    finally:
+        with _INFLIGHT_LOCK:
+            _INFLIGHT.pop(key, None)
+
+
 @router.get("/search")
 def get_search(
     ra: float = _COMMON["ra"],
@@ -111,7 +143,7 @@ def get_search(
     collections: str = Query(",".join(COLLECTIONS)),
 ):
     try:
-        return live.search(ra, dec, fov, max_frames, parse_collections(collections))
+        return shared_search(ra, dec, fov, max_frames, parse_collections(collections))
     except live.LiveError as exc:
         return _error(exc)
 
@@ -137,7 +169,7 @@ def get_search_stream(
 
     def worker():
         try:
-            result = live.search(ra, dec, fov, max_frames, cols, progress=lambda e: events.put(("progress", e)))
+            result = shared_search(ra, dec, fov, max_frames, cols, progress=lambda e: events.put(("progress", e)))
             events.put(("result", result))
         except live.LiveError as exc:
             events.put(("error", {"status_code": exc.status_code, **exc.to_dict()}))
@@ -150,7 +182,8 @@ def get_search_stream(
     threading.Thread(target=worker, daemon=True).start()
 
     def stream():
-        yield ": prism search stream\n\n"
+        # A named event right away: comments do not reset the browser's silence timer.
+        yield _sse("progress", {"stage": "query", "message": "SIA2 query started"})
         while True:
             try:
                 item = events.get(timeout=15)
@@ -162,7 +195,9 @@ def get_search_stream(
             yield _sse(*item)
 
     return StreamingResponse(stream(), media_type="text/event-stream",
-                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+                             # no-transform: proxies (incl. Next's rewrite) must not gzip/buffer SSE.
+                             headers={"Cache-Control": "no-cache, no-transform", "X-Accel-Buffering": "no",
+                                      "Content-Encoding": "identity"})
 
 
 # --------------------------------------------------------------------------- providers
@@ -174,6 +209,35 @@ def _call(name: str, **kwargs):
         return fn(**kwargs)
     except live.LiveError as exc:
         return _error(exc)
+
+
+# Spectrum/verdict take tens of seconds (80 frame downloads + photometry). They run on their
+# own small executor (at most HEAVY_SLOTS at a time), so /v2/search keeps the default
+# threadpool and stays fast. A request whose client goes away while it is still queued is
+# dropped before it starts; a running job finishes and its result is memoised by the provider.
+HEAVY_SLOTS = 2
+_HEAVY_POOL = ThreadPoolExecutor(max_workers=HEAVY_SLOTS, thread_name_prefix="prism-heavy")
+
+
+async def _call_heavy(request: Request, name: str, **kwargs):
+    if PROVIDERS.get(name) is None:
+        return _not_implemented(name)
+    abandoned = threading.Event()
+
+    def job():
+        if abandoned.is_set():
+            return None
+        return _call(name, **kwargs)
+
+    fut = asyncio.wrap_future(_HEAVY_POOL.submit(job))
+    while True:
+        done, _ = await asyncio.wait({fut}, timeout=1.0)
+        if done:
+            return fut.result()
+        if await request.is_disconnected():
+            abandoned.set()
+            return JSONResponse(status_code=499, content={"detail": "client disconnected",
+                                                          "error_type": "client_closed"})
 
 
 @router.get("/gaia")
@@ -195,12 +259,12 @@ def get_skybot(ra: float = _COMMON["ra"], dec: float = _COMMON["dec"],
 
 
 @router.get("/spectrum")
-def get_spectrum(ra: float = _COMMON["ra"], dec: float = _COMMON["dec"],
-                 aperture_arcsec: float = Query(9.0, gt=0, le=60.0)):
-    return _call("spectrum", ra=ra, dec=dec, aperture_arcsec=aperture_arcsec)
+async def get_spectrum(request: Request, ra: float = _COMMON["ra"], dec: float = _COMMON["dec"],
+                       aperture_arcsec: float = Query(9.0, gt=0, le=60.0)):
+    return await _call_heavy(request, "spectrum", ra=ra, dec=dec, aperture_arcsec=aperture_arcsec)
 
 
 @router.get("/verdict")
-def get_verdict(ra: float = _COMMON["ra"], dec: float = _COMMON["dec"],
-                fov: float = Query(live.FOV_DEFAULT, ge=live.FOV_MIN, le=live.FOV_MAX)):
-    return _call("verdict", ra=ra, dec=dec, fov=fov)
+async def get_verdict(request: Request, ra: float = _COMMON["ra"], dec: float = _COMMON["dec"],
+                      fov: float = Query(live.FOV_DEFAULT, ge=live.FOV_MIN, le=live.FOV_MAX)):
+    return await _call_heavy(request, "verdict", ra=ra, dec=dec, fov=fov)

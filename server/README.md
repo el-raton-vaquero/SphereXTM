@@ -108,6 +108,28 @@ The test suite covers:
 2. **Static Field Visualization**: The M101 demonstration showcases two spectrally compatible, time-separated epochs of an extended galaxy; it is not a claim of moving-object detection, variability discovery, or Planet X.
 3. **Background & Noise**: Science images include zodiacal light; no background model subtraction or PSF homogenization is performed.
 
+## PRISM v2: live search for any RA/Dec
+
+`spherex/live.py` + `spherex/v2.py` (router mounted in `spherex.api:app`). Contract:
+`docs/api-contract.md` → "PRISM v2".
+
+```bash
+uv run --locked uvicorn spherex.api:app --port 8000
+curl -s "http://127.0.0.1:8000/v2/targets"
+curl -s "http://127.0.0.1:8000/v2/search?ra=133.760021&dec=-7.242203&fov=4&max_frames=60"
+curl -N "http://127.0.0.1:8000/v2/search/stream?ra=133.760021&dec=-7.242203"
+# Re-resolve presets from Gaia DR3 / SIMBAD TAP:
+uv run --locked python -m spherex.targets_v2 --refresh
+# Regenerate frontend/public/snapshots/*.json from live IRSA (real data, cached):
+uv run --locked python scripts/precompute_snapshots.py            # all six
+uv run --locked python scripts/precompute_snapshots.py wise-0855  # one
+```
+
+Environment: `PRISM_CACHE_DIR` (default `outputs/prism-cache`, gitignored),
+`PRISM_CACHE_MAX_BYTES` (1 GiB), `PRISM_WORKERS` (8), `PRISM_DEADLINE_SECONDS` (150).
+Downloads are HTTP byte ranges against the public AWS mirror (`nasa-irsa-spherex`)
+with the IRSA cutout service as fallback.
+
 ## M4: bounded moving-target feasibility research
 
 This independent CLI leaves the M1 defaults, M101 API, frontend and Docker

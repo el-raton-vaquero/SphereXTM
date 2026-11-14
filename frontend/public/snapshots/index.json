@@ -1,0 +1,72 @@
+{
+ "kind": "prism-snapshot-index",
+ "note": "Real SPHEREx data captured by frontend/scripts/prism_snapshot.py; not synthetic.",
+ "snapshots": [
+  {
+   "id": "barnard",
+   "name": "Barnard's Star",
+   "ra": 269.44635323920164,
+   "dec": 4.767109750255945,
+   "fov": 4,
+   "generated_utc": "2026-11-14T21:15:18.758028+00:00",
+   "n_frames": 57,
+   "saturated_frames": 44,
+   "verdict": "known_star"
+  },
+  {
+   "id": "eps-indi-b",
+   "name": "Epsilon Indi B",
+   "ra": 331.095889,
+   "dec": -56.800385,
+   "fov": 4,
+   "generated_utc": "2026-11-14T21:12:38.399865+00:00",
+   "n_frames": 58,
+   "saturated_frames": 0,
+   "verdict": "known_star"
+  },
+  {
+   "id": "m101",
+   "name": "M101",
+   "ra": 210.8024292,
+   "dec": 54.34875,
+   "fov": 4,
+   "generated_utc": "2026-11-14T21:11:10.519349+00:00",
+   "n_frames": 60,
+   "saturated_frames": 0,
+   "verdict": "inconclusive"
+  },
+  {
+   "id": "r-dra",
+   "name": "R Draconis",
+   "ra": 248.167239,
+   "dec": 66.755023,
+   "fov": 4,
+   "generated_utc": "2026-11-14T21:09:20.517603+00:00",
+   "n_frames": 49,
+   "saturated_frames": 49,
+   "verdict": "known_star"
+  },
+  {
+   "id": "rw-aur",
+   "name": "RW Aurigae",
+   "ra": 76.956586,
+   "dec": 30.401294,
+   "fov": 4,
+   "generated_utc": "2026-11-14T21:10:31.430644+00:00",
+   "n_frames": 58,
+   "saturated_frames": 53,
+   "verdict": "known_star"
+  },
+  {
+   "id": "wise-0855",
+   "name": "WISE 0855−0714",
+   "ra": 133.7609927720989,
+   "dec": -7.2422022609551115,
+   "fov": 4,
+   "generated_utc": "2026-11-14T21:08:28.373894+00:00",
+   "n_frames": 60,
+   "saturated_frames": 0,
+   "verdict": "inconclusive"
+  }
+ ]
+}

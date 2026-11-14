@@ -1,7 +1,8 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ApiError, fetchGaia, fetchSkybot, fetchSpectrum, fetchTargets, fetchVerdict, searchLive } from '../../lib/prism/api';
+import { ApiError, LIVE_ENABLED, fetchGaia, fetchSkybot, fetchSpectrum, fetchTargets, fetchVerdict, searchLive } from '../../lib/prism/api';
 import { angularSepArcsec, formatDec, formatMjdDate, formatRa, makeProjector } from '../../lib/prism/coords';
 import {
   DEFAULT_FLAG_BITS, GOGGLES, computeLevels, goggleMap, gridAperture, matchedFrames, measureCentroid, medianStack,
@@ -32,10 +33,14 @@ type Loaded = {
   spectrum: SpectrumResponse | null;
   verdict: VerdictResponse | null;
 };
-type Failure = { key: string; message: string; liveError: string | null };
+type Failure = { key: string; message: string; liveError: string | null; noCoverage?: boolean };
+/** Sentinel for a static deployment without the science server (rendered in the current language). */
+const LIVE_OFF = '__live_off__';
 type Aux<T> = { key: string; status: 'loading' | 'ready' | 'error'; data: T | null; error?: string };
 
-const MODES: ViewMode[] = ['frame', 'coadd', 'diff', 'goggles', 'raw'];
+const MODES: ViewMode[] = ['frame', 'coadd', 'diff', 'goggles', 'raw', 'cube'];
+// three.js is large: the cube loads only when its mode is opened.
+const SpectralCube3D = dynamic(() => import('../cosmos/SpectralCube3D'), { ssr: false });
 const SPEEDS = [1, 2, 4, 8];
 const APERTURE_ARCSEC = 9;
 
@@ -90,6 +95,7 @@ export default function PrismApp({ initialQuery }: { initialQuery: string }) {
   }, [url]);
 
   useEffect(() => {
+    if (!LIVE_ENABLED) return; // static deployment: built-in presets (same coordinates as /v2/targets)
     const ctrl = new AbortController();
     fetchTargets(ctrl.signal)
       .then((r) => { if (Array.isArray(r.targets) && r.targets.length) setTargets(r.targets.map((t) => ({ ...PRESETS.find((p) => p.id === t.id), ...t }))); })
@@ -120,10 +126,10 @@ export default function PrismApp({ initialQuery }: { initialQuery: string }) {
       } catch (e) {
         if (ctrl.signal.aborted) return;
         if (e instanceof ApiError && !e.unavailable) {
-          setFailure({ key: reqKey, message: e.message, liveError: null });
+          setFailure({ key: reqKey, message: e.message, liveError: null, noCoverage: e.errorType === 'no_coverage' });
           return;
         }
-        liveError = e instanceof Error ? e.message : String(e);
+        liveError = e instanceof ApiError && e.kind === 'disabled' ? LIVE_OFF : e instanceof Error ? e.message : String(e);
       }
       try {
         const idx = await loadSnapshotIndex();
@@ -154,6 +160,7 @@ export default function PrismApp({ initialQuery }: { initialQuery: string }) {
   const loading = !data && !fail;
   const search = data?.search ?? null;
   const frames = useMemo(() => search?.frames ?? [], [search]);
+  const cubeFrames = useMemo(() => frames.map((f) => ({ pixels: f.pixels, n: search?.grid.n ?? 0, lambda_um: f.lambda_um, mjd: f.mjd, season: f.season, detector: f.detector, id: f.id })), [frames, search]);
   const flagBits = search?.flag_bits ?? DEFAULT_FLAG_BITS;
   const preset = targets.find((t) => t.id === url.target) as (typeof PRESETS)[number] | undefined;
 
@@ -433,12 +440,13 @@ export default function PrismApp({ initialQuery }: { initialQuery: string }) {
       const el = e.target as HTMLElement;
       if (el && (el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (el && el.closest && el.closest('[data-cube]') && e.key.startsWith('Arrow')) return; // the cube handles its own arrows
       if (e.key === 'ArrowRight') { stepTime(1); e.preventDefault(); }
       else if (e.key === 'ArrowLeft') { stepTime(-1); e.preventDefault(); }
       else if (e.key === 'ArrowUp') { stepLambda(1); e.preventDefault(); }
       else if (e.key === 'ArrowDown') { stepLambda(-1); e.preventDefault(); }
       else if (e.key === ' ' && el.tagName !== 'BUTTON') { setPlaying((p) => !p); e.preventDefault(); }
-      else if (e.key >= '1' && e.key <= '5') setMode(MODES[Number(e.key) - 1]);
+      else if (e.key >= '1' && e.key <= '6') setMode(MODES[Number(e.key) - 1]);
       else if (e.key === '+' || e.key === '=') setZoom((z) => Math.min(4, z * 2));
       else if (e.key === '-') setZoom((z) => Math.max(1, z / 2));
       else if (e.key === 'f') setOv((o) => ({ ...o, flags: !o.flags }));
@@ -473,7 +481,7 @@ export default function PrismApp({ initialQuery }: { initialQuery: string }) {
       {!url.embed && (
         <header className="masthead">
           <div className="masthead-id">
-            <span className="wordmark p-display">PRISM</span>
+            <a className="wordmark p-display" href={url.lang === 'en' ? '/?lang=en' : '/'} title={url.lang === 'en' ? 'Sky view' : 'Vista del cielo'}>PRISM</a>
             <span className="masthead-sub p-label">SPHEREx · NASA Space Apps 2026</span>
           </div>
           <p className="masthead-tag">{text.tagline}</p>
@@ -506,7 +514,7 @@ export default function PrismApp({ initialQuery }: { initialQuery: string }) {
             <i aria-hidden /> {originLabel}
           </span>
         )}
-        {data?.liveError && <span className="origin-note p-data">{text.liveDown(data.liveError.replace(/^\/search(\/stream)?: /, ''))}</span>}
+        {data?.liveError && <span className="origin-note p-data">{data.liveError === LIVE_OFF ? text.liveOffSnapshot : text.liveDown(data.liveError.replace(/^\/search(\/stream)?: /, ''))}</span>}
         {preset && (
           <span className="origin-note">
             <span className="p-display preset-title">{preset.name}</span>{' '}
@@ -531,10 +539,10 @@ export default function PrismApp({ initialQuery }: { initialQuery: string }) {
 
       {fail && (
         <div className="state state-error" role="alert">
-          <h2 className="p-display">{text.errorTitle}</h2>
-          <p>{text.errorBody}</p>
-          <p className="p-data state-detail">live: {fail.liveError ?? fail.message}{fail.liveError ? ` · snapshot: ${fail.message}` : ''}</p>
-          <button type="button" className="btn" onClick={() => setAttempt((a) => a + 1)}>{text.retry}</button>
+          <h2 className="p-display">{fail.noCoverage ? text.emptyTitle : fail.liveError === LIVE_OFF ? text.liveOffTitle : text.errorTitle}</h2>
+          <p>{fail.noCoverage ? text.emptyBody : fail.liveError === LIVE_OFF ? text.liveOffBody : text.errorBody}</p>
+          <p className="p-data state-detail">{fail.liveError === LIVE_OFF ? `snapshot: ${fail.message}` : `live: ${fail.liveError ?? fail.message}${fail.liveError ? ` · snapshot: ${fail.message}` : ''}`}</p>
+          {fail.liveError !== LIVE_OFF && <button type="button" className="btn" onClick={() => setAttempt((a) => a + 1)}>{text.retry}</button>}
         </div>
       )}
 
@@ -592,6 +600,11 @@ export default function PrismApp({ initialQuery }: { initialQuery: string }) {
             </div>
             <p className="mode-help">{text.modeHelp[mode]}</p>
 
+            {mode === 'cube' ? (
+              <div className="cube-wrap" data-cube>
+                <SpectralCube3D frames={cubeFrames} current={currentIndex} onSelect={select} locale={url.lang} height="min(70vh, 640px)" />
+              </div>
+            ) : (
             <SkyCanvas
               grid={search.grid}
               image={view.image}
@@ -614,6 +627,7 @@ export default function PrismApp({ initialQuery }: { initialQuery: string }) {
               text={text}
               onProbe={onProbe}
             />
+            )}
 
             <div className="layers" role="group" aria-label={text.overlays}>
               <span className="p-label">{text.overlays}</span>

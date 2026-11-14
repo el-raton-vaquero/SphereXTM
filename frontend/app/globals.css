@@ -20,8 +20,8 @@
   --radius-lg: 8px;
 
   /* Tipografía */
-  --font-display: "DM Serif Display", Georgia, serif;
-  --font-body: "Inter", system-ui, -apple-system, sans-serif;
+  --font-display: var(--font-classic-display, "DM Serif Display"), Georgia, serif;
+  --font-body: var(--font-classic-body, "Inter"), system-ui, -apple-system, sans-serif;
 
   /* Escala tipográfica (5 niveles exactos) */
   --text-display: clamp(1.75rem, 5.5vw, 3.2rem);

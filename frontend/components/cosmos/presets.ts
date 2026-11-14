@@ -1,12 +1,9 @@
 /**
- * Hard-coded fly-to presets for /cosmos.
- *
- * Coordinates were resolved on 2026-11-14 with CDS Sesame (SIMBAD, ICRS,
- * epoch J2000.0) except WISE 0855, which uses the position given in the
- * Space Apps challenge statement (08h55m10.831s −07°14′42.53″, the WISE-era
- * detection; SIMBAD's J2000 back-propagated position differs by ~1.4′ because
- * of its 8″/yr proper motion). The integrator reconciles these with
- * GET /v2/targets; the backend list is authoritative for science.
+ * Fly-to presets for the 3D landing. ra/dec are copied from
+ * server/spherex/data/prism-targets.json (the GET /v2/targets source: Gaia DR3 / SIMBAD
+ * resolved live, propagated with astropy apply_space_motion to MJD 61000 = 2025-11-21), so
+ * the landing, the explorer presets and the cached snapshots share one field centre.
+ * These are catalogue predictions, not detections.
  */
 export type CosmosPresetId = 'barnard' | 'eps-indi-b' | 'wise-0855' | 'rw-aur' | 'r-dra' | 'm101';
 
@@ -24,54 +21,54 @@ export const COSMOS_PRESETS: CosmosPreset[] = [
   {
     id: 'barnard',
     name: "Barnard's Star",
-    ra: 269.45207696,
-    dec: 4.69336497,
-    epoch: 'J2000 · SIMBAD',
+    ra: 269.4462920,
+    dec: 4.7678988,
+    epoch: 'MJD 61000 · /v2/targets',
     aliases: ['barnard', 'estrella de barnard', "barnard's star", 'gj 699'],
     kind: { es: 'movimiento propio 10.4″/año', en: 'proper motion 10.4″/yr' },
   },
   {
     id: 'eps-indi-b',
     name: 'ε Indi B',
-    ra: 331.04414659,
-    dec: -56.7828442,
-    epoch: 'J2000 · SIMBAD',
+    ra: 331.0964267,
+    dec: -56.8005859,
+    epoch: 'MJD 61000 · /v2/targets',
     aliases: ['eps indi b', 'epsilon indi b', 'eps ind b', 'ε indi b'],
     kind: { es: 'enanas marrones binarias', en: 'binary brown dwarfs' },
   },
   {
     id: 'wise-0855',
     name: 'WISE 0855−0714',
-    ra: 133.795129,
-    dec: -7.245147,
-    epoch: 'reto Space Apps (época WISE)',
+    ra: 133.7600206,
+    dec: -7.2422032,
+    epoch: 'MJD 61000 · /v2/targets',
     aliases: ['wise 0855', 'wise0855', 'wise j085510.83-071442.5', 'wise 0855-0714'],
     kind: { es: 'enana marrón fría, 8.1″/año', en: 'cold brown dwarf, 8.1″/yr' },
   },
   {
     id: 'rw-aur',
     name: 'RW Aurigae',
-    ra: 76.95652603,
-    dec: 30.40143817,
-    epoch: 'J2000 · SIMBAD',
+    ra: 76.9565863,
+    dec: 30.4012920,
+    epoch: 'MJD 61000 · /v2/targets',
     aliases: ['rw aur', 'rw aurigae'],
     kind: { es: 'variable T Tauri', en: 'T Tauri variable' },
   },
   {
     id: 'r-dra',
     name: 'R Draconis',
-    ra: 248.16761083,
-    dec: 66.75497942,
-    epoch: 'J2000 · SIMBAD',
+    ra: 248.1672347,
+    dec: 66.7550236,
+    epoch: 'MJD 61000 · /v2/targets',
     aliases: ['r dra', 'r draconis'],
     kind: { es: 'variable Mira', en: 'Mira variable' },
   },
   {
     id: 'm101',
     name: 'M101',
-    ra: 210.80242917,
-    dec: 54.34875,
-    epoch: 'J2000 · SIMBAD',
+    ra: 210.8024292,
+    dec: 54.3487500,
+    epoch: 'MJD 61000 · /v2/targets',
     aliases: ['m101', 'm 101', 'ngc 5457', 'pinwheel', 'molinete'],
     kind: { es: 'galaxia espiral (fija)', en: 'spiral galaxy (static)' },
   },

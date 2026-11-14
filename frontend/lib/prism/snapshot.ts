@@ -3,7 +3,7 @@
 // "Real SPHEREx data — cached snapshot <date>" in the UI and never mixed with live results.
 import { angularSepArcsec } from './coords';
 import { decodeSearch } from './decode';
-import type { Progress, SearchResult, Snapshot } from './types';
+import type { Progress, SearchResult, Snapshot, WireSearch } from './types';
 
 export interface SnapshotIndexEntry { id: string; name: string; ra: number; dec: number; fov: number; generated_utc: string; n_frames: number }
 
@@ -58,7 +58,13 @@ export async function loadSnapshot(id: string, onProgress: (p: Progress) => void
   } else {
     text = await res.text();
   }
-  const snapshot = JSON.parse(text) as Snapshot;
-  if (snapshot.kind !== 'prism-snapshot' || !snapshot.search) throw new Error(`snapshot ${id}: unexpected format`);
+  const raw = JSON.parse(text) as Snapshot | (WireSearch & { snapshot?: { generated_utc?: string }; target?: { name?: string } });
+  // Accept both the wrapped format and a bare /v2/search payload (cache='snapshot').
+  const snapshot: Snapshot = 'kind' in raw && raw.kind === 'prism-snapshot'
+    ? raw
+    : 'frames' in raw && Array.isArray(raw.frames)
+      ? { kind: 'prism-snapshot', version: 1, id, name: raw.target?.name ?? id, generated_utc: raw.snapshot?.generated_utc ?? raw.provenance.generated_utc, search: raw }
+      : (() => { throw new Error(`snapshot ${id}: unexpected format`); })();
+  if (!snapshot.search) throw new Error(`snapshot ${id}: unexpected format`);
   return { snapshot, search: decodeSearch(snapshot.search) };
 }

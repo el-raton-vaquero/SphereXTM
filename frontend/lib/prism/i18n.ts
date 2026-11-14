@@ -20,6 +20,9 @@ const es = {
   originLive: 'Datos reales SPHEREx · en vivo desde IRSA',
   originSnapshot: (d: string) => `Datos reales SPHEREx · instantánea en caché ${d}`,
   liveDown: (r: string) => `API en vivo no disponible (${r}); se muestra una instantánea real guardada.`,
+  liveOffSnapshot: 'Despliegue estático: la búsqueda en vivo necesita el servidor científico. Se muestra una instantánea real guardada.',
+  liveOffTitle: 'La búsqueda en vivo necesita el servidor científico',
+  liveOffBody: 'Este despliegue es estático y sólo incluye instantáneas reales de los seis objetivos predefinidos. Para cualquier otra posición, ejecute el servidor FastAPI (ver docs/deploy.md) o configure NEXT_PUBLIC_PRISM_API_BASE. No se sustituyen datos sintéticos.',
   loading: 'Consultando el archivo',
   stage: { query: 'Consulta SIA2', download: 'Descargando recortes', reproject: 'Reproyectando', snapshot: 'Leyendo instantánea', done: 'Listo' } as Record<string, string>,
   emptyTitle: 'Sin cobertura',
@@ -28,13 +31,14 @@ const es = {
   errorBody: 'El servicio en vivo falló y no hay instantánea guardada para esta posición. No se sustituyen datos sintéticos.',
   retry: 'Reintentar',
   saturated: (k: number, n: number) => `Saturado en ${k} de ${n} cuadros (OVERFLOW en el centro). Posiciones y flujos del núcleo no son fiables: esto es una limitación real del instrumento.`,
-  modes: { frame: 'Cuadro', coadd: 'Co-suma', diff: 'Diferencia', goggles: 'Gafas', raw: 'Secuencia cruda' },
+  modes: { frame: 'Cuadro', coadd: 'Co-suma', diff: 'Diferencia', goggles: 'Gafas', raw: 'Secuencia cruda', cube: 'Cubo 3D' },
   modeHelp: {
     frame: 'Un solo cuadro calibrado, tal como lo midió el detector.',
     coadd: 'Mediana de los cuadros del mismo detector en esta temporada. Mezcla longitudes de onda dentro del detector.',
     diff: 'Temporada actual menos temporada de referencia, a λ emparejada (±½ ancho de banda). Fondo restado en cada cuadro.',
     goggles: 'Profundidad de banda molecular: 1 − F_banda / F_continuo, interpolado entre dos ventanas.',
     raw: 'Todos los cuadros en orden cronológico: color y movimiento mezclados. Lo que “cambia” aquí es casi siempre la longitud de onda, no el objeto.',
+    cube: 'Cada cuadro es una lámina apilada en un eje real de λ o de tiempo. Arrastre para orbitar; clic o ←/→ para elegir lámina.',
   },
   stretch: 'Escala',
   overlays: 'Capas',
@@ -94,7 +98,7 @@ const es = {
   zoom: 'Zoom',
   gogglesNeed: (c: { band: number; blue: number; red: number }) => `Cobertura insuficiente: banda ${c.band}, continuo azul ${c.blue}, rojo ${c.red} cuadros. Se necesitan ≥1 en cada ventana.`,
   predictedLegend: 'Anillos = posiciones de catálogo PREDICHAS para la fecha del cuadro, no detecciones.',
-  keyboard: 'Teclado: ←/→ tiempo · ↑/↓ λ · espacio reproducir · 1–5 modos · +/− zoom',
+  keyboard: 'Teclado: ←/→ tiempo · ↑/↓ λ · espacio reproducir · 1–6 modos · +/− zoom',
 };
 
 type Dict = typeof es;
@@ -117,6 +121,9 @@ const en: Dict = {
   originLive: 'Real SPHEREx data · live from IRSA',
   originSnapshot: (d: string) => `Real SPHEREx data — cached snapshot ${d}`,
   liveDown: (r: string) => `Live API unavailable (${r}); showing a saved real snapshot.`,
+  liveOffSnapshot: 'Static deployment: live search needs the science server. Showing a cached real snapshot.',
+  liveOffTitle: 'Live search needs the science server',
+  liveOffBody: 'This deployment is static and only includes real snapshots of the six presets. For any other position, run the FastAPI server (see docs/deploy.md) or set NEXT_PUBLIC_PRISM_API_BASE. No synthetic data is substituted.',
   loading: 'Querying the archive',
   stage: { query: 'SIA2 query', download: 'Downloading cutouts', reproject: 'Reprojecting', snapshot: 'Reading snapshot', done: 'Done' },
   emptyTitle: 'No coverage',
@@ -125,13 +132,14 @@ const en: Dict = {
   errorBody: 'The live service failed and there is no saved snapshot for this position. No synthetic data is substituted.',
   retry: 'Retry',
   saturated: (k: number, n: number) => `Saturated in ${k} of ${n} frames (OVERFLOW at centre). Core positions and fluxes are unreliable: a real instrument limit.`,
-  modes: { frame: 'Frame', coadd: 'Co-add', diff: 'Difference', goggles: 'Goggles', raw: 'Raw sequence' },
+  modes: { frame: 'Frame', coadd: 'Co-add', diff: 'Difference', goggles: 'Goggles', raw: 'Raw sequence', cube: '3D cube' },
   modeHelp: {
     frame: 'One calibrated frame, as the detector measured it.',
     coadd: 'Median of same-detector frames in this season. Mixes wavelengths within the detector.',
     diff: 'Current season minus reference season at matched λ (±½ bandwidth). Background removed per frame.',
     goggles: 'Molecular band depth: 1 − F_band / F_continuum, interpolated between two windows.',
     raw: 'Every frame in time order: colour and motion mixed. What “changes” here is almost always wavelength, not the object.',
+    cube: 'Each frame is a slice stacked on a true-scale λ or time axis. Drag to orbit; click or ←/→ to pick a slice.',
   },
   stretch: 'Stretch',
   overlays: 'Layers',
@@ -191,7 +199,7 @@ const en: Dict = {
   zoom: 'Zoom',
   gogglesNeed: (c: { band: number; blue: number; red: number }) => `Insufficient coverage: band ${c.band}, blue continuum ${c.blue}, red ${c.red} frames. Needs ≥1 in each window.`,
   predictedLegend: 'Rings = catalogue positions PREDICTED for the frame date, not detections.',
-  keyboard: 'Keys: ←/→ time · ↑/↓ λ · space play · 1–5 modes · +/− zoom',
+  keyboard: 'Keys: ←/→ time · ↑/↓ λ · space play · 1–6 modes · +/− zoom',
 };
 
 export const PRISM_TEXT: Record<Locale, Dict> = { es, en };

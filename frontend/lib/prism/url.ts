@@ -12,7 +12,7 @@ export interface UrlState {
   lang: 'es' | 'en';
 }
 
-const MODES: ViewMode[] = ['frame', 'coadd', 'diff', 'goggles', 'raw'];
+const MODES: ViewMode[] = ['frame', 'coadd', 'diff', 'goggles', 'raw', 'cube'];
 
 export function readUrl(search: string): UrlState {
   const p = new URLSearchParams(search);

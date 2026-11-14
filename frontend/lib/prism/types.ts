@@ -176,6 +176,6 @@ export type DataOrigin =
   | { kind: 'live' }
   | { kind: 'snapshot'; id: string; generated: string };
 
-export type ViewMode = 'frame' | 'coadd' | 'diff' | 'goggles' | 'raw';
+export type ViewMode = 'frame' | 'coadd' | 'diff' | 'goggles' | 'raw' | 'cube';
 
 export interface Progress { stage: string; done?: number; total?: number; message?: string }

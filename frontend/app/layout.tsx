@@ -1,10 +1,19 @@
 import type { Metadata } from "next";
+import { DM_Serif_Display, IBM_Plex_Mono, IBM_Plex_Sans, Instrument_Serif, Inter } from "next/font/google";
 import "./tailwind.css";
 import "./globals.css";
 
+// PRISM type system (prism-tokens.css): Instrument Serif / IBM Plex Sans / IBM Plex Mono.
+const display = Instrument_Serif({ subsets: ["latin"], weight: "400", style: ["normal", "italic"], variable: "--p-font-display-loaded", display: "swap" });
+const body = IBM_Plex_Sans({ subsets: ["latin"], weight: ["400", "500", "600"], variable: "--p-font-body-loaded", display: "swap" });
+const data = IBM_Plex_Mono({ subsets: ["latin"], weight: ["400", "500"], variable: "--p-font-data-loaded", display: "swap" });
+// Classic observatory (/classic) keeps its original faces.
+const classicDisplay = DM_Serif_Display({ subsets: ["latin"], weight: "400", style: ["normal", "italic"], variable: "--font-classic-display", display: "swap" });
+const classicBody = Inter({ subsets: ["latin"], weight: ["400", "500", "600", "700"], variable: "--font-classic-body", display: "swap" });
+
 export const metadata: Metadata = {
-  title: "SPHEREx Time Machine | Compara el cielo infrarrojo",
-  description: "Compara observaciones infrarrojas de SPHEREx tomadas en distintas fechas, con procedencia científica y simulación educativa separadas.",
+  title: "PRISM · SPHEREx Time Machine",
+  description: "Cada cuadro de SPHEREx es de un color distinto. PRISM separa color y movimiento con observaciones reales de SPHEREx (NASA/IPAC IRSA).",
 };
 
 export default function RootLayout({
@@ -12,19 +21,9 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const fonts = [display, body, data, classicDisplay, classicBody].map((f) => f.variable).join(" ");
   return (
-    <html lang="es" className="h-full">
-      <head>
-        {/* Preconnect */}
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        {/* Fuente display: DM Serif Display (serif) */}
-        {/* Fuente body: Inter (humanista sans) */}
-        <link
-          href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Inter:wght@400;500;600;700&display=swap"
-          rel="stylesheet"
-        />
-      </head>
+    <html lang="es" className={`h-full ${fonts}`}>
       <body
         style={{
           minHeight: "100%",

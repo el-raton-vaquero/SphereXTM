@@ -19,7 +19,7 @@ export function Header({onOpenEmbed,onOpenHelp,onSwitchView}:{onOpenEmbed:()=>vo
  <button onClick={share}>Compartir</button>
  <span className={real?'origin real':'origin simulation'}>{real?text.real:text.mock}</span>
  <details className="secondary-menu" onKeyDown={e=>{if(e.key==='Escape'){e.currentTarget.open=false;e.currentTarget.querySelector('summary')?.focus();}}}><summary aria-label="Más opciones">•••</summary><div>
- <label>Origen<select aria-label="Origen de los datos" value={real?'real':'mock'} onChange={e=>location.assign(new URL(`?api=${e.target.value}&lang=${locale}`,location.origin).href)}><option value="real">Datos reales</option><option value="mock">Simulación</option></select></label>
+ <label>Origen<select aria-label="Origen de los datos" value={real?'real':'mock'} onChange={e=>location.assign(new URL(`/classic?api=${e.target.value}&lang=${locale}`,location.origin).href)}><option value="real">Datos reales</option><option value="mock">Simulación</option></select></label>
  <button onClick={onOpenEmbed}>Insertar en otra web</button><button onClick={onOpenHelp}>Atajos de teclado</button><button onClick={()=>spherexStore.toggleAudioMute()}>{isAudioMuted?'Activar sonido':'Silenciar sonido'}</button>
  <p>{text.purpose}</p><span role="status">{message}</span></div></details>
  </div>{message&&<div className="header-feedback" role="status"><button onClick={()=>setMessage('')} aria-label="Cerrar mensaje">×</button>{message}</div>}

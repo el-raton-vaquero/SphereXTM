@@ -269,7 +269,7 @@ export default function CosmosLanding() {
       <header className="cz-top">
         <div className="cz-brand p-data">
           <span>PRISM</span>
-          <span className="cz-dim">/cosmos</span>
+          <a className="cz-dim cz-classic" href="/classic">{locale === 'es' ? 'versión clásica' : 'classic view'}</a>
         </div>
         <div className="cz-top-r">
           {use3d && (

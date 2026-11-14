@@ -236,3 +236,5 @@
 .cz-cube-error p { margin: 0 0 6px; }
 .cz-cube-page .cz-ghost { font-family: var(--p-font-data); font-size: 11px; color: var(--p-ink); background: none; border: 0; border-bottom: 1px solid var(--p-rule-2); padding: 6px 2px; cursor: pointer; }
 .cz-cube-loading { height: 420px; display: grid; place-items: center; color: var(--p-ink-3); border: 1px solid var(--p-rule); }
+.cz-classic { text-decoration: none; border-bottom: 1px solid var(--p-rule-2); pointer-events: auto; }
+.cz-classic:hover, .cz-classic:focus-visible { color: var(--p-ink-2); }

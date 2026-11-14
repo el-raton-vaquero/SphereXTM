@@ -6,14 +6,21 @@ import type {
 } from './types';
 
 export const API_BASE = (process.env.NEXT_PUBLIC_PRISM_API_BASE || '/api/v2').replace(/\/$/, '');
+/**
+ * Live API available? Set at build time by next.config.ts: true when NEXT_PUBLIC_PRISM_API_BASE or
+ * SPHEREX_API_INTERNAL_URL is configured, or outside Vercel (local dev proxies /api to :8000).
+ * A static Vercel build without a backend serves only the labelled real snapshots.
+ */
+export const LIVE_ENABLED = process.env.NEXT_PUBLIC_PRISM_LIVE !== '0';
 
 export class ApiError extends Error {
-  constructor(message: string, readonly status: number | null, readonly kind: 'network' | 'http' | 'contract' | 'timeout' | 'aborted') {
+  constructor(message: string, readonly status: number | null, readonly kind: 'network' | 'http' | 'contract' | 'timeout' | 'aborted' | 'disabled', readonly errorType?: string) {
     super(message);
   }
   /** True when the service itself is unreachable/broken (snapshot fallback is acceptable, with a label). */
   get unavailable() {
-    return this.kind === 'network' || this.kind === 'timeout' || (this.status !== null && (this.status >= 500 || this.status === 404));
+    if (this.errorType === 'no_coverage' || this.errorType === 'invalid_parameter') return false;
+    return this.kind === 'disabled' || this.kind === 'network' || this.kind === 'timeout' || (this.status !== null && (this.status >= 500 || this.status === 404));
   }
 }
 
@@ -24,6 +31,7 @@ function qs(params: Record<string, string | number | undefined | null>) {
 }
 
 async function getJson<T>(path: string, params: Record<string, string | number | undefined | null>, opts: { signal?: AbortSignal; timeoutMs?: number } = {}): Promise<T> {
+  if (!LIVE_ENABLED) throw new ApiError(`${path}: live API not configured in this deployment`, null, 'disabled');
   const ctrl = new AbortController();
   const timeout = setTimeout(() => ctrl.abort('timeout'), opts.timeoutMs ?? 45000);
   const onAbort = () => ctrl.abort('aborted');
@@ -41,11 +49,13 @@ async function getJson<T>(path: string, params: Record<string, string | number |
   }
   if (!res.ok) {
     let detail = res.statusText;
+    let errorType: string | undefined;
     try {
       const body = await res.json();
+      errorType = typeof body?.error_type === 'string' ? body.error_type : undefined;
       detail = typeof body?.detail === 'string' ? body.detail : JSON.stringify(body?.detail ?? body).slice(0, 240);
     } catch { /* not JSON (e.g. proxy error page) */ }
-    throw new ApiError(`${path}: HTTP ${res.status} — ${detail}`, res.status, 'http');
+    throw new ApiError(`${path}: HTTP ${res.status} — ${detail}`, res.status, 'http', errorType);
   }
   try {
     return (await res.json()) as T;
@@ -62,6 +72,7 @@ export interface SearchParams { ra: number; dec: number; fov: number; max_frames
  * `result` event carrying the /v2/search payload, or `error` ({detail}).
  */
 export async function searchLive(p: SearchParams, onProgress: (p: Progress) => void, signal: AbortSignal): Promise<SearchResult> {
+  if (!LIVE_ENABLED) throw new ApiError('/search: live API not configured in this deployment', null, 'disabled');
   const params = { ra: p.ra.toFixed(6), dec: p.dec.toFixed(6), fov: p.fov, max_frames: p.max_frames ?? 60, collections: p.collections };
   if (typeof EventSource !== 'undefined') {
     try {
@@ -98,7 +109,8 @@ function streamSearch(params: Record<string, string | number | undefined>, onPro
       const d = data as Record<string, unknown>;
       if (type === 'error' || (d && typeof d.detail === 'string' && !d.frames)) {
         close();
-        reject(new ApiError(`/search/stream: ${String(d.detail ?? 'error')}`, 500, 'http'));
+        const status = typeof d.status_code === 'number' ? d.status_code : 500;
+        reject(new ApiError(`/search/stream: ${String(d.detail ?? 'error')}`, status, 'http', typeof d.error_type === 'string' ? d.error_type : undefined));
       } else if (d && Array.isArray(d.frames)) {
         close();
         resolve(d as unknown as WireSearch);

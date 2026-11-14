@@ -22,7 +22,7 @@ export function EmbedModal({ isOpen, onClose }: EmbedModalProps) {
   if (!isOpen) return null;
 
   const origin = typeof window !== 'undefined' ? window.location.origin : 'https://spherex-timemachine.org';
-  const embedUrl = `${origin}/?api=${isRealApiActive() ? "real" : "mock"}&ra=${target.ra.toFixed(4)}&dec=${target.dec.toFixed(4)}&fov=${fov}&mode=${mode}&ep=${currentEpoch}&embed=1`;
+  const embedUrl = `${origin}/classic?api=${isRealApiActive() ? "real" : "mock"}&ra=${target.ra.toFixed(4)}&dec=${target.dec.toFixed(4)}&fov=${fov}&mode=${mode}&ep=${currentEpoch}&embed=1`;
   const iframeCode = `<iframe \n  src="${embedUrl}" \n  width="${width}" \n  height="${height}" \n  frameborder="0" \n  allow="accelerometer; autoplay; clipboard-write; encrypted-media" \n  allowfullscreen\n></iframe>`;
 
   const copyCode = () => {

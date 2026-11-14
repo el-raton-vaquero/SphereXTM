@@ -38,9 +38,9 @@
   --p-l5: #f29a3e;  /* D5 3.83–4.41 µm */
   --p-l6: #e5533d;  /* D6 4.42–5.00 µm */
 
-  --p-font-display: "Instrument Serif", "Times New Roman", serif;
-  --p-font-body: "IBM Plex Sans", system-ui, sans-serif;
-  --p-font-data: "IBM Plex Mono", ui-monospace, monospace;
+  --p-font-display: var(--p-font-display-loaded, "Instrument Serif"), "Times New Roman", serif;
+  --p-font-body: var(--p-font-body-loaded, "IBM Plex Sans"), system-ui, sans-serif;
+  --p-font-data: var(--p-font-data-loaded, "IBM Plex Mono"), ui-monospace, monospace;
 
   --p-r: 2px;                 /* one radius. Instruments have corners. */
   --p-gap: 8px;               /* 8px grid */

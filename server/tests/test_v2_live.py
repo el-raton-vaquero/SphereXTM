@@ -211,7 +211,7 @@ def test_search_end_to_end_offline(monkeypatch):
         rows.append(r)
 
     def fake_discover(ra, dec, collections, **_):
-        return rows, ["https://irsa.ipac.caltech.edu/SIA?test"], False
+        return rows, ["https://irsa.ipac.caltech.edu/SIA?test"], False, []
 
     def fake_load(row, ra, dec, half_px, client=None):
         cut = live.load_native_s3(truth["row"], ra, dec, half_px, FakeClient(blob))
@@ -244,7 +244,7 @@ def test_search_end_to_end_offline(monkeypatch):
 
 
 def test_search_reports_total_failure_transparently(monkeypatch):
-    monkeypatch.setattr(live, "discover", lambda *a, **k: ([_row("o1", 2, 60000)], ["q"], False))
+    monkeypatch.setattr(live, "discover", lambda *a, **k: ([_row("o1", 2, 60000)], ["q"], False, []))
 
     def boom(*a, **k):
         raise RuntimeError("S3 down")
@@ -256,7 +256,7 @@ def test_search_reports_total_failure_transparently(monkeypatch):
 
 
 def test_no_coverage_is_404(monkeypatch):
-    monkeypatch.setattr(live, "discover", lambda *a, **k: ([], ["q"], False))
+    monkeypatch.setattr(live, "discover", lambda *a, **k: ([], ["q"], False, []))
     with pytest.raises(live.LiveError) as err:
         live.search(150.0, 2.0)
     assert err.value.status_code == 404 and err.value.error_type == "no_coverage"
@@ -282,19 +282,35 @@ def test_discover_caches_and_surfaces_archive_errors(monkeypatch):
         calls.append(url)
         return xml
 
-    rows, urls, cached = live.discover(1.0, 2.0, ("spherex_dr1",), fetch=fetch)
+    rows, urls, cached, errs = live.discover(1.0, 2.0, ("spherex_dr1",), fetch=fetch)
     assert len(rows) == 1 and not cached and len(calls) == 1
-    rows, urls, cached = live.discover(1.0, 2.0, ("spherex_dr1",), fetch=fetch)
+    rows, urls, cached, errs = live.discover(1.0, 2.0, ("spherex_dr1",), fetch=fetch)
     assert cached and len(calls) == 1
 
     def fail(url, limit, timeout):
         raise RuntimeError("HTTP 502")
 
     with pytest.raises(live.LiveError) as err:
-        live.discover(3.0, 4.0, ("spherex_dr1",), fetch=fail)
+        live.discover(3.0, 4.0, ("spherex_dr1",), fetch=fail, retry_sleep=0)
     assert err.value.status_code == 502
     with pytest.raises(live.LiveError):
         live.discover(3.0, 4.0, ("spherex_qr2",), fetch=fetch)
+
+    # Transient failure is retried; a persistently failing collection is reported, not hidden.
+    flaky = {"n": 0}
+
+    def flaky_fetch(url, limit, timeout):
+        if "spherex_qr3" in url:
+            raise RuntimeError("HTTP 502: Proxy Error")
+        flaky["n"] += 1
+        if flaky["n"] == 1:
+            raise RuntimeError("HTTP 503")
+        return xml
+
+    rows, urls, cached, errs = live.discover(5.0, 6.0, ("spherex_dr1", "spherex_qr3"),
+                                             fetch=flaky_fetch, retry_sleep=0)
+    assert len(rows) == 1 and flaky["n"] == 2
+    assert len(errs) == 1 and errs[0]["collection"] == "spherex_qr3" and "502" in errs[0]["error"]
 
 
 def test_prune_cache_respects_limit(tmp_path):

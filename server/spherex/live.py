@@ -201,10 +201,20 @@ def sia_url(ra: float, dec: float, collection: str, radius_deg: float = SIA_CONE
                                       "MAXREC": 2000})
 
 
+SIA_ATTEMPTS = 4
+
+
 def discover(ra: float, dec: float, collections=COLLECTIONS, timeout: float = 60.0,
-             fetch=fetch_bytes, use_cache: bool = True) -> tuple[list[dict], list[str], bool]:
-    """Return (rows, query_urls, all_from_cache). Raises LiveError on archive failure."""
-    rows, urls, cached_all = [], [], True
+             fetch=fetch_bytes, use_cache: bool = True,
+             retry_sleep: float = 1.5) -> tuple[list[dict], list[str], bool, list[dict]]:
+    """Return (rows, query_urls, all_from_cache, collection_errors).
+
+    IRSA intermittently answers HTTP 502/503; each collection is retried with backoff.
+    If some collections still fail, the others are returned and the failures are
+    reported explicitly (a failed query is never treated as "no observations").
+    Raises LiveError if every collection fails.
+    """
+    rows, urls, cached_all, errors = [], [], True, []
     for collection in collections:
         if collection not in COLLECTIONS:
             raise LiveError(422, "unsupported_collection",
@@ -212,26 +222,36 @@ def discover(ra: float, dec: float, collections=COLLECTIONS, timeout: float = 60
         url = sia_url(ra, dec, collection)
         urls.append(url)
         path = cache_root() / "sia" / f"{_sha(url)}.xml"
-        data, fresh = None, False
         if use_cache and path.exists() and time.time() - path.stat().st_mtime < SIA_TTL_SECONDS:
-            data = path.read_bytes()
-        if data is None:
-            cached_all = False
-            fresh = True
+            try:
+                rows.extend(parse_sia(path.read_bytes()))
+                continue
+            except Exception:  # noqa: BLE001 - corrupt cache: refetch
+                pass
+        cached_all = False
+        last = None
+        for attempt in range(SIA_ATTEMPTS):
             try:
                 data = fetch(url, MAX_QUERY_BYTES, timeout)
-            except Exception as exc:  # noqa: BLE001 - surfaced transparently
-                raise LiveError(502, "archive_unavailable",
-                                f"IRSA SIA2 query failed for {collection}: {exc}", query_url=url)
-        try:
-            parsed = parse_sia(data)
-        except Exception as exc:  # noqa: BLE001
-            raise LiveError(502, "archive_error", f"IRSA SIA2 response not usable: {exc}",
-                            query_url=url)
-        if fresh:  # only validated, complete responses are cached
-            _atomic_write(path, data)
-        rows.extend(parsed)
-    return dedupe_rows(rows), urls, cached_all
+                parsed = parse_sia(data)
+            except Exception as exc:  # noqa: BLE001 - retried, then surfaced transparently
+                last = exc
+                if attempt + 1 < SIA_ATTEMPTS:
+                    time.sleep(retry_sleep * (2 ** attempt))
+                continue
+            _atomic_write(path, data)  # only validated, complete responses are cached
+            rows.extend(parsed)
+            last = None
+            break
+        if last is not None:
+            errors.append({"collection": collection, "query_url": url,
+                           "error": f"{type(last).__name__}: {last}"})
+    if errors and len(errors) == len(collections):
+        raise LiveError(502, "archive_unavailable",
+                        "IRSA SIA2 discovery failed for every requested collection "
+                        "(archive/network error, not absence of data).",
+                        collection_errors=errors, query_urls=urls)
+    return dedupe_rows(rows), urls, cached_all, errors
 
 
 def dedupe_rows(rows: list[dict]) -> list[dict]:
@@ -845,8 +865,13 @@ def search(ra: float, dec: float, fov: float = FOV_DEFAULT, max_frames: int = MA
     emit = progress or (lambda _e: None)
     collections = tuple(dict.fromkeys(collections))
     emit({"stage": "discovery", "message": "Querying IRSA SIA2", "collections": list(collections)})
-    rows, query_urls, sia_cached = discover(ra, dec, collections, use_cache=use_cache)
+    rows, query_urls, sia_cached, collection_errors = discover(ra, dec, collections, use_cache=use_cache)
     if not rows:
+        if collection_errors:
+            raise LiveError(502, "archive_unavailable",
+                            "Some IRSA SIA2 queries failed and the rest returned no products; "
+                            "absence of data cannot be concluded.",
+                            collection_errors=collection_errors, query_urls=query_urls)
         raise LiveError(404, "no_coverage",
                         "IRSA SIA2 returned no SPHEREx Level 2 products covering this position "
                         f"in {list(collections)} (a completed query, not a network failure).",
@@ -939,6 +964,7 @@ def search(ra: float, dec: float, fov: float = FOV_DEFAULT, max_frames: int = MA
             "transfer_bytes": client.bytes_transferred,
             "transfer_requests": client.requests,
             "errors": errors,
+            "collection_errors": collection_errors,
             "limitations": LIMITATIONS,
             "generated_utc": datetime.now(timezone.utc).isoformat(),
             "elapsed_s": round(elapsed, 2),
@@ -967,7 +993,7 @@ def native_frames(ra: float, dec: float, half_px: int = 8, max_frames: int = MAX
     if not (1 <= half_px <= 64):
         raise LiveError(422, "invalid_half_px", "half_px must be in [1, 64]")
     validate_params(ra, dec, FOV_DEFAULT, max(1, min(max_frames, MAX_FRAMES_LIMIT)))
-    rows, urls, _ = discover(ra, dec, collections)
+    rows, urls, _, _ = discover(ra, dec, collections)
     selected = select_rows(rows, max_frames)
     client = RangeClient()
     out, errors = [], []

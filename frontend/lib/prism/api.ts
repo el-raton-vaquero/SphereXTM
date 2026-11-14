@@ -143,7 +143,7 @@ export const fetchSkybot = (ra: number, dec: number, radiusArcmin: number, mjd: 
   getJson<SkybotResponse>('/skybot', { ra: ra.toFixed(6), dec: dec.toFixed(6), radius_arcmin: radiusArcmin.toFixed(2), mjd: mjd.toFixed(5) }, { signal, timeoutMs: 30000 });
 
 export const fetchSpectrum = (ra: number, dec: number, aperture = 9, signal?: AbortSignal) =>
-  getJson<SpectrumResponse>('/spectrum', { ra: ra.toFixed(6), dec: dec.toFixed(6), aperture_arcsec: aperture }, { signal, timeoutMs: 90000 });
+  getJson<SpectrumResponse>('/spectrum', { ra: ra.toFixed(6), dec: dec.toFixed(6), aperture_arcsec: aperture }, { signal, timeoutMs: 150000 });
 
 export const fetchVerdict = (ra: number, dec: number, fov: number, signal?: AbortSignal) =>
-  getJson<VerdictResponse>('/verdict', { ra: ra.toFixed(6), dec: dec.toFixed(6), fov }, { signal, timeoutMs: 90000 });
+  getJson<VerdictResponse>('/verdict', { ra: ra.toFixed(6), dec: dec.toFixed(6), fov }, { signal, timeoutMs: 150000 });

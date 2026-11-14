@@ -148,13 +148,22 @@ class LiveFrameSource:
         self._memo: OrderedDict[tuple, tuple[list[ScienceFrame], dict]] = OrderedDict()
         self._memo_size = memo_size
         self._lock = threading.Lock()
+        self._key_locks: dict[tuple, threading.Lock] = {}
 
     def fetch(self, ra: float, dec: float, fov_arcmin: float, max_frames: int) -> tuple[list[ScienceFrame], dict]:
+        max_frames = int(min(max(1, max_frames), live.MAX_FRAMES_LIMIT))
+        key = (round(ra, 6), round(dec, 6), NATIVE_HALF_PX, max_frames)
+        # Concurrent /v2/spectrum + /v2/verdict for one position: the second waits for the
+        # first download instead of starting its own.
+        with self._lock:
+            key_lock = self._key_locks.setdefault(key, threading.Lock())
+        with key_lock:
+            return self._fetch(ra, dec, key)
+
+    def _fetch(self, ra: float, dec: float, key: tuple) -> tuple[list[ScienceFrame], dict]:
         # One fixed native box (21x21 px, ~2.15 arcmin) covers the photometry annulus and
         # the centroid fit, so /v2/spectrum and /v2/verdict can share one download.
-        half_px = NATIVE_HALF_PX
-        max_frames = int(min(max(1, max_frames), live.MAX_FRAMES_LIMIT))
-        key = (round(ra, 6), round(dec, 6), half_px, max_frames)
+        half_px, max_frames = key[2], key[3]
         with self._lock:
             if key in self._memo:
                 self._memo.move_to_end(key)
@@ -194,7 +203,8 @@ class LiveFrameSource:
         with self._lock:
             self._memo[key] = (frames, report)
             while len(self._memo) > self._memo_size:
-                self._memo.popitem(last=False)
+                old_key, _ = self._memo.popitem(last=False)
+                self._key_locks.pop(old_key, None)
         return frames, report
 
     def __call__(self, ra, dec, fov_arcmin, max_frames):

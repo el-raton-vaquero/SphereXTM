@@ -15,6 +15,11 @@ const liveEnabled = Boolean(publicApi) || proxyEnabled;
 const nextConfig: NextConfig = {
   // Vercel builds its own output; standalone is for the Docker image (compose.yaml).
   output: onVercel ? undefined : "standalone",
+  experimental: {
+    // Cold /v2/spectrum and /v2/verdict take ~20-60 s (real IRSA downloads); the proxy
+    // default of 30 s would cut them off.
+    proxyTimeout: 180_000,
+  },
   env: {
     NEXT_PUBLIC_USE_REAL_API: process.env.NEXT_PUBLIC_USE_REAL_API || 'true',
     NEXT_PUBLIC_PRISM_LIVE: process.env.NEXT_PUBLIC_PRISM_LIVE || (liveEnabled ? '1' : '0'),

@@ -13,7 +13,7 @@ REGISTRY = Path(__file__).with_name('data') / 'm4-targets.json'
 
 
 def load_targets() -> dict[str, dict]:
-    return {target['id']: target for target in json.loads(REGISTRY.read_text())}
+    return {target['id']: target for target in json.loads(REGISTRY.read_text(encoding="utf-8"))}
 
 
 def predict(target: dict, mjd: float) -> SkyCoord:

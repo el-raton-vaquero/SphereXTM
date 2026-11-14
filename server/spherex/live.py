@@ -122,7 +122,15 @@ def _atomic_write(path: Path, data: bytes) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(path.suffix + f".{os.getpid()}.{threading.get_ident()}.tmp")
     tmp.write_bytes(data)
-    os.replace(tmp, path)
+    # Windows refuses os.replace while another thread has the target open or is
+    # replacing it; the cache is best-effort, so retry briefly and then skip caching.
+    for attempt in range(5):
+        try:
+            os.replace(tmp, path)
+            return
+        except PermissionError:
+            time.sleep(0.02 * (attempt + 1))
+    tmp.unlink(missing_ok=True)
 
 
 _prune_lock = threading.Lock()

@@ -42,7 +42,10 @@ class RealSpherexAPI implements SpherexAPI {
     if (q.targetName) {
       params.append('targetName', q.targetName);
     }
-    const resp = await fetch(`${this.baseUrl}/frames?${params.toString()}`, { signal });
+    const url = q.datasetId
+      ? `${this.baseUrl}/datasets/${encodeURIComponent(q.datasetId)}/frames`
+      : `${this.baseUrl}/frames?${params.toString()}`;
+    const resp = await fetch(url, { signal });
     if (!resp.ok) {
       let detailMsg = `HTTP ${resp.status} ${resp.statusText}`;
       try {
@@ -65,6 +68,18 @@ class RealSpherexAPI implements SpherexAPI {
       }
     }
     if (!Array.isArray(json.epochs) || !json.frames?.length) throw new Error('No hay observaciones disponibles');
+    if (q.datasetId && (json.dataset?.id !== q.datasetId || json.provenance?.data_origin !== 'observed_spherex')) {
+      throw new Error('Identidad del dataset científico incompatible');
+    }
+    if (q.datasetId && JSON.stringify(json.frames.map(f=>f.id)) !== JSON.stringify(json.dataset?.observationIds)) {
+      throw new Error('Identidad del par de observaciones incompatible');
+    }
+    if (json.catalogPredictions && (
+      json.catalogPredictions.kind !== 'catalog_predicted' || json.catalogPredictions.motionMeasured !== false ||
+      !json.catalogPredictions.positions.every(p =>
+        Number.isFinite(p.x) && Number.isFinite(p.y) && Number.isFinite(p.ra) && Number.isFinite(p.dec) &&
+        json.frames.some(f => f.id === p.obsId && f.epochIndex === p.epochIndex && f.mjd === p.mjd && f.date === p.date))
+    )) throw new Error('Predicciones de catálogo incompatibles');
     for (const f of json.frames) {
       if (!Number.isInteger(f.width) || !Number.isInteger(f.height) || f.width < 1 || f.height < 1 || f.pixelData.length !== f.width*f.height || !f.pixelData.every(Number.isFinite) || (f.validMask && (f.validMask.length !== f.pixelData.length || !f.validMask.every(v=>v===0||v===1))) || !json.epochs[f.epochIndex]) throw new Error('Respuesta científica incompatible');
     }
@@ -103,7 +118,7 @@ export const api: SpherexAPI = {
  async getFrames(q: Query, signal?: AbortSignal) {
   if(signal?.aborted)throw new DOMException('Cancelled','AbortError');
   const origin=isRealApiActive()?'real':'mock';
-  const key=JSON.stringify([origin,'/api/frames',q.ra,q.dec,q.fov,q.targetName]);
+   const key=JSON.stringify([origin,'/api/frames',q.datasetId,q.ra,q.dec,q.fov,q.targetName]);
   if(datasets.has(key)) { const value=datasets.get(key)!;datasets.delete(key);datasets.set(key,value);return value; }
   const result=await (origin==='real'?realApi:mockApi).getFrames(q,signal);
   if(signal?.aborted) throw new DOMException('Cancelled','AbortError');

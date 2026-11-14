@@ -1,0 +1,18 @@
+{
+  "base": "http://127.0.0.1:3000",
+  "checks": [
+    "M101 default: real 30x30 observations",
+    "wise0855-d6: identities 2025W19_1B_0116_1/2026W20_1A_0033_1 verified; overlays, side-by-side, blink and difference",
+    "barnard-d2: identities 2025W35_1A_0146_1/2026W34_1A_0363_1 verified; overlays, side-by-side, blink and difference",
+    "barnard-d6: identities 2025W33_2C_0321_1/2026W12_2A_0520_4 verified; overlays, side-by-side, blink and difference",
+    "m101: identities 2026W20_2A_0464_3/2026W26_1A_0500_1 verified; overlays, side-by-side, blink and difference",
+    "Mobile 390x844: deep link, UTC, masked-source warning, WISE/M101 selection and side-by-side; no horizontal overflow",
+    "Unavailable inventory + 503: explicit status/error, cleared epochs/overlays, no synthetic fallback",
+    "Mock: separate 256x256, four generated epochs; scientific cases hidden"
+  ],
+  "screenshots": [
+    "/tmp/opencode/m45-browser/m45-wise-desktop.png",
+    "/tmp/opencode/m45-browser/m45-barnard-mobile.png"
+  ],
+  "status": "passed"
+}

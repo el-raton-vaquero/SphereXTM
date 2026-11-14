@@ -13,6 +13,7 @@ export interface WCS {
   crval: [number, number];
   cdelt: number; // degrees per pixel
   size: [number, number];
+  screenCrpix?: [number, number] | null;
 }
 
 export type ContaminationFlag = 
@@ -77,6 +78,50 @@ export interface FramesResponse {
   detectiveTarget?: DetectiveTarget;
   validMask?: number[];
   provenance?: Record<string, unknown>;
+  dataset?: ScientificDataset;
+  catalogPredictions?: CatalogPredictions;
+}
+
+export interface ScientificDataset {
+  id: string;
+  name: string;
+  description: string;
+  classification: 'reference' | 'exploratory' | 'instrumental_limit';
+  classificationLabel: string;
+  detector: number;
+  ra: number;
+  dec: number;
+  fovArcmin: number;
+  observationIds: string[];
+  warnings: string[];
+  available: boolean;
+  status: 'prepared' | 'unavailable';
+  reason?: string | null;
+}
+
+export interface CatalogPrediction {
+  obsId: string;
+  epochIndex: number;
+  date: string;
+  mjd: number;
+  ra: number;
+  dec: number;
+  x: number; // WCS-derived zero-based pixel CENTER, screen North-up
+  y: number;
+  inBounds: boolean;
+  commonMaskValid: boolean;
+  nativeValid: boolean;
+  nativeFlagNames: string[];
+}
+
+export interface CatalogPredictions {
+  kind: 'catalog_predicted';
+  motionMeasured: false;
+  reference: string;
+  references: string[];
+  limitations: string[];
+  displacementArcsec: number;
+  positions: CatalogPrediction[];
 }
 
 export interface SpectrumPoint {
@@ -127,10 +172,10 @@ export interface Query {
   fov: number; // arcmin (1 to 30)
   targetName?: string;
   detectors?: boolean[];
+  datasetId?: string;
 }
 
 export type DisplayMode = 'normal' | 'diff' | 'stack';
 export type StretchFunction = 'linear' | 'log' | 'asinh';
 export type ColormapType = 'inferno' | 'viridis' | 'greyscale' | 'coolwarm';
 export type DiffReference = 'first' | 'median' | 'previous';
-

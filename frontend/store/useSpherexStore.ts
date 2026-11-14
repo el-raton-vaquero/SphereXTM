@@ -11,7 +11,9 @@ import {
   ColormapType, 
   DiffReference,
   DetectiveTarget,
-  FramesResponse
+  FramesResponse,
+  ScientificDataset,
+  CatalogPredictions
 } from '../lib/types';
 import { PRESET_TARGETS } from '../lib/constants';
 import { api, isRealApiActive } from '../lib/apiAdapter';
@@ -86,6 +88,10 @@ export interface SpherexState {
   isEmbed: boolean;
   isAudioMuted: boolean;
   provenance?: Record<string, unknown>;
+  datasetId?: string;
+  dataset?: ScientificDataset;
+  catalogPredictions?: CatalogPredictions;
+  showCatalogPredictions: boolean;
 }
 
 const isRealApiDefault = process.env.NEXT_PUBLIC_USE_REAL_API !== 'false';
@@ -153,6 +159,7 @@ const initialState: SpherexState = {
   error: null,
   isEmbed: false,
   isAudioMuted: false,
+  showCatalogPredictions: true,
 };
 
 let frameRequest=0;
@@ -172,6 +179,7 @@ function syncUrl() {
   const currentParams = new URLSearchParams(window.location.search);
   const p = new URLSearchParams();
   p.set('view', 'observatory');
+  if (state.datasetId && isRealApiActive()) p.set('dataset', state.datasetId);
   if(currentParams.has('lang'))p.set('lang',currentParams.get('lang')!);
   if (currentParams.has('api')) {
     p.set('api', currentParams.get('api')!);
@@ -233,11 +241,12 @@ export const spherexStore = {
 
     state = {
       ...state,
+      datasetId: activeIsReal ? p.get('dataset') || undefined : undefined,
       target: {
         ...state.target,
         ra,
         dec,
-        name: baseTarget.name || state.target.name,
+        name: activeIsReal && p.get('dataset') ? `Caso científico: ${p.get('dataset')}` : baseTarget.name || state.target.name,
         pmRa: baseTarget.pmRa,
         pmDec: baseTarget.pmDec,
         category: baseTarget.category,
@@ -269,6 +278,7 @@ export const spherexStore = {
     const isM101 = preset?.id === 'm101';
     state = {
       ...state,
+      datasetId: undefined,
       target: { ...state.target, ...target },
       fov: targetFov,
       detectiveFound: false,
@@ -290,6 +300,32 @@ export const spherexStore = {
     state = { ...state, fov: Math.max(1, Math.min(30, fov)) };
     emitChange();
     await spherexStore.loadFrames();
+  },
+
+  selectDataset: async (dataset: ScientificDataset) => {
+    if (!isRealApiActive()) return;
+    state = {
+      ...state, datasetId: dataset.id, dataset, catalogPredictions: undefined,
+      target: {ra: dataset.ra, dec: dataset.dec, name: dataset.name, description: dataset.description},
+      fov: dataset.fovArcmin, currentEpoch: 0, selectedPixel: undefined,
+      selectedObjectCallout: null, hoverCoords: undefined,
+      detective: false, detectiveTarget: undefined, sumDetectors: false,
+      mode: 'normal', diffRef: 'first', colormap: 'inferno',
+    };
+    await spherexStore.loadFrames();
+  },
+
+  describeDataset: (dataset: ScientificDataset) => {
+    if (!isRealApiActive() || state.datasetId !== dataset.id) return;
+    state = {...state, dataset,
+      target: state.frames.length ? state.target
+        : {ra: dataset.ra, dec: dataset.dec, name: dataset.name, description: dataset.description}};
+    emitChange();
+  },
+
+  toggleCatalogPredictions: () => {
+    state = {...state, showCatalogPredictions: !state.showCatalogPredictions};
+    emitChange();
   },
 
   toggleDetector: (detNum: number) => {
@@ -484,7 +520,7 @@ export const spherexStore = {
     frameController?.abort(); frameController=new AbortController();
 
     try {
-      state = { ...state, frames: [], epochs: [], spectrum: undefined, provenance: undefined, playing:false, blinkMode:false, isLoading: true, error: null };
+      state = { ...state, frames: [], epochs: [], spectrum: undefined, provenance: undefined, catalogPredictions: undefined, selectedObjectCallout: null, playing:false, blinkMode:false, isLoading: true, error: null };
       emitChange();
 
       const response: FramesResponse = await api.getFrames({
@@ -492,6 +528,7 @@ export const spherexStore = {
         dec: state.target.dec,
         fov: state.fov,
         targetName: state.target.name,
+        datasetId: state.datasetId,
       }, frameController.signal);
       if(request!==frameRequest)return;
 
@@ -537,6 +574,9 @@ export const spherexStore = {
       state = {
         ...state,
         frames: response.frames,
+        target: isRealData && response.target ? response.target : state.target,
+        dataset: response.dataset,
+        catalogPredictions: response.catalogPredictions,
         epochs: response.epochs,
         wcs: response.wcs,
         provenance: response.provenance,

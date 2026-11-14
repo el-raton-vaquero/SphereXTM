@@ -27,6 +27,8 @@ class WCSModel(BaseModel):
     crval: list[float] = Field(..., min_length=2, max_length=2, description="[ra, dec] reference celestial coordinates in degrees")
     cdelt: float = Field(..., description="Scale in degrees per pixel")
     size: list[int] = Field(..., min_length=2, max_length=2, description="[width, height] grid dimensions")
+    screenCrpix: Optional[list[float]] = Field(None, min_length=2, max_length=2,
+        description="Exact zero-based pixel-center reference after north-up screen flip; legacy crpix retained")
 
 
 class BandInfoModel(BaseModel):
@@ -81,6 +83,25 @@ class FramesResponseModel(BaseModel):
     # Scientific integrity extensions
     validMask: Optional[list[int]] = Field(None, description="Shared grid validity mask (1 = valid, 0 = masked)")
     provenance: Optional[dict[str, Any]] = None
+    dataset: Optional[dict[str, Any]] = None
+    catalogPredictions: Optional[dict[str, Any]] = None
+
+
+class DatasetModel(BaseModel):
+    id: str
+    name: str
+    description: str
+    classification: Literal["reference", "exploratory", "instrumental_limit"]
+    classificationLabel: str
+    detector: int
+    ra: float
+    dec: float
+    fovArcmin: float
+    observationIds: list[str]
+    warnings: list[str]
+    available: bool
+    status: Literal["prepared", "unavailable"]
+    reason: Optional[str] = None
 
 
 class HealthResponse(BaseModel):

@@ -79,9 +79,28 @@ within the sample; Epsilon B is blocked by HTTP 502 at catalog verification.
 Downloads had remote failures, so research is explicitly incomplete. Offline replay
 reproduces accepted pairs exactly. Full evidence: `docs/m4-target-feasibility.md`.
 
-## Earlier M4 overlay/UI backlog — deferred
+## M4.5 — Integración de casos científicos reales (2026-11-14)
 
-The following earlier proposals are outside the approved feasibility delivery.
+- [x] Registro de datasets distinto del registro astrométrico; pares fijados a evidencia M4.
+- [x] Preparación explícita reutilizando FITS, máscaras, caché y umbrales originales.
+- [x] Inventario y endpoints por dataset; `/frames` y M101 compatibles; indisponibilidad explícita.
+- [x] Selector accesible real/mock separado, metadatos dinámicos y errores sin fallback.
+- [x] Predicciones por época/WCS etiquetadas; nunca trayectorias como detección.
+- [x] M101, WISE D6 y Barnard D2/D6; blink, lado a lado, diferencias y máscaras.
+- [x] Preparación Docker opt-in sin bloquear arranque M101 (configuración validada).
+- [x] 84 pruebas backend, harness frontend, TypeScript/lint/build, Chromium escritorio/móvil.
+- [x] Documentación y preparación reproducible: `docs/m45-scientific-cases.md`.
+
+**Resultado:** tres pares M4 preparados con hashes y coberturas originales, más
+M101 intacto. WISE permanece exploratorio y Barnard ilustra rechazo instrumental;
+ningún caso prueba movimiento observado. Nuevo perfil Docker no ejecutado; se
+validó su configuración. No se modificaron dependencias ni umbrales científicos.
+
+## Earlier M4 overlay/UI backlog — partially superseded by M4.5
+
+The following earlier proposals were outside M4 feasibility. Epoch-aware
+predictions/labeling for the fixed M4 pairs are now implemented in M4.5; arbitrary
+live catalog searches and further blink controls remain deferred.
 
 *Based on official resource review in `docs/official-resources-review.md` (WiseView UX & Gaia DR3).*
 - [ ] Implement Gaia DR3 / CatWISE2020 TAP cone search for real astrometric reference sources.

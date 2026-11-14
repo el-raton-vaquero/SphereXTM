@@ -9,6 +9,8 @@ import { exportTimelapseGif, exportComparisonCard } from '../lib/exportUtils';
 import { useFrameData } from '../lib/useFrameData';
 import { pixelToCelestial, computeProperMotionDisplacement } from '../lib/wcs';
 import { getCatalogMarkers } from '../lib/mockData';
+import {CatalogOverlay, RealSideBySide} from './RealComparison';
+import {formatObservationDateUTC} from '../lib/observationTime';
 
 export function FrameViewer() {
   const realMode = useDataMode();
@@ -37,12 +39,15 @@ export function FrameViewer() {
     playing,
     fps,
     provenance,
+    catalogPredictions,
+    showCatalogPredictions,
   } = useFrameData();
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   const [curtain, setCurtain] = useState(false);
+  const [sideBySide, setSideBySide] = useState(false);
   const [split, setSplit] = useState(.5);
   const [hunter, setHunter] = useState(false);
   const [zoomLevel, setZoomLevel] = useState<number>(1);
@@ -226,7 +231,13 @@ export function FrameViewer() {
       ref={containerRef}
       className="reference-viewer"
     >
-      <div className="viewer-caption">{realMode ? 'SPHEREx QR3 · ' : 'Simulación · '}{epochs.map(e => e.date.slice(0,10)).join(' / ')} · UTC</div>
+      <div className="viewer-caption">{realMode ? `SPHEREx · ${Array.from(new Set(frames.map(f=>f.provenance?.collection).filter(Boolean))).join(' / ')} · ` : 'Simulación · '}{epochs.map(e => e.date.slice(0,10)).join(' / ')} · UTC</div>
+      {realMode && <div className="real-comparison-controls">
+        <button disabled={isLoading || !!error || epochs.length < 2} aria-pressed={sideBySide}
+          onClick={()=>setSideBySide(value=>!value)}>Lado a lado</button>
+        {catalogPredictions && <span>Catálogo predicho — no detección. t1: amarillo · t2: cian{curtain ? ' · Overlays ocultos en cortina; disponibles en lado a lado.' : ''}</span>}
+      </div>}
+      {realMode && sideBySide && <RealSideBySide/>}
       {/* Main Viewport Container */}
       <div 
         className="relative flex-1 flex items-center justify-center viewer-viewport min-h-[300px] overflow-hidden bg-slate-950"
@@ -259,7 +270,7 @@ export function FrameViewer() {
           <div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-slate-950/85 backdrop-blur-md">
             <div className="w-14 h-14 border-4 border-cyan-500/20 border-t-cyan-400 rounded-full animate-spin mb-3 shadow-lg shadow-cyan-500/30" />
             <div className="text-sm font-mono text-cyan-300 tracking-wider">
-              {isRealData || target.name?.includes('M101') ? 'Cargando observaciones reales SPHEREx...' : 'Sintetizando recortes SPHEREx a 256x256...'}
+              {realMode ? 'Cargando observaciones reales SPHEREx...' : 'Sintetizando recortes SPHEREx a 256x256...'}
             </div>
           </div>
         )}
@@ -286,7 +297,7 @@ export function FrameViewer() {
         )}
 
         {/* Interactive Object Callout Card */}
-        {!isRealData && selectedObjectCallout && (
+        {!realMode && selectedObjectCallout && (
           <div className="absolute top-4 left-4 z-30 p-3.5 rounded-2xl bg-slate-900/95 border border-pink-500/50 shadow-2xl backdrop-blur-md max-w-sm">
             <div className="flex items-center justify-between pb-1.5 border-b border-slate-800">
               <span className="font-extrabold text-pink-400 text-xs flex items-center gap-1.5">
@@ -539,6 +550,9 @@ export function FrameViewer() {
               </g>
             )}
           </svg>
+          {isRealData && showCatalogPredictions && catalogPredictions && !curtain &&
+            <CatalogOverlay predictions={catalogPredictions} epoch={mode === 'diff' || mode === 'stack' ? undefined : currentEpoch}
+              width={frameSize} height={frames[0]?.height || frameSize}/>}
         </div>
 
         {/* Floating Right Action Tools */}
@@ -577,7 +591,7 @@ export function FrameViewer() {
         <label className="timeline-scrubber">Fecha<input type="range" aria-label="Fecha de observación" min="0" max={Math.max(0,epochs.length-1)} step="1" value={currentEpoch} disabled={!epochs.length||!!error} onChange={e=>{spherexStore.stopPlayback();spherexStore.setCurrentEpoch(Number(e.target.value));}}/></label>
         <p className="active-date">Fecha activa: {epochs[currentEpoch]?.date.slice(0,10) || 'Sin observación'} UTC{mode === 'stack' ? ' · Apilado' : ''}</p>
         <div className="epoch-selector" role="group" aria-label="Fechas de observación">
-          {epochs.map((ep, idx) => <button key={ep.epoch} disabled={!!error} aria-pressed={idx === currentEpoch} onClick={() => { spherexStore.stopPlayback(); spherexStore.setCurrentEpoch(idx); }}><span>Observación {idx + 1}</span><strong>{new Date(ep.date).toLocaleDateString('es', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })}</strong></button>)}
+          {epochs.map((ep, idx) => <button key={ep.epoch} disabled={!!error} aria-pressed={idx === currentEpoch} onClick={() => { spherexStore.stopPlayback(); spherexStore.setCurrentEpoch(idx); }}><span>Observación {idx + 1}</span><strong>{formatObservationDateUTC(ep.date)}</strong></button>)}
         </div>
         <div className="spectral-data-rail" aria-label="Detectores disponibles">{[...new Set(frames.map(f=>f.detector))].map(det=><button key={det} aria-label={`Detector ${det}`} aria-pressed={detectors[det-1]} disabled={realMode} title={`Detector ${det}`} onClick={()=>spherexStore.toggleDetector(det)} style={{background:['#6aa7ff','#4fd1a5','#ffd34f','#ff9a3c','#d44f6e','#b07cff'][det-1],opacity:detectors[det-1]?1:.25}}/>)}</div>
         <details className="viewer-advanced"><summary>Comparación avanzada, exportación e inspección</summary><div>

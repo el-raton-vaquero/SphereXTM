@@ -10,9 +10,9 @@ export function ObservatoryContext({facts}: {facts?:[string,string][]}) {
   const real = useDataMode();
   const frame = frames.find(f => f.epochIndex === currentEpoch && detectors[f.detector - 1]);
   const separation=epochsSeparation(frames);
-  return <section className="field-heading"><h1>{real ? 'M101 — Galaxia del Molinete' : target.name}</h1><p>{real?'La misma región del cielo, observada en dos fechas. Compara imágenes infrarrojas auténticas de SPHEREx.':target.description||'Exploración educativa con imágenes generadas.'}</p>
+  return <section className="field-heading"><h1>{target.name}</h1><p>{target.description || (real?'La misma región del cielo, observada en dos fechas. Compara imágenes infrarrojas auténticas de SPHEREx.':'Exploración educativa con imágenes generadas.')}</p>
   {!real&&facts?<table className="metric-table"><thead><tr>{facts.map(([label])=><th key={label}>{label}</th>)}</tr></thead><tbody><tr>{facts.map(([label,value])=><td key={label}>{value}</td>)}</tr></tbody></table>:<table className="metric-table"><thead><tr><th>{real?'Separación':'Épocas'}</th><th>Detector</th><th>Longitud de onda</th></tr></thead><tbody><tr><td>{real?(separation===null?'—':`${separation.toLocaleString('es',{maximumFractionDigits:2})} días`):new Set(frames.map(f=>f.epochIndex)).size}</td><td>{frame?frame.detector:'—'}</td><td>{frame?`≈ ${frame.band.lambda_um.toLocaleString('es',{maximumFractionDigits:3})} µm`:'—'}</td></tr></tbody></table>}
-  <small>{real?'Fuente: NASA/IPAC IRSA · SPHEREx QR3':'Simulación · Sin mediciones espectrales reales'}{mode==='stack'?' · Apilado':''}</small></section>;
+  <small>{real?`Fuente: NASA/IPAC IRSA · ${Array.from(new Set(frames.map(f=>f.provenance?.collection).filter(Boolean))).join(' / ')}`:'Simulación · Sin mediciones espectrales reales'}{mode==='stack'?' · Apilado':''}</small></section>;
 }
 export function ComparisonExplanation() {
   const {text}=useLocale();

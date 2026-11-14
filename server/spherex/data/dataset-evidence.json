@@ -1,0 +1,589 @@
+{
+  "source": "docs/m4-evidence.json",
+  "source_sha256": "c6a9f844b535978ac1ca641f5d19bf4617c3537eeefefb9a1c65fa1a49b41d6d",
+  "datasets": {
+    "wise0855-d6": {
+      "target": {
+        "id": "wise0855",
+        "name": "WISE 0855−0714",
+        "identifier": "WISE J085510.83−071442.5 moving component",
+        "ra_deg": 133.787085,
+        "dec_deg": -7.244451,
+        "epoch": 56677.3,
+        "epoch_format": "mjd",
+        "epoch_scale": "utc",
+        "pm_ra_cosdec_masyr": -8060,
+        "pm_dec_masyr": 700,
+        "parallax_mas": 454,
+        "radial_velocity_kms": null,
+        "uncertainties": {
+          "position_arcsec": 0.04,
+          "pm_ra_cosdec_masyr": 90,
+          "pm_dec_masyr": 70,
+          "parallax_mas": 45
+        },
+        "references": [
+          "https://arxiv.org/html/1404.6501v1"
+        ],
+        "verified_date": "2026-11-14",
+        "detectors": [
+          6,
+          5
+        ],
+        "spectral_reason": "Luhman 2014 Tables 1–2: [4.5]=13.89 vs [3.6]=17.44, J>23; prioritize D6 then D5. IRAC magnitudes are not SPHEREx flux predictions.",
+        "limitations": [
+          "Position is observed Spitzer astrometry at MJD 56677.3, not a fitted barycentric reference position. Annual parallax at the anchor epoch is retained as an unknown offset (up to 0.454 arcsec).",
+          "Old proper motion uncertainties accumulate to roughly 1–2 arcsec by 2026.",
+          "Unknown radial velocity is explicitly assumed zero.",
+          "Known stationary blends in discovery field; no identification from a bright pixel.",
+          "Paper J2000 axes treated as ICRS at the stated position uncertainty; not a precision astrometric frame transformation."
+        ],
+        "status": "verified",
+        "proper_motion_convention": "pm_ra_cosdec = d(alpha)/dt * cos(delta); pm_dec = d(delta)/dt; mas/yr",
+        "position_frame": "Paper J2000 astrometry aligned via 2MASS; treated as ICRS for approximate visualization"
+      },
+      "center": {
+        "ra_deg": 133.76012153222433,
+        "dec_deg": -7.242127147774543,
+        "kind": "catalog_predicted",
+        "frame": "ICRS"
+      },
+      "pair": {
+        "obs_ids": [
+          "2025W19_1B_0116_1",
+          "2026W20_1A_0033_1"
+        ],
+        "center_wave_offset_bandwidths": 0.0029630082556643513,
+        "center_bandwidth_ratio": 1.0000018667518662,
+        "shape_yx": [
+          30,
+          30
+        ],
+        "pixel_scale_arcsec": 6.162810966693365,
+        "common_valid_fraction": 0.8455555555555555,
+        "spectrally_matched_fraction_of_grid": 0.8455555555555555,
+        "matched_max_offset_in_bandwidths": 0.0012215408947969205,
+        "time_separation_days": 370.3963217940036,
+        "output_wcs_header": "WCSAXES =                    2 / Number of coordinate axes                      \nCRPIX1  =                 15.5 / Pixel coordinate of reference point            \nCRPIX2  =                 15.5 / Pixel coordinate of reference point            \nCDELT1  =  -0.0017118919351926 / [deg] Coordinate increment at reference point  \nCDELT2  =   0.0017118919351926 / [deg] Coordinate increment at reference point  \nCUNIT1  = 'deg'                / Units of coordinate increment and value        \nCUNIT2  = 'deg'                / Units of coordinate increment and value        \nCTYPE1  = 'RA---TAN'           / Right ascension, gnomonic projection           \nCTYPE2  = 'DEC--TAN'           / Declination, gnomonic projection               \nCRVAL1  =      133.76012153222 / [deg] Coordinate value at reference point      \nCRVAL2  =     -7.2421271477745 / [deg] Coordinate value at reference point      \nLONPOLE =                180.0 / [deg] Native longitude of celestial pole       \nLATPOLE =     -7.2421271477745 / [deg] Native latitude of celestial pole        \nMJDREF  =                  0.0 / [d] MJD of fiducial time                       \nRADESYS = 'ICRS'               / Equatorial coordinate system                   ",
+        "predicted_displacement_arcsec": 8.204329927504219,
+        "predicted_displacement_pixels": 1.331264251304178,
+        "predicted_displacement_psf": 0.9073638580131959,
+        "predicted_positions": [
+          {
+            "ra_deg": 133.76160634742013,
+            "dec_deg": -7.242255158803245,
+            "kind": "catalog_predicted",
+            "frame": "ICRS"
+          },
+          {
+            "ra_deg": 133.75931766633755,
+            "dec_deg": -7.242057841691419,
+            "kind": "catalog_predicted",
+            "frame": "ICRS"
+          }
+        ],
+        "predicted_positions_common_mask_valid": [
+          true,
+          true
+        ],
+        "status": "comparable_pair_validated",
+        "motion_status": "potentially_evaluable_not_measured",
+        "shared_display_percentiles": [
+          2,
+          98
+        ],
+        "display_limits_mjy_sr": [
+          0.6397159036571458,
+          0.8551786561852774
+        ],
+        "figure": "outputs/m4/wise0855/d6/comparison.png"
+      },
+      "products": [
+        {
+          "obs_id": "2025W19_1B_0116_1",
+          "url": "https://irsa.ipac.caltech.edu/ibe/data/spherex/dr1/level2/2025W19_1B/l2b-v27-2026-197/6/level2_2025W19_1B_0116_1D6_spx_l2b-v27-2026-197.fits?center=133.76012153222433%2C-7.242127147774543d&size=0.1",
+          "sha256": "4fee828de297850959dc328057723427c88ec0d35d3ac32be4fe8a3280681eb3",
+          "bytes": 3997440,
+          "retrieved_utc": "2026-11-14T19:10:19.928595+00:00"
+        },
+        {
+          "obs_id": "2026W20_1A_0033_1",
+          "url": "https://irsa.ipac.caltech.edu/ibe/data/spherex/dr1/level2/2026W20_1A/l2b-v27-2026-246/6/level2_2026W20_1A_0033_1D6_spx_l2b-v27-2026-246.fits?center=133.76012153222433%2C-7.242127147774543d&size=0.1",
+          "sha256": "1c07c9f9887be1f32c75bf4f55f88cec25f8f90e8e7f084ba1d836aecb5430ec",
+          "bytes": 3997440,
+          "retrieved_utc": "2026-11-14T19:13:40.354043+00:00"
+        }
+      ],
+      "observations": [
+        {
+          "obs_id": "2025W19_1B_0116_1",
+          "collection": "spherex_dr1",
+          "date_obs_utc": "2025-05-05T16:48:02.459",
+          "mjd_obs": 60800.700028461,
+          "detector": 6,
+          "wavelength_um_approx": 4.967421035165123,
+          "bandwidth_um_approx": 0.037187043975519835,
+          "pixel_scale_arcsec": [
+            6.149605962395087,
+            6.149875878873958
+          ],
+          "psf_fwhm_arcsec": 9.041940402463002,
+          "variance_units": "MJy2 / sr2",
+          "predicted_local": {
+            "ra_deg": 133.76160634742297,
+            "dec_deg": -7.24225515880349,
+            "kind": "catalog_predicted",
+            "frame": "ICRS",
+            "pixel_xy_zero_based": [
+              29.48092248612989,
+              28.84359414648248
+            ],
+            "native_valid": true,
+            "native_flags": 2097152,
+            "native_flag_names": [
+              "SOURCE"
+            ],
+            "aperture_radius_pixels": 1.4702638850848775,
+            "aperture_valid_fraction": 1.0,
+            "annulus_valid_count": 29,
+            "local_background_mjy_sr": 0.7265106439590454,
+            "native_value_mjy_sr": 0.8224672675132751,
+            "native_variance": 0.004789663478732109,
+            "pixel_contrast_over_native_sigma_exploratory": 1.3865082480639306,
+            "confusion_assessment": "not established; requires catalog and PSF inspection"
+          }
+        },
+        {
+          "obs_id": "2026W20_1A_0033_1",
+          "collection": "spherex_dr1",
+          "date_obs_utc": "2026-05-11T02:18:44.662",
+          "mjd_obs": 61171.096350255,
+          "detector": 6,
+          "wavelength_um_approx": 4.96731084964682,
+          "bandwidth_um_approx": 0.037187113394503576,
+          "pixel_scale_arcsec": [
+            6.162810966693365,
+            6.158101254070454
+          ],
+          "psf_fwhm_arcsec": 9.041940402463002,
+          "variance_units": "MJy2 / sr2",
+          "predicted_local": {
+            "ra_deg": 133.75931766633911,
+            "dec_deg": -7.242057841691555,
+            "kind": "catalog_predicted",
+            "frame": "ICRS",
+            "pixel_xy_zero_based": [
+              27.798989018175313,
+              28.311855389116317
+            ],
+            "native_valid": true,
+            "native_flags": 2097152,
+            "native_flag_names": [
+              "SOURCE"
+            ],
+            "aperture_radius_pixels": 1.467177956833296,
+            "aperture_valid_fraction": 1.0,
+            "annulus_valid_count": 34,
+            "local_background_mjy_sr": 0.7759579420089722,
+            "native_value_mjy_sr": 0.8582950830459595,
+            "native_variance": 0.005463498178869486,
+            "pixel_contrast_over_native_sigma_exploratory": 1.1139363645187959,
+            "confusion_assessment": "not established; requires catalog and PSF inspection"
+          }
+        }
+      ]
+    },
+    "barnard-d2": {
+      "target": {
+        "id": "barnard",
+        "name": "Barnard's Star",
+        "identifier": "Gaia DR3 4472832130942575872",
+        "ra_deg": 269.44850252543836,
+        "dec_deg": 4.739420051112412,
+        "epoch": 2016.0,
+        "epoch_format": "jyear",
+        "epoch_scale": "tcb",
+        "pm_ra_cosdec_masyr": -801.5509783684709,
+        "pm_dec_masyr": 10362.394206546573,
+        "parallax_mas": 546.975939730948,
+        "radial_velocity_kms": -110.46822,
+        "uncertainties": {
+          "ra_mas": 0.026238997,
+          "dec_mas": 0.029043527,
+          "pm_ra_cosdec_masyr": 0.031820867,
+          "pm_dec_masyr": 0.036070455,
+          "parallax_mas": 0.040116355,
+          "radial_velocity_kms": 0.13125522
+        },
+        "references": [
+          "https://gea.esac.esa.int/archive/",
+          "https://www.cosmos.esa.int/web/gaia/dr3"
+        ],
+        "catalog_query": "SELECT source_id,ra,dec,ref_epoch,ra_error,dec_error,pmra,pmdec,pmra_error,pmdec_error,parallax,parallax_error,radial_velocity,radial_velocity_error FROM gaiadr3.gaia_source WHERE source_id=4472832130942575872",
+        "verified_date": "2026-11-14",
+        "detectors": [
+          2,
+          6
+        ],
+        "spectral_reason": "Cool M dwarf: inspect near-IR D2 and long-wave D6; exploratory choices, no assumed detection.",
+        "limitations": [
+          "Gaia covariance is not propagated."
+        ],
+        "status": "verified",
+        "proper_motion_convention": "pm_ra_cosdec = d(alpha)/dt * cos(delta); pm_dec = d(delta)/dt; mas/yr",
+        "position_frame": "ICRS"
+      },
+      "center": {
+        "ra_deg": 269.4462668802862,
+        "dec_deg": 4.768222283333858,
+        "kind": "catalog_predicted",
+        "frame": "ICRS"
+      },
+      "pair": {
+        "obs_ids": [
+          "2025W35_1A_0146_1",
+          "2026W34_1A_0363_1"
+        ],
+        "center_wave_offset_bandwidths": 0.13764301512233795,
+        "center_bandwidth_ratio": 1.0001846106183587,
+        "shape_yx": [
+          30,
+          30
+        ],
+        "pixel_scale_arcsec": 6.147419714940523,
+        "common_valid_fraction": 0.8911111111111111,
+        "spectrally_matched_fraction_of_grid": 0.8911111111111111,
+        "matched_max_offset_in_bandwidths": 0.181645416305301,
+        "time_separation_days": 358.1529689119998,
+        "output_wcs_header": "WCSAXES =                    2 / Number of coordinate axes                      \nCRPIX1  =                 15.5 / Pixel coordinate of reference point            \nCRPIX2  =                 15.5 / Pixel coordinate of reference point            \nCDELT1  =  -0.0017076165874835 / [deg] Coordinate increment at reference point  \nCDELT2  =   0.0017076165874835 / [deg] Coordinate increment at reference point  \nCUNIT1  = 'deg'                / Units of coordinate increment and value        \nCUNIT2  = 'deg'                / Units of coordinate increment and value        \nCTYPE1  = 'RA---TAN'           / Right ascension, gnomonic projection           \nCTYPE2  = 'DEC--TAN'           / Declination, gnomonic projection               \nCRVAL1  =      269.44626688029 / [deg] Coordinate value at reference point      \nCRVAL2  =      4.7682222833339 / [deg] Coordinate value at reference point      \nLONPOLE =                180.0 / [deg] Native longitude of celestial pole       \nLATPOLE =      4.7682222833339 / [deg] Native latitude of celestial pole        \nMJDREF  =                  0.0 / [d] MJD of fiducial time                       \nRADESYS = 'ICRS'               / Equatorial coordinate system                   ",
+        "predicted_displacement_arcsec": 10.204182174247693,
+        "predicted_displacement_pixels": 1.6599130444026335,
+        "predicted_displacement_psf": 1.367724269392266,
+        "predicted_positions": [
+          {
+            "ra_deg": 269.44634545229064,
+            "dec_deg": 4.767210066579314,
+            "kind": "catalog_predicted",
+            "frame": "ICRS"
+          },
+          {
+            "ra_deg": 269.4461260830842,
+            "dec_deg": 4.770036118932911,
+            "kind": "catalog_predicted",
+            "frame": "ICRS"
+          }
+        ],
+        "predicted_positions_common_mask_valid": [
+          false,
+          false
+        ],
+        "status": "comparable_pair_validated",
+        "motion_status": "source_not_evaluable_quality",
+        "shared_display_percentiles": [
+          2,
+          98
+        ],
+        "display_limits_mjy_sr": [
+          0.3836622394161243,
+          4.115850424415603
+        ],
+        "figure": "outputs/m4/barnard/d2/comparison.png"
+      },
+      "products": [
+        {
+          "obs_id": "2025W35_1A_0146_1",
+          "url": "https://irsa.ipac.caltech.edu/ibe/data/spherex/dr1/level2/2025W35_1A/l2b-v27-2026-230/2/level2_2025W35_1A_0146_1D2_spx_l2b-v27-2026-230.fits?center=269.4462668802862%2C4.768222283333858d&size=0.1",
+          "sha256": "1269a6817b401cffb6017a0ded94e8307dd744250bcef605bf5f89a132c88b51",
+          "bytes": 4000320,
+          "retrieved_utc": "2026-11-14T19:04:43.608020+00:00"
+        },
+        {
+          "obs_id": "2026W34_1A_0363_1",
+          "url": "https://irsa.ipac.caltech.edu/ibe/data/spherex/qr3/level2/2026W34_1A/l2b-v27-2026-243/2/level2_2026W34_1A_0363_1D2_spx_l2b-v27-2026-243.fits?center=269.4462668802862%2C4.768222283333858d&size=0.1",
+          "sha256": "d26a3d198bf60942b653a192754f1096dc6fa2e607b617b9f4fa5a06a78bf3fc",
+          "bytes": 4000320,
+          "retrieved_utc": "2026-11-14T19:06:19.651140+00:00"
+        }
+      ],
+      "observations": [
+        {
+          "obs_id": "2025W35_1A_0146_1",
+          "collection": "spherex_dr1",
+          "date_obs_utc": "2025-08-25T17:08:22.267",
+          "mjd_obs": 60912.714146609,
+          "detector": 2,
+          "wavelength_um_approx": 1.5165889937690598,
+          "bandwidth_um_approx": 0.0370945253523605,
+          "pixel_scale_arcsec": [
+            6.131896065048336,
+            6.147419714940523
+          ],
+          "psf_fwhm_arcsec": 7.46070125580342,
+          "variance_units": "MJy2 / sr2",
+          "predicted_local": {
+            "ra_deg": 269.4463454522904,
+            "dec_deg": 4.767210066582399,
+            "kind": "catalog_predicted",
+            "frame": "ICRS",
+            "pixel_xy_zero_based": [
+              28.903205372479437,
+              29.276245021383808
+            ],
+            "native_valid": false,
+            "native_flags": 69206022,
+            "native_flag_names": [
+              "OVERFLOW",
+              "SUR_ERROR",
+              "SOURCE",
+              "BLOOM"
+            ],
+            "aperture_radius_pixels": 1.2136313448179132,
+            "aperture_valid_fraction": 0.0,
+            "annulus_valid_count": 0,
+            "local_background_mjy_sr": null,
+            "native_value_mjy_sr": null,
+            "native_variance": null,
+            "pixel_contrast_over_native_sigma_exploratory": null,
+            "confusion_assessment": "not established; requires catalog and PSF inspection"
+          }
+        },
+        {
+          "obs_id": "2026W34_1A_0363_1",
+          "collection": "spherex_qr3",
+          "date_obs_utc": "2026-08-18T20:48:38.781",
+          "mjd_obs": 61270.867115521,
+          "detector": 2,
+          "wavelength_um_approx": 1.5114831914550289,
+          "bandwidth_um_approx": 0.03710137339562352,
+          "pixel_scale_arcsec": [
+            6.1305625506695485,
+            6.146315729937796
+          ],
+          "psf_fwhm_arcsec": 7.46070125580342,
+          "variance_units": "MJy2 / sr2",
+          "predicted_local": {
+            "ra_deg": 269.4461260830839,
+            "dec_deg": 4.77003611893669,
+            "kind": "catalog_predicted",
+            "frame": "ICRS",
+            "pixel_xy_zero_based": [
+              29.21764188479506,
+              27.89493245029498
+            ],
+            "native_valid": false,
+            "native_flags": 69206022,
+            "native_flag_names": [
+              "OVERFLOW",
+              "SUR_ERROR",
+              "SOURCE",
+              "BLOOM"
+            ],
+            "aperture_radius_pixels": 1.2138493340756067,
+            "aperture_valid_fraction": 0.0,
+            "annulus_valid_count": 2,
+            "local_background_mjy_sr": null,
+            "native_value_mjy_sr": null,
+            "native_variance": null,
+            "pixel_contrast_over_native_sigma_exploratory": null,
+            "confusion_assessment": "not established; requires catalog and PSF inspection"
+          }
+        }
+      ]
+    },
+    "barnard-d6": {
+      "target": {
+        "id": "barnard",
+        "name": "Barnard's Star",
+        "identifier": "Gaia DR3 4472832130942575872",
+        "ra_deg": 269.44850252543836,
+        "dec_deg": 4.739420051112412,
+        "epoch": 2016.0,
+        "epoch_format": "jyear",
+        "epoch_scale": "tcb",
+        "pm_ra_cosdec_masyr": -801.5509783684709,
+        "pm_dec_masyr": 10362.394206546573,
+        "parallax_mas": 546.975939730948,
+        "radial_velocity_kms": -110.46822,
+        "uncertainties": {
+          "ra_mas": 0.026238997,
+          "dec_mas": 0.029043527,
+          "pm_ra_cosdec_masyr": 0.031820867,
+          "pm_dec_masyr": 0.036070455,
+          "parallax_mas": 0.040116355,
+          "radial_velocity_kms": 0.13125522
+        },
+        "references": [
+          "https://gea.esac.esa.int/archive/",
+          "https://www.cosmos.esa.int/web/gaia/dr3"
+        ],
+        "catalog_query": "SELECT source_id,ra,dec,ref_epoch,ra_error,dec_error,pmra,pmdec,pmra_error,pmdec_error,parallax,parallax_error,radial_velocity,radial_velocity_error FROM gaiadr3.gaia_source WHERE source_id=4472832130942575872",
+        "verified_date": "2026-11-14",
+        "detectors": [
+          2,
+          6
+        ],
+        "spectral_reason": "Cool M dwarf: inspect near-IR D2 and long-wave D6; exploratory choices, no assumed detection.",
+        "limitations": [
+          "Gaia covariance is not propagated."
+        ],
+        "status": "verified",
+        "proper_motion_convention": "pm_ra_cosdec = d(alpha)/dt * cos(delta); pm_dec = d(delta)/dt; mas/yr",
+        "position_frame": "ICRS"
+      },
+      "center": {
+        "ra_deg": 269.4462668802862,
+        "dec_deg": 4.768222283333858,
+        "kind": "catalog_predicted",
+        "frame": "ICRS"
+      },
+      "pair": {
+        "obs_ids": [
+          "2025W33_2C_0321_1",
+          "2026W12_2A_0520_4"
+        ],
+        "center_wave_offset_bandwidths": 0.03447970996576617,
+        "center_bandwidth_ratio": 1.0133858845480797,
+        "shape_yx": [
+          30,
+          30
+        ],
+        "pixel_scale_arcsec": 6.166190181066975,
+        "common_valid_fraction": 0.8844444444444445,
+        "spectrally_matched_fraction_of_grid": 0.8111111111111111,
+        "matched_max_offset_in_bandwidths": 0.24942385476704898,
+        "time_separation_days": 218.5038871059951,
+        "output_wcs_header": "WCSAXES =                    2 / Number of coordinate axes                      \nCRPIX1  =                 15.5 / Pixel coordinate of reference point            \nCRPIX2  =                 15.5 / Pixel coordinate of reference point            \nCDELT1  =  -0.0017128306058519 / [deg] Coordinate increment at reference point  \nCDELT2  =   0.0017128306058519 / [deg] Coordinate increment at reference point  \nCUNIT1  = 'deg'                / Units of coordinate increment and value        \nCUNIT2  = 'deg'                / Units of coordinate increment and value        \nCTYPE1  = 'RA---TAN'           / Right ascension, gnomonic projection           \nCTYPE2  = 'DEC--TAN'           / Declination, gnomonic projection               \nCRVAL1  =      269.44626688029 / [deg] Coordinate value at reference point      \nCRVAL2  =      4.7682222833339 / [deg] Coordinate value at reference point      \nLONPOLE =                180.0 / [deg] Native longitude of celestial pole       \nLATPOLE =      4.7682222833339 / [deg] Native latitude of celestial pole        \nMJDREF  =                  0.0 / [d] MJD of fiducial time                       \nRADESYS = 'ICRS'               / Equatorial coordinate system                   ",
+        "predicted_displacement_arcsec": 6.225254372026715,
+        "predicted_displacement_pixels": 1.0095787170400767,
+        "predicted_displacement_psf": 0.688486552104565,
+        "predicted_positions": [
+          {
+            "ra_deg": 269.44635148468063,
+            "dec_deg": 4.767132353200596,
+            "kind": "catalog_predicted",
+            "frame": "ICRS"
+          },
+          {
+            "ra_deg": 269.44621765459135,
+            "dec_deg": 4.768856439909921,
+            "kind": "catalog_predicted",
+            "frame": "ICRS"
+          }
+        ],
+        "predicted_positions_common_mask_valid": [
+          false,
+          false
+        ],
+        "status": "comparable_pair_validated",
+        "motion_status": "source_not_evaluable_quality",
+        "shared_display_percentiles": [
+          2,
+          98
+        ],
+        "display_limits_mjy_sr": [
+          0.4375348278784952,
+          4.198507198851868
+        ],
+        "figure": "outputs/m4/barnard/d6/comparison.png"
+      },
+      "products": [
+        {
+          "obs_id": "2025W33_2C_0321_1",
+          "url": "https://irsa.ipac.caltech.edu/ibe/data/spherex/dr1/level2/2025W33_2C/l2b-v27-2026-228/6/level2_2025W33_2C_0321_1D6_spx_l2b-v27-2026-228.fits?center=269.4462668802862%2C4.768222283333858d&size=0.1",
+          "sha256": "281bbce911cbf939ace1fad2fe43fefaa50fdd675faceb3b864e390ffa086116",
+          "bytes": 3997440,
+          "retrieved_utc": "2026-11-14T19:07:30.680990+00:00"
+        },
+        {
+          "obs_id": "2026W12_2A_0520_4",
+          "url": "https://irsa.ipac.caltech.edu/ibe/data/spherex/dr1/level2/2026W12_2A/l2b-v27-2026-235/6/level2_2026W12_2A_0520_4D6_spx_l2b-v27-2026-235.fits?center=269.4462668802862%2C4.768222283333858d&size=0.1",
+          "sha256": "4d47922974548e3e74ca61062730ee8a29d860f28f1906b6197bbf9fac3342a0",
+          "bytes": 3997440,
+          "retrieved_utc": "2026-11-14T19:08:46.706318+00:00"
+        }
+      ],
+      "observations": [
+        {
+          "obs_id": "2025W33_2C_0321_1",
+          "collection": "spherex_dr1",
+          "date_obs_utc": "2025-08-15T20:45:11.337",
+          "mjd_obs": 60902.864714549,
+          "detector": 6,
+          "wavelength_um_approx": 4.928702651655463,
+          "bandwidth_um_approx": 0.03696267627706209,
+          "pixel_scale_arcsec": [
+            6.166190181066975,
+            6.153753623699192
+          ],
+          "psf_fwhm_arcsec": 9.041940402463002,
+          "variance_units": "MJy2 / sr2",
+          "predicted_local": {
+            "ra_deg": 269.44635148468035,
+            "dec_deg": 4.767132353204154,
+            "kind": "catalog_predicted",
+            "frame": "ICRS",
+            "pixel_xy_zero_based": [
+              28.550614958297935,
+              29.528659256250783
+            ],
+            "native_valid": false,
+            "native_flags": 69206018,
+            "native_flag_names": [
+              "OVERFLOW",
+              "SOURCE",
+              "BLOOM"
+            ],
+            "aperture_radius_pixels": 1.46637390948886,
+            "aperture_valid_fraction": 0.0,
+            "annulus_valid_count": 31,
+            "local_background_mjy_sr": 3.3258259296417236,
+            "native_value_mjy_sr": null,
+            "native_variance": null,
+            "pixel_contrast_over_native_sigma_exploratory": null,
+            "confusion_assessment": "not established; requires catalog and PSF inspection"
+          }
+        },
+        {
+          "obs_id": "2026W12_2A_0520_4",
+          "collection": "spherex_dr1",
+          "date_obs_utc": "2026-03-22T08:50:47.183",
+          "mjd_obs": 61121.368601655,
+          "detector": 6,
+          "wavelength_um_approx": 4.929960279551238,
+          "bandwidth_um_approx": 0.03647443371835165,
+          "pixel_scale_arcsec": [
+            6.165182883569325,
+            6.158840306751337
+          ],
+          "psf_fwhm_arcsec": 9.041940402463002,
+          "variance_units": "MJy2 / sr2",
+          "predicted_local": {
+            "ra_deg": 269.4462176545911,
+            "dec_deg": 4.768856439912644,
+            "kind": "catalog_predicted",
+            "frame": "ICRS",
+            "pixel_xy_zero_based": [
+              28.280510197366024,
+              28.812272014721785
+            ],
+            "native_valid": false,
+            "native_flags": 69206018,
+            "native_flag_names": [
+              "OVERFLOW",
+              "SOURCE",
+              "BLOOM"
+            ],
+            "aperture_radius_pixels": 1.466613492774148,
+            "aperture_valid_fraction": 0.14285714285714285,
+            "annulus_valid_count": 33,
+            "local_background_mjy_sr": 3.576850414276123,
+            "native_value_mjy_sr": null,
+            "native_variance": null,
+            "pixel_contrast_over_native_sigma_exploratory": null,
+            "confusion_assessment": "not established; requires catalog and PSF inspection"
+          }
+        }
+      ]
+    }
+  }
+}

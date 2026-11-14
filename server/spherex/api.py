@@ -8,8 +8,8 @@ from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from spherex import __version__, service
-from spherex.models import FramesResponseModel, HealthResponse
+from spherex import __version__, service, datasets
+from spherex.models import DatasetModel, FramesResponseModel, HealthResponse
 from spherex.service import (
     DataUnavailableError,
     M101_DEC,
@@ -31,6 +31,22 @@ app = FastAPI(
         "for the NASA Space Apps Challenge 2026."
     ),
 )
+
+
+@app.get("/datasets", response_model=list[DatasetModel])
+def list_datasets():
+    """Inventory includes unavailable cases; never performs remote searches."""
+    return [datasets.summary(entry) for entry in datasets.registry().values()]
+
+
+@app.get("/datasets/{dataset_id}/frames", response_model=FramesResponseModel)
+def dataset_frames(dataset_id: str):
+    if dataset_id not in datasets.registry():
+        raise HTTPException(status_code=404, detail="Unknown scientific dataset")
+    try:
+        return datasets.frames(dataset_id)
+    except (ValueError, OSError, KeyError) as exc:
+        raise HTTPException(status_code=503, detail=f"Dataset unavailable: {exc}")
 
 # Allow local frontend development without CORS issues
 app.add_middleware(

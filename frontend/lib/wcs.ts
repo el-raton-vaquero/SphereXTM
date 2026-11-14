@@ -36,8 +36,9 @@ export function celestialToPixel(
   const cdeltRad = Math.abs(wcs.cdelt) * DEG2RAD;
 
   // In astronomical convention: RA increases to the left (-x), Dec increases up (+y)
-  const x = wcs.crpix[0] - (xi / cdeltRad);
-  const y = wcs.crpix[1] - (eta / cdeltRad);
+  const reference = wcs.screenCrpix || wcs.crpix;
+  const x = reference[0] - (xi / cdeltRad);
+  const y = reference[1] - (eta / cdeltRad);
 
   return { x, y };
 }
@@ -54,8 +55,9 @@ export function pixelToCelestial(
   const dec0 = wcs.crval[1] * DEG2RAD;
   const cdeltRad = Math.abs(wcs.cdelt) * DEG2RAD;
 
-  const xi = -(x - wcs.crpix[0]) * cdeltRad;
-  const eta = -(y - wcs.crpix[1]) * cdeltRad;
+  const reference = wcs.screenCrpix || wcs.crpix;
+  const xi = -(x - reference[0]) * cdeltRad;
+  const eta = -(y - reference[1]) * cdeltRad;
 
   const rho = Math.sqrt(xi * xi + eta * eta);
   if (rho === 0) {
@@ -175,4 +177,3 @@ export function parseCoordinates(input: string): { ra: number; dec: number } | n
 
   return null;
 }
-

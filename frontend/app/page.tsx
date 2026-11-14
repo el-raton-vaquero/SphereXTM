@@ -12,6 +12,7 @@ import {KeyboardHelpModal} from '../components/KeyboardHelpModal';
 import {LandingHero} from '../components/LandingHero';
 import {useLocale} from '../components/useLocale';
 import {PRESET_TARGETS} from '../lib/constants';
+import {ScientificCases} from '../components/ScientificCases';
 export interface AstronomicalObject {
   id: string;
   n: string;
@@ -138,7 +139,7 @@ export default function Home(){
  if(landing)return <LandingHero objects={{...OBJ,m101:{...OBJ.wise,id:'m101',n:'M101 · Datos reales',tag:'Galaxia del Molinete',hook:'Compara dos observaciones auténticas de SPHEREx.',badge:'Datos reales',f:[['Origen','NASA/IPAC IRSA'],['Épocas','2']],pm:[0,0]}}} onSelect={select} onSearch={q=>{const p=PRESET_TARGETS.find(p=>p.name?.toLowerCase().includes(q.toLowerCase()));if(p)select(p.id);}} onOpenConeSearch={()=>{setLanding(false);setTimeout(()=>window.dispatchEvent(new Event('spherex-neighborhood')),0);}} isSearching={false} searchMessage="M101: datos reales. Los demás ejemplos son simulaciones educativas." locale={locale}/>;
  return <div className="reference-app"><Header onOpenEmbed={()=>setEmbed(true)} onOpenHelp={()=>setHelp(true)} onSwitchView={()=>setLanding(true)}/>
  <main className="viewer-shell"><div className="viewer-body"><div className="viewer-canvas-col"><FrameViewer/></div>
- <aside className="viewer-info-col"><ObservatoryContext facts={Object.values(OBJ).find(o=>Math.abs(o.ra-state.target.ra)<.01&&Math.abs(o.dec-state.target.dec)<.01)?.f}/><EducationalFieldTools/>
+  <aside className="viewer-info-col"><ScientificCases/><ObservatoryContext facts={Object.values(OBJ).find(o=>Math.abs(o.ra-state.target.ra)<.01&&Math.abs(o.dec-state.target.dec)<.01)?.f}/><EducationalFieldTools/>
  <ComparisonExplanation/>
  <details className="advanced-tools"><summary>{text.advanced}</summary><ControlPanel/></details>
  <ExplorationTools/>

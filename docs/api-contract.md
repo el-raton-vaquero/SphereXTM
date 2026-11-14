@@ -75,3 +75,55 @@ servidor del rewrite durante `next build`; predeterminado local
 consultando `/api/*` en el mismo origen. FastAPI no publica un puerto al host.
 La inicialización del volumen científico precede al backend y frontend; fallos
 de adquisición no se reemplazan con datos sintéticos. Ver `docs/docker.md`.
+
+## M4.5 — Datasets científicos preparados (2026-11-14)
+
+Se preservan `/frames` (M101 y sus parámetros) y `/health` (`m101_cached`).
+Los endpoints nuevos no realizan búsquedas, descargas ni alineación por petición:
+
+- `GET /datasets`: array de `DatasetModel` con `id`, `name`, `description`,
+  `classification` (`reference`, `exploratory`, `instrumental_limit`),
+  `classificationLabel`, `detector`, `ra`, `dec`, `fovArcmin`,
+  `observationIds`, `warnings`, `available`, `status` (`prepared`/`unavailable`)
+  y `reason` nullable. Incluye los casos no preparados; HTTP 200 no afirma que
+  todas sus imágenes estén disponibles.
+- `GET /datasets/{id}/frames`: `FramesResponse` compatible, más `dataset`
+  (la entrada anterior) y `catalogPredictions` opcional. IDs:
+  `m101`, `wise0855-d6`, `barnard-d2`, `barnard-d6`.
+- ID desconocido: **404**. Caso conocido sin archivos verificados o con
+  discrepancia de identidad/checksum/WCS/máscaras: **503**, sin frames sintéticos.
+- El frontend consume `/api/datasets*` por el rewrite existente. `?api=real&dataset=<id>`
+  selecciona explícitamente un caso y permite compartirlo.
+
+`catalogPredictions` nunca se transmite como `movingTargetPixel`. Tiene:
+
+```text
+kind: "catalog_predicted"
+motionMeasured: false
+reference, references[], astrometry, limitations[]
+displacementArcsec: desplazamiento de catálogo entre las dos épocas, no medido
+positions[]:
+  obsId, epochIndex, mjd, date        # corresponden a ese frame
+  ra, dec                          # posición ICRS aproximada propagada
+  x, y                             # centro de píxel cero-based; pantalla Norte arriba
+  inBounds, commonMaskValid, nativeValid, nativeFlagNames[]
+```
+
+Se usa el WCS TAN completo del FITS alineado, incluyendo el cambio de origen:
+`y_screen = height - 1 - y_fits`. Para un SVG cuyo borde de celda comienza en cero,
+la marca se dibuja en `(x+0.5,y+0.5)`. Cada imagen muestra solo la predicción de
+su época; diferencia/apilado pueden mostrar ambas, sin trayectoria medida.
+Las marcas no cambian `validMask`; una posición predicha sobre máscara sigue
+siendo inválida.
+
+Extensión WCS aditiva: `screenCrpix?: [x,y] | null` indica la referencia exacta de
+centros cero-based después de `flipud`. Los endpoints de datasets la proporcionan;
+`crpix` heredado no cambia. Los clientes nuevos usan `screenCrpix ?? crpix`, y los
+clientes antiguos pueden ignorar la extensión. Los metadatos de cada frame M4
+añaden `source_sha256`, `retrieved_utc` y `predicted_local`; la procedencia del
+conjunto añade `dataset_id`, colecciones efectivas y `motion_measured:false`.
+
+Las máscaras siguen siendo binarias y compartidas, filas Norte arriba, valores
+inválidos cero en JSON, estadísticos solo sobre valores válidos. Fechas FITS sin
+sufijo `Z` se interpretan como UTC explícitamente, nunca como hora local.
+Detalles de preparación/evidencia: `docs/m45-scientific-cases.md`.

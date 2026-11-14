@@ -1,0 +1,58 @@
+[
+  {
+    "id": "m101",
+    "name": "M101 — Comparación de referencia",
+    "description": "Dos observaciones auténticas de la Galaxia del Molinete; referencia de comparación, sin movimiento detectado.",
+    "classification": "reference",
+    "classificationLabel": "Comparación de referencia",
+    "target_id": null,
+    "detector": 2,
+    "ra": 210.80227,
+    "dec": 54.34895,
+    "fovArcmin": 3,
+    "observationIds": ["2026W20_2A_0464_3", "2026W26_1A_0500_1"],
+    "warnings": ["Comparación de campo estático. No se ha medido movimiento."]
+  },
+  {
+    "id": "wise0855-d6",
+    "name": "WISE 0855−0714 — D6",
+    "description": "Par real M4 de la región predicha de WISE 0855. La geometría es comparable; la identidad de la fuente y su movimiento no están validados.",
+    "classification": "exploratory",
+    "classificationLabel": "Candidato exploratorio",
+    "target_id": "wise0855",
+    "detector": 6,
+    "ra": 133.76012153222433,
+    "dec": -7.242127147774543,
+    "fovArcmin": 3,
+    "observationIds": ["2025W19_1B_0116_1", "2026W20_1A_0033_1"],
+    "warnings": ["No existe una detección de movimiento validada.", "Señal débil: contraste/sigma nativa exploratorio ≈1,39 y 1,11; no es SNR fotométrica calibrada.", "Posible confusión con fuentes estacionarias. Un píxel brillante no identifica WISE 0855.", "Predicción aproximada: no incluye paralaje anual, órbitas ni propagación de covarianzas; astrometría antigua con incertidumbre acumulada."]
+  },
+  {
+    "id": "barnard-d2",
+    "name": "Barnard's Star — Campo D2",
+    "description": "Ejemplo de comparación de campos con limitación instrumental: los píxeles de las posiciones predichas están excluidos por calidad.",
+    "classification": "instrumental_limit",
+    "classificationLabel": "Limitación instrumental",
+    "target_id": "barnard",
+    "detector": 2,
+    "ra": 269.4462668802862,
+    "dec": 4.768222283333858,
+    "fovArcmin": 3,
+    "observationIds": ["2025W35_1A_0146_1", "2026W34_1A_0363_1"],
+    "warnings": ["Las posiciones predichas tienen flags OVERFLOW, BLOOM y SUR_ERROR.", "La fuente no es evaluable con estas máscaras; no se afirma que sea visible en esos píxeles.", "El desplazamiento es predicho por catálogo, no medido en las imágenes.", "Predicción sin paralaje anual ni propagación de covarianzas."]
+  },
+  {
+    "id": "barnard-d6",
+    "name": "Barnard's Star — Campo D6",
+    "description": "Segundo par M4 para ilustrar la comparación de campos y el rechazo de píxeles por calidad.",
+    "classification": "instrumental_limit",
+    "classificationLabel": "Limitación instrumental",
+    "target_id": "barnard",
+    "detector": 6,
+    "ra": 269.4462668802862,
+    "dec": 4.768222283333858,
+    "fovArcmin": 3,
+    "observationIds": ["2025W33_2C_0321_1", "2026W12_2A_0520_4"],
+    "warnings": ["Las posiciones predichas tienen flags OVERFLOW y BLOOM.", "La fuente no es evaluable con estas máscaras; no se afirma que sea visible en esos píxeles.", "No hay movimiento observado validado. La predicción no incluye paralaje anual ni covarianzas."]
+  }
+]

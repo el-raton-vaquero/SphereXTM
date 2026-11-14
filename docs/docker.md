@@ -182,3 +182,21 @@ realizaron las construcciones y pruebas de contenedor indicadas arriba. El
 respaldo/restauración está documentado, pero no se ejecutó en esta verificación.
 La plataforma ARM64 no se probó. El acceso a catálogos externos y fuentes web
 sigue dependiendo de la conectividad del navegador.
+## M4.5: optional scientific cases
+
+The added `science` profile is independent of normal M101 startup. The backend
+reads `SPHEREX_DATASETS_DIR=/data/datasets` from the existing scientific volume;
+`SPHEREX_DATA_DIR=/data/m101` is unchanged. Prepare additional cases explicitly:
+
+```bash
+docker compose --profile science run --build --rm data-prepare --dataset wise0855-d6
+docker compose --profile science run --rm data-prepare --dataset barnard-d2
+docker compose --profile science run --rm data-prepare --dataset barnard-d6
+```
+
+Only two M4-pinned FITS products are fetched per case. A failure is explicit and
+does not gate `data-init`, backend health or frontend dependencies. No M4 research
+campaign runs at startup. Missing cases appear as unavailable in `/datasets`.
+The new profile's **configuration** passed `docker compose config --quiet`;
+its image/run/persistence were not re-executed during M4.5. Earlier Docker
+verification above is historical. Details: `m45-scientific-cases.md`.

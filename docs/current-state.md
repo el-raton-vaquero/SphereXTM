@@ -1,8 +1,8 @@
 # Project current state
 
-**Snapshot date:** 2026-11-13 UTC (session started with stated date 2026-11-12).
+**Snapshot date:** 2026-11-14. Earlier milestone sections retain their historical verification dates.
 
-**Source:** `JorgeLR0610/SphereX_SpaceApps`, branch `ux-redesign` based on `milestone3` (`2d70739`). Earlier milestone notes below retain historical evidence.
+**Source:** local `m4-implementation`, baseline `72f5fa8` plus the uncommitted M4.5 changes described below. Origin retains the old `el-raton-vaquero/pruebaSpaceApps` name; requested project name is SphereXTM. Earlier milestone notes below retain historical evidence.
 
 **Verification level:** source inspection, installed/locked Python dependencies, offline tests, live IRSA queries/downloads, FITS inspection, rendered comparison, verified FastAPI endpoints (`/health` and `GET /frames`), Next.js `/api/*` rewrite proxy, Turbopack build/lint, and authentic headless Chromium E2E browser testing verifying real SPHEREx QR3 M101 observation playback and synthetic demo mode.
 
@@ -215,3 +215,36 @@ Docker checks were rerun for this science-only change. See
 `docs/m4-evidence.json` and the scientific README for commands, exact queries,
 IDs, astrometry, figures, limitations and proposed future dataset registry.
 FITS/cache outputs remain ignored and no new endpoints were added.
+
+## M4.5 — Casos científicos reales — 2026-11-14
+
+Registro separado de datasets preparados: M101 de referencia, WISE D6
+exploratorio y dos comparaciones de campo Barnard D2/D6 con limitación instrumental.
+Se prepararon los tres pares M4 desde seis FITS reales de la caché M4, verificando
+hashes fijados y repitiendo lectura, máscaras y alineación originales. Coberturas
+reproducidas: 761/900, 802/900 y 730/900; M101 conserva su par y 769/900.
+
+Nuevos `/datasets` y `/datasets/{id}/frames`, sin búsquedas ni preparación durante
+peticiones; 404 desconocido, 503 no preparado/incompatible, nunca fallback demo.
+`/frames`, `/health` y preparación M101 se conservan. El perfil Docker opt-in
+`science` prepara casos en `/data/datasets` del volumen persistente; no participa
+en las dependencias de arranque M101.
+
+Frontend: selector accesible, clasificación/advertencias, fechas/detectores/λ
+dinámicos, lado a lado, blink y diferencias. Overlays separados de catálogo,
+transformados por WCS a cada época y etiquetados como predicción, no detección.
+Referencia exacta `screenCrpix` aditiva; fechas FITS sin Z se interpretan en UTC.
+Carreras/cancelación y claves de caché incluyen dataset. Mock mantiene su modo
+educativo independiente.
+
+Verificación: 84 pruebas backend pasan (aviso Starlette/httpx existente), harness
+frontend pasa, TypeScript final pasa en serie tras build, lint sin errores con un
+aviso de fuentes existente, build de producción pasa. Chromium real/producción
+verificó escritorio y móvil, cuatro casos, overlays, lado a lado, blink/diferencia,
+deep links, UTC en zona México, 503 sin fallback y mock. Compose config pasa;
+no se ejecutó el nuevo perfil Docker. No se hicieron commits/pushes ni se cambiaron
+locks/umbrales. Informe, comandos, archivos y capturas: `docs/m45-scientific-cases.md`.
+
+**Límite vigente:** ningún movimiento medido validado. WISE tiene señal débil /
+confusión pendiente; Barnard no es evaluable en los píxeles predichos excluidos.
+No hay extracción espectral calibrada, nuevas detecciones ni afirmación Planet X.

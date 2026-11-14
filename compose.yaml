@@ -17,6 +17,7 @@ services:
       target: runtime
     environment:
       SPHEREX_DATA_DIR: /data/m101
+      SPHEREX_DATASETS_DIR: /data/datasets
     volumes:
       - spherex-data:/data:ro
     depends_on:
@@ -49,6 +50,21 @@ services:
       start_period: 20s
       retries: 5
     restart: unless-stopped
+    init: true
+
+  # Explicit opt-in preparation: failures here NEVER gate normal M101 startup.
+  # docker compose --profile science run --rm data-prepare --dataset wise0855-d6
+  data-prepare:
+    profiles: ["science"]
+    build:
+      context: ./server
+      target: runtime
+    entrypoint: ["python", "-m", "spherex.datasets"]
+    environment:
+      SPHEREX_DATASETS_DIR: /data/datasets
+    volumes:
+      - spherex-data:/data
+    restart: "no"
     init: true
 
 volumes:

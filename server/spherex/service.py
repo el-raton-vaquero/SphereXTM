@@ -130,11 +130,11 @@ def compute_stats(data: np.ndarray, valid_mask: np.ndarray) -> FrameStatsModel:
     )
 
 
-def load_m101_frames(
+def load_aligned_frames(
     target_name: Optional[str] = None,
     data_dir: Optional[Path] = None,
 ) -> FramesResponseModel:
-    """Load validated M101 observation pair from cached aligned.fits and manifest.json."""
+    """Serialize prepared aligned images with the existing M101-compatible contract."""
     if data_dir is None:
         data_dir = get_default_data_dir()
 
@@ -288,6 +288,14 @@ def load_m101_frames(
         validMask=valid_mask_flat,
         provenance=provenance,
     )
+
+
+def load_m101_frames(
+    target_name: Optional[str] = None,
+    data_dir: Optional[Path] = None,
+) -> FramesResponseModel:
+    """Backwards-compatible default M101 loader."""
+    return load_aligned_frames(target_name=target_name, data_dir=data_dir)
 
 
 def get_frames(

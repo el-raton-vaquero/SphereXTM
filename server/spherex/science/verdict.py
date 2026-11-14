@@ -203,6 +203,9 @@ def evaluate(*, points: Sequence[dict], gaia_match: dict | None = None, gaia_err
     is_variable = bool(variability and variability.get("status") == "ok" and variability.get("variable"))
     known = gaia_match is not None or registry_match is not None
     motion_bad = bool(motion and motion.get("consistent_with_prediction") is False)
+    # Gaia DR3 also lists galaxy nuclei and quasars. Without a significant parallax or proper
+    # motion (and no literature match) the counterpart is catalogued but not shown to be a star.
+    not_stellar = registry_match is None and gaia_match is not None and not _stellar_evidence(gaia_match)
 
     if q["n_frames"] == 0:
         verdict, conf = "inconclusive", 0.1
@@ -218,6 +221,8 @@ def evaluate(*, points: Sequence[dict], gaia_match: dict | None = None, gaia_err
             conf -= 0.15
         if motion_bad:
             conf -= 0.2
+        if not_stellar:
+            conf -= 0.35
     elif q["art_frac"] >= 0.5 or (detected and all(p.get("artifact_flags") for p in points if p.get("status") == "ok")):
         verdict, conf = "artifact", 0.6 + 0.3 * q["art_frac"]
     elif is_variable:
@@ -228,9 +233,27 @@ def evaluate(*, points: Sequence[dict], gaia_match: dict | None = None, gaia_err
         verdict, conf = "inconclusive", 0.2
     conf = float(min(1.0, max(0.0, conf)))
     summary, summary_es = _summary(verdict, checks, gaia_match, registry_match, sb_hit, q)
+    if known and not_stellar and verdict in ("known_star", "variable"):
+        summary += (" The Gaia DR3 counterpart has no significant parallax or proper motion, so it may be"
+                    " extragalactic (e.g. a galaxy nucleus) rather than a star.")
+        summary_es += (" La contrapartida de Gaia DR3 no tiene paralaje ni movimiento propio significativos:"
+                       " puede ser extragaláctica (p. ej. un núcleo de galaxia) y no una estrella.")
     return {"checks": checks, "verdict": verdict, "confidence": conf, "summary": summary,
             "summary_es": summary_es, "stats": q,
             "confidence_method": "heuristic from check outcomes (see spherex/science/verdict.py), not a probability"}
+
+
+def _stellar_evidence(gaia_match: dict, min_snr: float = 5.0) -> bool:
+    """Parallax or proper motion detected at >= min_snr sigma in Gaia DR3."""
+    src = gaia_match.get("source", {})
+    plx, eplx = src.get("parallax"), src.get("parallax_error")
+    if plx is not None and eplx and plx / eplx >= min_snr:
+        return True
+    pmra, pmdec = src.get("pmra"), src.get("pmdec")
+    epra, epdec = src.get("pmra_error"), src.get("pmdec_error")
+    if None not in (pmra, pmdec) and epra and epdec:
+        return ((pmra / epra) ** 2 + (pmdec / epdec) ** 2) ** 0.5 >= min_snr
+    return False
 
 
 def _identification(gaia_match, registry_match):

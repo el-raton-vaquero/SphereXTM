@@ -65,7 +65,8 @@ def det_points(n=6, **kw):
 
 
 def gaia_match():
-    return {"source": {"source_id": "123", "phot_g_mean_mag": 12.0, "pmra": 1.0, "pmdec": 2.0, "parallax": 1.0},
+    return {"source": {"source_id": "123", "phot_g_mean_mag": 12.0, "pmra": 1.0, "pmdec": 2.0, "parallax": 1.0,
+                       "parallax_error": 0.05, "pmra_error": 0.05, "pmdec_error": 0.05},
             "position": {"mjd": 60800, "ra": 1, "dec": 1}, "separation_arcsec": 1.0}
 
 
@@ -84,6 +85,14 @@ def test_verdict_known_star_with_saturation_penalty():
     assert set(res) >= {"checks", "verdict", "confidence", "summary"}
     for c in res["checks"]:
         assert c["status"] in ("pass", "warn", "fail", "na") and c["evidence_source"]
+
+
+def test_gaia_match_without_parallax_or_pm_is_not_called_a_star_confidently():
+    g = gaia_match()
+    g["source"].update(parallax=0.1, parallax_error=0.3, pmra=0.2, pmdec=-0.1, pmra_error=0.3, pmdec_error=0.3)
+    res = verdict.evaluate(points=det_points(), gaia_match=g)
+    assert res["confidence"] <= 0.6
+    assert "extragalactic" in res["summary"] and "extragal" in res["summary_es"]
 
 
 def test_verdict_asteroid_artifact_candidate_inconclusive():

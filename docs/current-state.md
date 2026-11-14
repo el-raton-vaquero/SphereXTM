@@ -176,3 +176,42 @@ lint/TypeScript/frontend y 47 científicas pasan con las advertencias existentes
 
 Ver `docs/docker.md` para comandos, evidencia, respaldo y límites. Capturas en
 `docs/assets/docker-*.png`. No se incorporaron FITS ni cachés al repositorio.
+
+## M4 — Target feasibility research — 2026-11-14
+
+Implemented the approved scientific research slice in `server/spherex/research.py`,
+`targets.py` and the referenced `data/m4-targets.json` registry. This supersedes
+prior speculative M4 overlay/UI scope for this delivery. Frontend, HTTP contract,
+M101 processing/service, dependency locks and Docker startup are unchanged.
+
+Executed bounded DR1/QR3 queries and real FITS inspection for Barnard and WISE
+0855, plus the optional Lalande 21185 sample after verifying its Gaia row.
+Epsilon Indi B is explicitly blocked: required 2MASS position/epoch lookup
+returned HTTP 502; no assumed position was sent to SIA2. Luhman 16 was not selected.
+
+Five field pairs pass the unchanged >=30 day, >=80% common spectral coverage,
+<=0.25 bandwidth offset and <=1.2 bandwidth ratio thresholds. This is **not a
+validated moving-target demonstration**: Barnard's predicted positions have
+OVERFLOW/BLOOM flags (D2 also SUR_ERROR); WISE D6 has valid pixels and predicted
+8.204 arcsec displacement, but weak exploratory contrast/native sigma (~1.39,
+1.11), with source identity/confusion unvalidated. WISE D5 displacements are
+<0.1 PSF FWHM. Lalande has no passing pair in its 12-product sample and invalid
+predicted native pixels in all 11 inspected products.
+
+The final samples attempted 108 products, inspected 93, and recorded 15 download
+failures. Campaign status remains incomplete, not archive absence. The separate
+M4 cache retains 95 products / 379,759,680 bytes, including two from an interrupted
+initial alternative invocation; budget accounting includes them. A process lock
+now prevents simultaneous campaigns in one output directory. All five accepted
+pair IDs, matched fractions and predicted displacements reproduced exactly in
+explicit hash-verified offline replay. Per-run manifests retain live errors;
+latest offline runs transparently report unavailable cached products.
+
+67 scientific tests pass (20 new M4 tests), with the existing Starlette/httpx
+warning. M101 was prepared with its unchanged CLI; its real `/frames` response
+is HTTP 200 with the original QR3 pair and 769/900 valid pixels. No frontend or
+Docker checks were rerun for this science-only change. See
+`docs/m4-target-feasibility.md`, `docs/m4-evidence-live.json`,
+`docs/m4-evidence.json` and the scientific README for commands, exact queries,
+IDs, astrometry, figures, limitations and proposed future dataset registry.
+FITS/cache outputs remain ignored and no new endpoints were added.

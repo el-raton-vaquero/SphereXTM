@@ -61,7 +61,28 @@ photometry and motion detection are **not** completed by this milestone.
 
 Evidence and limitations: `docs/ux-redesign.md`, `docs/assets/ux-*.png`.
 
-## M4 — Post-Integration: Catalog Overlays & Time-Domain Analysis
+## M4 — Approved target-feasibility research (2026-11-14 delivery)
+
+- [x] Independent bounded research CLI and referenced astrometric candidate registry.
+- [x] Epoch-aware `pm_ra_cosdec` propagation, fixed sky grids and trajectory queries.
+- [x] Real DR1/QR3 queries, all-detector discovery metadata, conservative FITS inspection.
+- [x] Record all pair acceptances/rejections and predicted-position mask/variance diagnostics.
+- [x] Per-target/detector provenance, bounded sequential acquisition and verified offline replay.
+- [x] Execute Barnard/WISE samples and optional Gaia-verified Lalande alternative.
+- [x] Record Epsilon B catalog-access blocker without invented astrometry or archive absence claim.
+- [x] Report actual classifications, figures, limitations and future dataset-registry proposal.
+- [x] 67 scientific tests pass; M101 original pair/response preserved; frontend/API/Docker unchanged.
+
+**Result:** five comparable field pairs, no validated motion demonstration. Barnard
+is quality-masked; WISE has weak signal / confusion limitations; Lalande is negative
+within the sample; Epsilon B is blocked by HTTP 502 at catalog verification.
+Downloads had remote failures, so research is explicitly incomplete. Offline replay
+reproduces accepted pairs exactly. Full evidence: `docs/m4-target-feasibility.md`.
+
+## Earlier M4 overlay/UI backlog — deferred
+
+The following earlier proposals are outside the approved feasibility delivery.
+
 *Based on official resource review in `docs/official-resources-review.md` (WiseView UX & Gaia DR3).*
 - [ ] Implement Gaia DR3 / CatWISE2020 TAP cone search for real astrometric reference sources.
 - [ ] Implement epoch-aware proper motion propagation: $\Delta t = t_{\text{SPHEREx}} - 2016.0$ to project catalog coordinates onto the observation epoch.

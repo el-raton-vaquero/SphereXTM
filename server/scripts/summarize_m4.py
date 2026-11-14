@@ -36,6 +36,8 @@ def summarize(root):
                 pairs_evaluated=len(attempts),
                 errors=[{k:record.get(k) for k in ('obs_id','error')} for record in records if 'error' in record],
                 accepted=[p for p in attempts if p['status']=='comparable_pair_validated'],
+                reprojected_rejections=[p for p in attempts if p['status']!='comparable_pair_validated'
+                                        and 'spectrally_matched_fraction_of_grid' in p],
                 products=[{k:record.get(k) for k in ('obs_id','url','sha256','bytes','retrieved_utc')}
                           for record in records if 'observation' in record],
                 observations=[{k:obs.get(k) for k in ('obs_id','collection','date_obs_utc','mjd_obs',
@@ -44,7 +46,11 @@ def summarize(root):
             candidate['detectors'].append(summary)
         candidates.append(candidate)
     products=[p for p in root.rglob('*.fits') if p.with_suffix('.json').exists()]
-    return {'data_kind':'observed_spherex_with_catalog_predictions',
+    selected={product['sha256'] for c in candidates for d in c['detectors']
+              for product in d['products']}
+    unselected=[json.loads(p.with_suffix('.json').read_text()) for p in products
+                if json.loads(p.with_suffix('.json').read_text())['sha256'] not in selected]
+    return {'products_not_in_latest_sample':unselected,'data_kind':'observed_spherex_with_catalog_predictions',
             'root':str(root),'cached_products':len(products),
             'cached_bytes':sum(p.stat().st_size for p in products),'candidates':candidates}
 

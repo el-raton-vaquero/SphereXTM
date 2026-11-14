@@ -1,0 +1,286 @@
+{
+  "generated_utc": "2026-11-14T20:51:51.416142+00:00",
+  "display_epoch_mjd": 61000.0,
+  "targets": [
+    {
+      "id": "barnard",
+      "name": "Barnard's Star",
+      "ra": 269.4462919921978,
+      "dec": 4.767898775333293,
+      "category": "high_proper_motion",
+      "blurb": "La estrella con mayor movimiento propio conocido: ~10.4\"/a\u00f1o.",
+      "why": "Se mueve ~1.7 px por a\u00f1o de SPHEREx, pero satura el detector: PRISM lo muestra con banderas, no lo oculta.",
+      "en": {
+        "blurb": "Largest known proper motion: ~10.4\"/yr.",
+        "why": "Moves ~1.7 px per SPHEREx year but saturates the detector; PRISM flags it instead of hiding it."
+      },
+      "expected": {
+        "saturated": true,
+        "best_detectors": [
+          1,
+          2,
+          3
+        ],
+        "basis": "K ~ 4.5 mag; M4 study found OVERFLOW/BLOOM flags at predicted positions",
+        "pm_arcsec_yr": 10.393348722273943,
+        "kind": "prior expectation, not a measurement"
+      },
+      "position": {
+        "kind": "catalog_predicted",
+        "frame": "ICRS",
+        "epoch_mjd": 61000.0,
+        "epoch_utc": "2025-11-21T00:00:00.000",
+        "method": "astropy SkyCoord.apply_space_motion (PM + parallax distance; RV if known, else 0)"
+      },
+      "catalog": {
+        "source": "Gaia DR3 4472832130942575872",
+        "service": "https://gea.esac.esa.int/tap-server/tap/sync",
+        "query": "SELECT source_id,ra,dec,ref_epoch,ra_error,dec_error,pmra,pmdec,parallax,parallax_error,radial_velocity,phot_g_mean_mag FROM gaiadr3.gaia_source WHERE source_id=4472832130942575872",
+        "reference": "Gaia Collaboration 2023, A&A 674, A1 (Gaia DR3)",
+        "ra_deg": 269.44850252543836,
+        "dec_deg": 4.739420051112412,
+        "epoch": "J2016.0",
+        "epoch_jyear": 2016.0,
+        "pmra_masyr": -801.5509783684709,
+        "pmdec_masyr": 10362.394206546573,
+        "parallax_mas": 546.975939730948,
+        "rv_kms": -110.46822,
+        "phot_g_mean_mag": 8.1939745,
+        "simbad_crossid": "NAME Barnard's star"
+      }
+    },
+    {
+      "id": "eps-indi-b",
+      "name": "Epsilon Indi B",
+      "ra": 331.0964266514884,
+      "dec": -56.80058586569394,
+      "category": "brown_dwarf",
+      "blurb": "Par de enanas marrones T a 12 a\u00f1os luz; ~4.7\"/a\u00f1o.",
+      "why": "Movimiento menor que un p\u00edxel por temporada y vecina brillante (eps Ind A): prueba de artefactos.",
+      "en": {
+        "blurb": "T-dwarf pair 12 light-years away; ~4.7\"/yr.",
+        "why": "Sub-pixel motion per season next to a bright star (eps Ind A): an artifact test."
+      },
+      "expected": {
+        "saturated": false,
+        "best_detectors": [
+          2,
+          3,
+          4
+        ],
+        "basis": "T-dwarf binary ~7.3' from the bright star eps Ind A (ghost/crosstalk risk)",
+        "pm_arcsec_yr": 4.684164530277503,
+        "kind": "prior expectation, not a measurement"
+      },
+      "position": {
+        "kind": "catalog_predicted",
+        "frame": "ICRS",
+        "epoch_mjd": 61000.0,
+        "epoch_utc": "2025-11-21T00:00:00.000",
+        "method": "astropy SkyCoord.apply_space_motion (PM + parallax distance; RV if known, else 0)"
+      },
+      "catalog": {
+        "source": "Gaia DR3 6412596012146801152",
+        "service": "https://gea.esac.esa.int/tap-server/tap/sync",
+        "query": "SELECT source_id,ra,dec,ref_epoch,ra_error,dec_error,pmra,pmdec,parallax,parallax_error,radial_velocity,phot_g_mean_mag FROM gaiadr3.gaia_source WHERE source_id=6412596012146801152",
+        "reference": "Gaia Collaboration 2023, A&A 674, A1 (Gaia DR3)",
+        "ra_deg": 331.07645259656397,
+        "dec_deg": -56.79381206688221,
+        "epoch": "J2016.0",
+        "epoch_jyear": 2016.0,
+        "pmra_masyr": 3981.97666296105,
+        "pmdec_masyr": -2466.8318147663504,
+        "parallax_mas": 270.6580324694526,
+        "rv_kms": null,
+        "phot_g_mean_mag": 18.030664,
+        "simbad_crossid": "* eps Ind B"
+      }
+    },
+    {
+      "id": "wise-0855",
+      "name": "WISE 0855-0714",
+      "ra": 133.76002060465208,
+      "dec": -7.242203206138758,
+      "category": "brown_dwarf",
+      "blurb": "La enana marr\u00f3n m\u00e1s fr\u00eda conocida (~285 K); ~8.1\"/a\u00f1o.",
+      "why": "Invisible por debajo de ~3.5 \u00b5m: aparece s\u00f3lo en D5/D6. Color y movimiento separados.",
+      "en": {
+        "blurb": "Coldest known brown dwarf (~285 K); ~8.1\"/yr.",
+        "why": "Invisible below ~3.5 um: only D5/D6 see it. Colour and motion, separated."
+      },
+      "expected": {
+        "saturated": false,
+        "best_detectors": [
+          5,
+          6
+        ],
+        "basis": "Y dwarf, [4.5]=13.9 vs [3.6]=17.4 (Luhman 2014): only long-wave detectors",
+        "pm_arcsec_yr": 8.151545861368872,
+        "kind": "prior expectation, not a measurement"
+      },
+      "position": {
+        "kind": "catalog_predicted",
+        "frame": "ICRS",
+        "epoch_mjd": 61000.0,
+        "epoch_utc": "2025-11-21T00:00:00.000",
+        "method": "astropy SkyCoord.apply_space_motion (PM + parallax distance; RV if known, else 0)"
+      },
+      "catalog": {
+        "source": "SIMBAD WISEA J085510.74-071442.5",
+        "service": "https://simbad.harvard.edu/simbad/sim-tap/sync",
+        "query": "SELECT b.main_id,b.ra,b.dec,b.coo_bibcode,b.pmra,b.pmdec,b.pm_bibcode,b.plx_value,b.plx_bibcode,b.rvz_radvel,b.otype FROM basic AS b JOIN ident AS i ON i.oidref=b.oid WHERE i.id='WISE J085510.83-071442.5'",
+        "reference": "coordinates 2021ApJS..253....7K; proper motion 2021ApJS..253....7K",
+        "ra_deg": 133.81890825,
+        "dec_deg": -7.247048000000001,
+        "epoch": "J2000.0",
+        "epoch_jyear": 2000.0,
+        "pmra_masyr": -8123.7,
+        "pmdec_masyr": 673.2,
+        "parallax_mas": 439.0,
+        "rv_kms": null,
+        "otype": "BD*"
+      }
+    },
+    {
+      "id": "rw-aur",
+      "name": "RW Aurigae",
+      "ra": 76.95658631374633,
+      "dec": 30.40129198088944,
+      "category": "variable_star",
+      "blurb": "Estrella T Tauri joven con apagones irregulares.",
+      "why": "Variable real: cambia de brillo entre temporadas, no de posici\u00f3n.",
+      "en": {
+        "blurb": "Young T Tauri star with irregular dimmings.",
+        "why": "A true variable: brightness changes between seasons, not position."
+      },
+      "expected": {
+        "saturated": true,
+        "best_detectors": [
+          4,
+          5,
+          6
+        ],
+        "basis": "Bright T Tauri star (K ~ 7); saturation expected in several detectors",
+        "pm_arcsec_yr": 0.021577344600297785,
+        "kind": "prior expectation, not a measurement"
+      },
+      "position": {
+        "kind": "catalog_predicted",
+        "frame": "ICRS",
+        "epoch_mjd": 61000.0,
+        "epoch_utc": "2025-11-21T00:00:00.000",
+        "method": "astropy SkyCoord.apply_space_motion (PM + parallax distance; RV if known, else 0)"
+      },
+      "catalog": {
+        "source": "SIMBAD V* RW Aur",
+        "service": "https://simbad.harvard.edu/simbad/sim-tap/sync",
+        "query": "SELECT b.main_id,b.ra,b.dec,b.coo_bibcode,b.pmra,b.pmdec,b.pm_bibcode,b.plx_value,b.plx_bibcode,b.rvz_radvel,b.otype FROM basic AS b JOIN ident AS i ON i.oidref=b.oid WHERE i.id='V* RW Aur'",
+        "reference": "coordinates 2007A&A...474..653V; proper motion 2007A&A...474..653V",
+        "ra_deg": 76.95652603458333,
+        "dec_deg": 30.401438173888888,
+        "epoch": "J2000.0",
+        "epoch_jyear": 2000.0,
+        "pmra_masyr": 7.23,
+        "pmdec_masyr": -20.33,
+        "parallax_mas": 15.42,
+        "rv_kms": 15.0,
+        "otype": "TT*"
+      }
+    },
+    {
+      "id": "r-dra",
+      "name": "R Draconis",
+      "ra": 248.16723470686972,
+      "dec": 66.75502363373722,
+      "category": "variable_star",
+      "blurb": "Variable Mira con periodo de ~245 d\u00edas.",
+      "why": "Un periodo cabe en el lapso de SPHEREx: el brillo cambia mucho entre temporadas.",
+      "en": {
+        "blurb": "Mira variable with a ~245-day period.",
+        "why": "One period fits within the SPHEREx span: large brightness changes between seasons."
+      },
+      "expected": {
+        "saturated": true,
+        "best_detectors": [
+          1,
+          2
+        ],
+        "basis": "Mira variable, near-IR very bright; saturation expected",
+        "pm_arcsec_yr": 0.02153911903853499,
+        "kind": "prior expectation, not a measurement"
+      },
+      "position": {
+        "kind": "catalog_predicted",
+        "frame": "ICRS",
+        "epoch_mjd": 61000.0,
+        "epoch_utc": "2025-11-21T00:00:00.000",
+        "method": "astropy SkyCoord.apply_space_motion (PM + parallax distance; RV if known, else 0)"
+      },
+      "catalog": {
+        "source": "Gaia DR3 1648328016354496384",
+        "service": "https://gea.esac.esa.int/tap-server/tap/sync",
+        "query": "SELECT source_id,ra,dec,ref_epoch,ra_error,dec_error,pmra,pmdec,parallax,parallax_error,radial_velocity,phot_g_mean_mag FROM gaiadr3.gaia_source WHERE source_id=1648328016354496384",
+        "reference": "Gaia Collaboration 2023, A&A 674, A1 (Gaia DR3)",
+        "ra_deg": 248.1673783672889,
+        "dec_deg": 66.75500674547219,
+        "epoch": "J2016.0",
+        "epoch_jyear": 2016.0,
+        "pmra_masyr": -20.642811719160797,
+        "pmdec_masyr": 6.148818852711324,
+        "parallax_mas": 1.2509180143740992,
+        "rv_kms": null,
+        "phot_g_mean_mag": 6.374379,
+        "simbad_crossid": "V* R Dra"
+      }
+    },
+    {
+      "id": "m101",
+      "name": "M101 (Pinwheel Galaxy)",
+      "ra": 210.80242916666668,
+      "dec": 54.34875,
+      "category": "reference_field",
+      "blurb": "Galaxia espiral: un campo de control est\u00e1tico.",
+      "why": "Nada deber\u00eda moverse aqu\u00ed. Sirve para calibrar qu\u00e9 parece cambio y no lo es.",
+      "en": {
+        "blurb": "Spiral galaxy: a static control field.",
+        "why": "Nothing should move here. Calibrates what looks like change but is not."
+      },
+      "expected": {
+        "saturated": false,
+        "best_detectors": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "basis": "Extended galaxy; static reference field (the existing /frames demo)",
+        "pm_arcsec_yr": null,
+        "kind": "prior expectation, not a measurement"
+      },
+      "position": {
+        "kind": "catalog_predicted",
+        "frame": "ICRS",
+        "epoch_mjd": 61000.0,
+        "epoch_utc": "2025-11-21T00:00:00.000",
+        "method": "astropy SkyCoord.apply_space_motion (PM + parallax distance; RV if known, else 0)"
+      },
+      "catalog": {
+        "source": "SIMBAD M 101",
+        "service": "https://simbad.harvard.edu/simbad/sim-tap/sync",
+        "query": "SELECT b.main_id,b.ra,b.dec,b.coo_bibcode,b.pmra,b.pmdec,b.pm_bibcode,b.plx_value,b.plx_bibcode,b.rvz_radvel,b.otype FROM basic AS b JOIN ident AS i ON i.oidref=b.oid WHERE i.id='M 101'",
+        "reference": "coordinates 2006AJ....131.1163S; proper motion n/a",
+        "ra_deg": 210.80242916666668,
+        "dec_deg": 54.34875,
+        "epoch": "J2000.0",
+        "epoch_jyear": 2000.0,
+        "pmra_masyr": null,
+        "pmdec_masyr": null,
+        "parallax_mas": null,
+        "rv_kms": 243.0330935727467,
+        "otype": "GiP"
+      }
+    }
+  ]
+}

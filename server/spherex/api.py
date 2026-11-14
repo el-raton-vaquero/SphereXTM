@@ -41,6 +41,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# PRISM v2 routes (/v2/*), mounted alongside the original /frames API.
+from spherex.v2 import router as v2_router  # noqa: E402
+
+app.include_router(v2_router)
+
 
 @app.exception_handler(UnsupportedRegionError)
 async def handle_unsupported_region(_request: Request, exc: UnsupportedRegionError):

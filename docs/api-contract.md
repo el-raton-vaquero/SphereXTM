@@ -75,3 +75,60 @@ servidor del rewrite durante `next build`; predeterminado local
 consultando `/api/*` en el mismo origen. FastAPI no publica un puerto al host.
 La inicialización del volumen científico precede al backend y frontend; fallos
 de adquisición no se reemplazan con datos sintéticos. Ver `docs/docker.md`.
+
+## PRISM v2 (`/v2/*`, 2026-11-14)
+
+Router: `server/spherex/v2.py`, mounted in `spherex.api:app` next to the unchanged
+`/frames`. The browser calls `/api/v2/...` through the existing Next.js rewrite.
+
+- `GET /v2/targets` — six presets (`barnard`, `eps-indi-b`, `wise-0855`, `rw-aur`,
+  `r-dra`, `m101`) from `server/spherex/data/prism-targets.json`, resolved from
+  Gaia DR3 TAP (Barnard; eps Ind B = Gaia DR3 6412596012146801152, cross-identified in
+  SIMBAD; R Dra) or SIMBAD TAP (WISE 0855, RW Aur, M101). `ra/dec` are
+  **catalog-predicted** positions propagated with `SkyCoord.apply_space_motion` to
+  MJD 61000 (2025-11-21); raw astrometry, epoch, query and bibcode are in `catalog`.
+  `expected` is a prior, not a measurement.
+  Refresh: `uv run --locked python -m spherex.targets_v2 --refresh`.
+- `GET /v2/search?ra&dec&fov=4&max_frames=60&collections=spherex_dr1,spherex_qr3`
+  (fov 1–20 arcmin, max_frames 1–160). Returns `query, grid{n, pixscale_arcsec,
+  wcs{crval, crpix, cd}, north_up}, frames[], seasons[], detectors[],
+  provenance{citation, collections, query_urls, generated_utc, errors,
+  collection_errors, transfer_bytes, ...}, pixel_encoding, units, cache`.
+  - `pixels_b64`: little-endian float32 n×n, row 0 = North, column 0 = East, MJy/sr.
+    NaN only where there is no usable measurement (outside footprint, non-finite,
+    variance ≤ 0, or NONFUNC/MISSING_DATA/HOT/COLD/DICHROIC/PHANMISS). All other
+    flags (OVERFLOW, TRANSIENT, GHOST, CROSSTALK, PERSIST, SOURCE…) stay in
+    `flags_b64` (uint32, nearest native pixel), decoded per frame via `flag_bits`.
+  - `grid.wcs.cd` is expressed for the delivered north-up array: `[[-s,0],[0,-s]]`,
+    `crpix` 1-based.
+  - Per frame: `id, obs_id, collection, mjd, date, season, detector, lambda_um,
+    bandwidth_um` (spectral WCS 'W' at the request centre), `saturated_at_center`
+    (OVERFLOW/NONLINEAR/BLOOM within 2 native px), `center_flags`, `valid_fraction`,
+    `clean_fraction`, `psf_fwhm_arcsec`, `provenance{url, obs_id, method, transfer_bytes}`.
+  - Seasons: a gap > 60 days starts a new season.
+  - Errors (`{detail, error_type, ...}`): 422 invalid parameters/collection; 404
+    `no_coverage` (completed SIA query, zero products); 502 `archive_unavailable` /
+    `download_failed`. Partial collection failures → `provenance.collection_errors`;
+    per-frame failures → `provenance.errors`. Never substituted with synthetic data.
+- `GET /v2/search/stream` — same parameters, `text/event-stream`: `progress` events
+  (`stage`: discovery → discovered → frames{done,total,failed} → done), then one
+  `result` (full search JSON) or `error` event.
+- `GET /v2/gaia`, `/v2/skybot`, `/v2/spectrum`, `/v2/verdict` — dispatch to functions
+  registered with `spherex.v2.register_provider(name, fn)` (a module
+  `spherex.v2_providers` is auto-imported if present). Unregistered → HTTP 501
+  `not_implemented`. Signatures: `gaia(ra, dec, radius_arcmin, mjd: list[float])`,
+  `skybot(ra, dec, radius_arcmin, mjd)`, `spectrum(ra, dec, aperture_arcsec)`,
+  `verdict(ra, dec, fov)`. For photometry, `spherex.live.native_frames()` returns
+  native IMAGE/FLAGS/VARIANCE cutouts with celestial and spectral WCS.
+
+Snapshots: `frontend/public/snapshots/<id>.json` (same schema, `cache: "snapshot"`,
+plus `target`, `snapshot`, and `gaia/spectrum/verdict` only if providers exist) and
+`index.json`, generated from live IRSA by `server/scripts/precompute_snapshots.py`.
+
+Transfer: SIA `cloud_access` → HTTP byte ranges on the public AWS mirror
+`nasa-irsa-spherex` (IMAGE/VARIANCE rows, RICE row-tile FLAGS, WCS-WAVE tail). Verified
+bit-identical (image, flags, variance, celestial and spectral WCS) to the IRSA cutout
+service for DR1 `2025W46_1A_0076_2` D6; the cutout service is the automatic fallback.
+Disk cache `server/outputs/prism-cache` (`PRISM_CACHE_DIR`, `PRISM_CACHE_MAX_BYTES`,
+default 1 GiB). IRSA SIA2 intermittently returns HTTP 502/503; queries are retried
+with backoff.

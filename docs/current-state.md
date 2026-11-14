@@ -215,3 +215,26 @@ Docker checks were rerun for this science-only change. See
 `docs/m4-evidence.json` and the scientific README for commands, exact queries,
 IDs, astrometry, figures, limitations and proposed future dataset registry.
 FITS/cache outputs remain ignored and no new endpoints were added.
+
+## PRISM backend-live — 2026-11-14
+
+New `server/spherex/live.py`, `v2.py`, `targets_v2.py`, `filelock.py`,
+`scripts/precompute_snapshots.py`; router mounted in `spherex.api` (`/frames`
+unchanged). Contract: `docs/api-contract.md` → "PRISM v2". `research.py` now uses a
+cross-platform lock (msvcrt/flock), so `tests/test_research.py` runs on Windows.
+
+Live `/v2/search` works for any RA/Dec: SIA2 (DR1+QR3, retried) → byte-range reads on
+the public AWS mirror (bit-identical to an IRSA cutout for one verified D6 product;
+~1.6 MB per frame vs ~4 MB cutouts) → north-up TAN grid. Measured over HTTP: M31,
+60 frames, fov 4′, cold 27.0 s; repeat 1.2 s from disk cache. SSE stream verified.
+Presets resolved from Gaia DR3 / SIMBAD (CDS host 404 → Harvard mirror) and propagated
+to MJD 61000. `/v2/gaia|skybot|spectrum|verdict` answer 501 until providers register.
+
+Snapshots generated live (`frontend/public/snapshots`, 160 frames each, fov 4′,
+n=39, ~2.8 MB, all six detectors, 0 failed frames): Barnard 3 seasons (160/160
+saturated at centre), eps Ind B 4 seasons (1 saturated), WISE 0855 3 seasons (0),
+RW Aur 3 (152), R Dra 3 (159), M101 3 (0). Saturation is reported, not hidden.
+Full pytest: 104 passed (M101 dataset prepared locally with `spherex.prepare`).
+Known Windows issue outside this workstream: `scripts/validate_irsa.py` prints "λ",
+which raises UnicodeEncodeError on a cp1252 console and records a spurious rejection
+(the observation is still kept); run with `PYTHONUTF8=1`.

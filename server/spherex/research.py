@@ -8,7 +8,6 @@ from __future__ import annotations
 import argparse
 import csv
 from contextlib import contextmanager
-import fcntl
 import hashlib
 import io
 import itertools
@@ -31,6 +30,7 @@ from spherex.archive import (COLLECTIONS, MAX_FILE_BYTES, MAX_QUERY_BYTES, SIA_U
                              cutout_url, download_cutout, fetch_bytes, parse_sia,
                              utc_now, write_json)
 from spherex.alignment import align_pair, pair_score, save_comparison
+from spherex.filelock import LockBusyError, exclusive_lock
 from spherex.fits import inspect_cutout
 from spherex.targets import load_targets, predict, sky_position, trajectory_region
 
@@ -377,15 +377,15 @@ def arguments(argv=None):
 @contextmanager
 def campaign_lock(root: Path):
     """Prevent concurrent campaigns from racing budgets or parallelizing downloads."""
-    with (root/'.campaign.lock').open('a') as handle:
-        try:
-            fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except BlockingIOError as exc:
-            raise ValueError('Another M4 campaign is active in this output directory') from exc
-        try:
-            yield
-        finally:
-            fcntl.flock(handle, fcntl.LOCK_UN)
+    lock = exclusive_lock(root/'.campaign.lock')
+    try:
+        lock.__enter__()
+    except LockBusyError as exc:
+        raise ValueError('Another M4 campaign is active in this output directory') from exc
+    try:
+        yield
+    finally:
+        lock.__exit__(None, None, None)
 
 
 def main(argv=None):

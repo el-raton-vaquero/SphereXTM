@@ -1,471 +1,72 @@
 {
- "generated_utc": "2026-11-14T21:10:58.878154+00:00",
- "schema": "GET /v2/search response + target (+ optional gaia/spectrum/verdict), cache='snapshot'",
- "real_data": true,
- "citation": "This publication makes use of data products from the Spectro-Photometer for the History of the Universe, Epoch of Reionization and Ices Explorer (SPHEREx), which is a joint project of the Jet Propulsion Laboratory and the California Institute of Technology, and is funded by the National Aeronautics and Space Administration. Data retrieved from NASA/IPAC Infrared Science Archive (IRSA).",
+ "kind": "prism-snapshot-index",
+ "note": "Real SPHEREx data captured by frontend/scripts/prism_snapshot.py; not synthetic.",
  "snapshots": [
   {
    "id": "barnard",
    "name": "Barnard's Star",
-   "file": "barnard.json",
-   "bytes": 2818431,
-   "ra": 269.4462919921978,
-   "dec": 4.767898775333293,
-   "fov": 4.0,
-   "grid_n": 39,
-   "n_frames": 160,
-   "n_available": 358,
-   "n_failed": 0,
-   "seasons": [
-    {
-     "index": 0,
-     "start_mjd": 60902.864714549,
-     "end_mjd": 60949.265914294,
-     "n_frames": 54
-    },
-    {
-     "index": 1,
-     "start_mjd": 61110.092895174,
-     "end_mjd": 61164.879118924,
-     "n_frames": 53
-    },
-    {
-     "index": 2,
-     "start_mjd": 61268.630811597,
-     "end_mjd": 61305.628020625,
-     "n_frames": 53
-    }
-   ],
-   "detectors": [
-    {
-     "detector": 1,
-     "n_frames": 27,
-     "lambda_min": 0.741250435985304,
-     "lambda_max": 1.0969009412753863
-    },
-    {
-     "detector": 2,
-     "n_frames": 27,
-     "lambda_min": 1.101141257671451,
-     "lambda_max": 1.6223554266328792
-    },
-    {
-     "detector": 3,
-     "n_frames": 27,
-     "lambda_min": 1.650031580958002,
-     "lambda_max": 2.4116946965338313
-    },
-    {
-     "detector": 4,
-     "n_frames": 27,
-     "lambda_min": 2.418475002271367,
-     "lambda_max": 3.738827208985956
-    },
-    {
-     "detector": 5,
-     "n_frames": 26,
-     "lambda_min": 3.8039190596760064,
-     "lambda_max": 4.392087658192106
-    },
-    {
-     "detector": 6,
-     "n_frames": 26,
-     "lambda_min": 4.433613500033674,
-     "lambda_max": 5.000891962087712
-    }
-   ],
-   "saturated_frames": 160,
-   "elapsed_s": 76.5,
-   "transfer_bytes": 246531130,
-   "generated_utc": "2026-11-14T21:04:31.092586+00:00",
-   "extras": []
+   "ra": 269.44635323920164,
+   "dec": 4.767109750255945,
+   "fov": 4,
+   "generated_utc": "2026-11-14T21:15:18.758028+00:00",
+   "n_frames": 57,
+   "saturated_frames": 44,
+   "verdict": "known_star"
   },
   {
    "id": "eps-indi-b",
    "name": "Epsilon Indi B",
-   "file": "eps-indi-b.json",
-   "bytes": 2812621,
-   "ra": 331.0964266514884,
-   "dec": -56.80058586569394,
-   "fov": 4.0,
-   "grid_n": 39,
-   "n_frames": 160,
-   "n_available": 463,
-   "n_failed": 0,
-   "seasons": [
-    {
-     "index": 0,
-     "start_mjd": 60789.855521771,
-     "end_mjd": 60836.188319387,
-     "n_frames": 38
-    },
-    {
-     "index": 1,
-     "start_mjd": 60947.301947049,
-     "end_mjd": 60991.857570382,
-     "n_frames": 56
-    },
-    {
-     "index": 2,
-     "start_mjd": 61148.846282338,
-     "end_mjd": 61163.717647176,
-     "n_frames": 31
-    },
-    {
-     "index": 3,
-     "start_mjd": 61305.228398345,
-     "end_mjd": 61315.478075579,
-     "n_frames": 35
-    }
-   ],
-   "detectors": [
-    {
-     "detector": 1,
-     "n_frames": 27,
-     "lambda_min": 0.7391580195460513,
-     "lambda_max": 1.1045084284168003
-    },
-    {
-     "detector": 2,
-     "n_frames": 27,
-     "lambda_min": 1.1098338706206872,
-     "lambda_max": 1.6514497204264424
-    },
-    {
-     "detector": 3,
-     "n_frames": 27,
-     "lambda_min": 1.6194352839690516,
-     "lambda_max": 2.4212163709005585
-    },
-    {
-     "detector": 4,
-     "n_frames": 27,
-     "lambda_min": 2.413797454782818,
-     "lambda_max": 3.787052667567227
-    },
-    {
-     "detector": 5,
-     "n_frames": 26,
-     "lambda_min": 3.86232599561034,
-     "lambda_max": 4.423665677834686
-    },
-    {
-     "detector": 6,
-     "n_frames": 26,
-     "lambda_min": 4.427973110295225,
-     "lambda_max": 5.004808956247543
-    }
-   ],
-   "saturated_frames": 1,
-   "elapsed_s": 117.6,
-   "transfer_bytes": 263531486,
-   "generated_utc": "2026-11-14T21:06:28.658016+00:00",
-   "extras": []
-  },
-  {
-   "id": "wise-0855",
-   "name": "WISE 0855-0714",
-   "file": "wise-0855.json",
-   "bytes": 2812024,
-   "ra": 133.76002060465208,
-   "dec": -7.242203206138758,
-   "fov": 4.0,
-   "grid_n": 39,
-   "n_frames": 160,
-   "n_available": 258,
-   "n_failed": 0,
-   "seasons": [
-    {
-     "index": 0,
-     "start_mjd": 60800.700028461,
-     "end_mjd": 60801.518653704,
-     "n_frames": 19
-    },
-    {
-     "index": 1,
-     "start_mjd": 60979.722677164,
-     "end_mjd": 61022.368105463,
-     "n_frames": 77
-    },
-    {
-     "index": 2,
-     "start_mjd": 61151.197933206,
-     "end_mjd": 61174.287217755,
-     "n_frames": 64
-    }
-   ],
-   "detectors": [
-    {
-     "detector": 1,
-     "n_frames": 27,
-     "lambda_min": 0.74393243579095,
-     "lambda_max": 1.1148554538421143
-    },
-    {
-     "detector": 2,
-     "n_frames": 27,
-     "lambda_min": 1.1111431318106184,
-     "lambda_max": 1.6301466069827404
-    },
-    {
-     "detector": 3,
-     "n_frames": 27,
-     "lambda_min": 1.6313065968602056,
-     "lambda_max": 2.385371889159144
-    },
-    {
-     "detector": 4,
-     "n_frames": 27,
-     "lambda_min": 2.4267127430911084,
-     "lambda_max": 3.831437658939429
-    },
-    {
-     "detector": 5,
-     "n_frames": 26,
-     "lambda_min": 3.821524180581611,
-     "lambda_max": 4.408099622871836
-    },
-    {
-     "detector": 6,
-     "n_frames": 26,
-     "lambda_min": 4.449323659720337,
-     "lambda_max": 4.967358754957247
-    }
-   ],
+   "ra": 331.095889,
+   "dec": -56.800385,
+   "fov": 4,
+   "generated_utc": "2026-11-14T21:12:38.399865+00:00",
+   "n_frames": 58,
    "saturated_frames": 0,
-   "elapsed_s": 89.5,
-   "transfer_bytes": 263639332,
-   "generated_utc": "2026-11-14T20:58:42.807559+00:00",
-   "extras": []
+   "verdict": "known_star"
   },
   {
-   "id": "rw-aur",
-   "name": "RW Aurigae",
-   "file": "rw-aur.json",
-   "bytes": 2815521,
-   "ra": 76.95658631374633,
-   "dec": 30.40129198088944,
-   "fov": 4.0,
-   "grid_n": 39,
-   "n_frames": 160,
-   "n_available": 335,
-   "n_failed": 0,
-   "seasons": [
-    {
-     "index": 0,
-     "start_mjd": 60919.419646597,
-     "end_mjd": 60938.232057836,
-     "n_frames": 53
-    },
-    {
-     "index": 1,
-     "start_mjd": 61091.719615949,
-     "end_mjd": 61109.443888762,
-     "n_frames": 54
-    },
-    {
-     "index": 2,
-     "start_mjd": 61285.097169329,
-     "end_mjd": 61299.895896794,
-     "n_frames": 53
-    }
-   ],
-   "detectors": [
-    {
-     "detector": 1,
-     "n_frames": 27,
-     "lambda_min": 0.7537181014208507,
-     "lambda_max": 1.1194769002907605
-    },
-    {
-     "detector": 2,
-     "n_frames": 27,
-     "lambda_min": 1.105435642360741,
-     "lambda_max": 1.646042665783204
-    },
-    {
-     "detector": 3,
-     "n_frames": 27,
-     "lambda_min": 1.6436224482650181,
-     "lambda_max": 2.4212007757989
-    },
-    {
-     "detector": 4,
-     "n_frames": 27,
-     "lambda_min": 2.4520788465342616,
-     "lambda_max": 3.8483409045371015
-    },
-    {
-     "detector": 5,
-     "n_frames": 26,
-     "lambda_min": 3.8270692577706495,
-     "lambda_max": 4.423557000072473
-    },
-    {
-     "detector": 6,
-     "n_frames": 26,
-     "lambda_min": 4.4281062597181275,
-     "lambda_max": 4.981326109351536
-    }
-   ],
-   "saturated_frames": 152,
-   "elapsed_s": 107.6,
-   "transfer_bytes": 254477167,
-   "generated_utc": "2026-11-14T21:08:16.290966+00:00",
-   "extras": []
+   "id": "m101",
+   "name": "M101",
+   "ra": 210.8024292,
+   "dec": 54.34875,
+   "fov": 4,
+   "generated_utc": "2026-11-14T21:11:10.519349+00:00",
+   "n_frames": 60,
+   "saturated_frames": 0,
+   "verdict": "inconclusive"
   },
   {
    "id": "r-dra",
    "name": "R Draconis",
-   "file": "r-dra.json",
-   "bytes": 2817458,
-   "ra": 248.16723470686972,
-   "dec": 66.75502363373722,
-   "fov": 4.0,
-   "grid_n": 39,
-   "n_frames": 160,
-   "n_available": 540,
-   "n_failed": 0,
-   "seasons": [
-    {
-     "index": 0,
-     "start_mjd": 60811.955829132,
-     "end_mjd": 60878.608219456,
-     "n_frames": 46
-    },
-    {
-     "index": 1,
-     "start_mjd": 60965.616017708,
-     "end_mjd": 61053.413133391,
-     "n_frames": 62
-    },
-    {
-     "index": 2,
-     "start_mjd": 61152.332544005,
-     "end_mjd": 61237.873233935,
-     "n_frames": 52
-    }
-   ],
-   "detectors": [
-    {
-     "detector": 1,
-     "n_frames": 27,
-     "lambda_min": 0.7363028197550213,
-     "lambda_max": 1.1224577949427574
-    },
-    {
-     "detector": 2,
-     "n_frames": 27,
-     "lambda_min": 1.1186972520251608,
-     "lambda_max": 1.600599712855515
-    },
-    {
-     "detector": 3,
-     "n_frames": 27,
-     "lambda_min": 1.6220072338577731,
-     "lambda_max": 2.3282472459491337
-    },
-    {
-     "detector": 4,
-     "n_frames": 27,
-     "lambda_min": 2.406285185442446,
-     "lambda_max": 3.8105506547020545
-    },
-    {
-     "detector": 5,
-     "n_frames": 26,
-     "lambda_min": 3.7971854770619924,
-     "lambda_max": 4.342431569386831
-    },
-    {
-     "detector": 6,
-     "n_frames": 26,
-     "lambda_min": 4.42665517670157,
-     "lambda_max": 4.993679112243069
-    }
-   ],
-   "saturated_frames": 159,
-   "elapsed_s": 79.3,
-   "transfer_bytes": 259692976,
-   "generated_utc": "2026-11-14T21:09:35.598171+00:00",
-   "extras": []
+   "ra": 248.167239,
+   "dec": 66.755023,
+   "fov": 4,
+   "generated_utc": "2026-11-14T21:09:20.517603+00:00",
+   "n_frames": 49,
+   "saturated_frames": 49,
+   "verdict": "known_star"
   },
   {
-   "id": "m101",
-   "name": "M101 (Pinwheel Galaxy)",
-   "file": "m101.json",
-   "bytes": 2812070,
-   "ra": 210.80242916666668,
-   "dec": 54.34875,
-   "fov": 4.0,
-   "grid_n": 39,
-   "n_frames": 160,
-   "n_available": 376,
-   "n_failed": 0,
-   "seasons": [
-    {
-     "index": 0,
-     "start_mjd": 60804.148554549,
-     "end_mjd": 60832.619275544,
-     "n_frames": 53
-    },
-    {
-     "index": 1,
-     "start_mjd": 61010.501429201,
-     "end_mjd": 61027.403985521,
-     "n_frames": 53
-    },
-    {
-     "index": 2,
-     "start_mjd": 61177.455488275,
-     "end_mjd": 61215.138195174,
-     "n_frames": 54
-    }
-   ],
-   "detectors": [
-    {
-     "detector": 1,
-     "n_frames": 27,
-     "lambda_min": 0.7401560293557317,
-     "lambda_max": 1.0951378069388849
-    },
-    {
-     "detector": 2,
-     "n_frames": 27,
-     "lambda_min": 1.1007761122513449,
-     "lambda_max": 1.6528151085788207
-    },
-    {
-     "detector": 3,
-     "n_frames": 27,
-     "lambda_min": 1.6683165837315537,
-     "lambda_max": 2.4187243962497584
-    },
-    {
-     "detector": 4,
-     "n_frames": 27,
-     "lambda_min": 2.43667838791937,
-     "lambda_max": 3.692691151783114
-    },
-    {
-     "detector": 5,
-     "n_frames": 26,
-     "lambda_min": 3.8517958415174784,
-     "lambda_max": 4.396243548721234
-    },
-    {
-     "detector": 6,
-     "n_frames": 26,
-     "lambda_min": 4.417340565631137,
-     "lambda_max": 4.973635033931117
-    }
-   ],
+   "id": "rw-aur",
+   "name": "RW Aurigae",
+   "ra": 76.956586,
+   "dec": 30.401294,
+   "fov": 4,
+   "generated_utc": "2026-11-14T21:10:31.430644+00:00",
+   "n_frames": 58,
+   "saturated_frames": 53,
+   "verdict": "known_star"
+  },
+  {
+   "id": "wise-0855",
+   "name": "WISE 0855−0714",
+   "ra": 133.7609927720989,
+   "dec": -7.2422022609551115,
+   "fov": 4,
+   "generated_utc": "2026-11-14T21:08:28.373894+00:00",
+   "n_frames": 60,
    "saturated_frames": 0,
-   "elapsed_s": 83.2,
-   "transfer_bytes": 262384002,
-   "generated_utc": "2026-11-14T21:10:58.850235+00:00",
-   "extras": []
+   "verdict": "inconclusive"
   }
- ],
- "failures": []
+ ]
 }

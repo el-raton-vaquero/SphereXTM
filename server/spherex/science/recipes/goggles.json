@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "definition": "band_depth = 1 - F_band / F_cont, where F_band is the mean surface brightness (or flux) of frames whose wavelength lies in the band window and F_cont is the linear interpolation, at the band centre, of the means in the continuum windows. Positive = absorption relative to the local continuum. An empirical contrast index, not an abundance.",
+  "caveats": [
+    "Frames come from different epochs: moving or variable sources contaminate the index.",
+    "Indices of brown dwarfs mix several absorbers; the label names the dominant band only.",
+    "In the interstellar medium the same windows trace ices (H2O ice 3.05 um, CO2 ice 4.27 um, CO ice 4.67 um).",
+    "SPHEREx resolving power is ~35-130; windows narrower than one resolution element are not meaningful."
+  ],
+  "recipes": [
+    {
+      "id": "ch4",
+      "molecule": "CH4",
+      "label_es": "Metano (3,3 um)",
+      "label_en": "Methane (3.3 um)",
+      "band_um": [3.20, 3.45],
+      "continuum_um": [[3.00, 3.12], [3.80, 4.00]],
+      "note": "CH4 nu3 fundamental near 3.3 um; dominant absorber at 3-3.8 um in T and Y dwarfs."
+    },
+    {
+      "id": "h2o",
+      "molecule": "H2O",
+      "label_es": "Agua (2,7-3,0 um)",
+      "label_en": "Water (2.7-3.0 um)",
+      "band_um": [2.70, 3.00],
+      "continuum_um": [[2.15, 2.30], [3.55, 3.75]],
+      "note": "Water vapour band at 2.7 um (and the 3.05 um water-ice feature in the ISM)."
+    },
+    {
+      "id": "co2",
+      "molecule": "CO2",
+      "label_es": "CO2 (4,26 um)",
+      "label_en": "CO2 (4.26 um)",
+      "band_um": [4.20, 4.32],
+      "continuum_um": [[4.02, 4.14], [4.40, 4.50]],
+      "note": "CO2 nu3 band at 4.26 um; seen in Y dwarf spectra (JWST) and as CO2 ice in the ISM."
+    },
+    {
+      "id": "co",
+      "molecule": "CO",
+      "label_es": "CO (4,6 um)",
+      "label_en": "CO (4.6 um)",
+      "band_um": [4.52, 4.75],
+      "continuum_um": [[4.40, 4.50], [4.90, 5.00]],
+      "note": "CO fundamental (v=1-0) near 4.6 um; disequilibrium CO in cold brown dwarfs; CO ice 4.67 um in the ISM."
+    }
+  ]
+}

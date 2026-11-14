@@ -1,0 +1,131 @@
+[
+  {
+    "id": "barnard",
+    "name": "Barnard's Star",
+    "identifier": "Gaia DR3 4472832130942575872",
+    "ra_deg": 269.44850252543836,
+    "dec_deg": 4.739420051112412,
+    "epoch": 2016.0,
+    "epoch_format": "jyear",
+    "epoch_scale": "tcb",
+    "pm_ra_cosdec_masyr": -801.5509783684709,
+    "pm_dec_masyr": 10362.394206546573,
+    "parallax_mas": 546.975939730948,
+    "radial_velocity_kms": -110.46822,
+    "uncertainties": {
+      "ra_mas": 0.026238997,
+      "dec_mas": 0.029043527,
+      "pm_ra_cosdec_masyr": 0.031820867,
+      "pm_dec_masyr": 0.036070455,
+      "parallax_mas": 0.040116355,
+      "radial_velocity_kms": 0.13125522
+    },
+    "references": [
+      "https://gea.esac.esa.int/archive/",
+      "https://www.cosmos.esa.int/web/gaia/dr3"
+    ],
+    "catalog_query": "SELECT source_id,ra,dec,ref_epoch,ra_error,dec_error,pmra,pmdec,pmra_error,pmdec_error,parallax,parallax_error,radial_velocity,radial_velocity_error FROM gaiadr3.gaia_source WHERE source_id=4472832130942575872",
+    "verified_date": "2026-11-14",
+    "detectors": [
+      2,
+      6
+    ],
+    "spectral_reason": "Cool M dwarf: inspect near-IR D2 and long-wave D6; exploratory choices, no assumed detection.",
+    "limitations": [
+      "Gaia covariance is not propagated."
+    ],
+    "status": "verified",
+    "proper_motion_convention": "pm_ra_cosdec = d(alpha)/dt * cos(delta); pm_dec = d(delta)/dt; mas/yr",
+    "position_frame": "ICRS"
+  },
+  {
+    "id": "wise0855",
+    "name": "WISE 0855−0714",
+    "identifier": "WISE J085510.83−071442.5 moving component",
+    "ra_deg": 133.787085,
+    "dec_deg": -7.244451,
+    "epoch": 56677.3,
+    "epoch_format": "mjd",
+    "epoch_scale": "utc",
+    "pm_ra_cosdec_masyr": -8060,
+    "pm_dec_masyr": 700,
+    "parallax_mas": 454,
+    "radial_velocity_kms": null,
+    "uncertainties": {
+      "position_arcsec": 0.04,
+      "pm_ra_cosdec_masyr": 90,
+      "pm_dec_masyr": 70,
+      "parallax_mas": 45
+    },
+    "references": [
+      "https://arxiv.org/html/1404.6501v1"
+    ],
+    "verified_date": "2026-11-14",
+    "detectors": [
+      6,
+      5
+    ],
+    "spectral_reason": "Luhman 2014 Tables 1–2: [4.5]=13.89 vs [3.6]=17.44, J>23; prioritize D6 then D5. IRAC magnitudes are not SPHEREx flux predictions.",
+    "limitations": [
+      "Position is observed Spitzer astrometry at MJD 56677.3, not a fitted barycentric reference position. Annual parallax at the anchor epoch is retained as an unknown offset (up to 0.454 arcsec).",
+      "Old proper motion uncertainties accumulate to roughly 1–2 arcsec by 2026.",
+      "Unknown radial velocity is explicitly assumed zero.",
+      "Known stationary blends in discovery field; no identification from a bright pixel.",
+      "Paper J2000 axes treated as ICRS at the stated position uncertainty; not a precision astrometric frame transformation."
+    ],
+    "status": "verified",
+    "proper_motion_convention": "pm_ra_cosdec = d(alpha)/dt * cos(delta); pm_dec = d(delta)/dt; mas/yr",
+    "position_frame": "Paper J2000 astrometry aligned via 2MASS; treated as ICRS for approximate visualization"
+  },
+  {
+    "id": "epsilon-indi-b",
+    "name": "Epsilon Indi B (Ba/Bb)",
+    "identifier": "2MASS J22041052-5646577",
+    "status": "requires_catalog",
+    "detectors": [
+      2,
+      6
+    ],
+    "references": [
+      "https://arxiv.org/html/2205.08077v1",
+      "https://irsa.ipac.caltech.edu/data/2MASS/docs/releases/allsky/doc/sec2_2a.html"
+    ],
+    "pm_ra_cosdec_masyr": 3987.41,
+    "pm_dec_masyr": -2505.35,
+    "parallax_mas": 274.99,
+    "radial_velocity_kms": null,
+    "uncertainties": {
+      "pm_ra_cosdec_masyr": 0.12,
+      "pm_dec_masyr": 0.1,
+      "parallax_mas": 0.43
+    },
+    "spectral_reason": "T-dwarf pair; D2 near-IR and D6 long-wave exploratory samples.",
+    "limitations": [
+      "2MASS unresolved photocenter propagated with Chen et al. 2022 Table 4 barycentric proper motion; not either component orbit.",
+      "Ba/Bb separation <1 arcsec; unresolved at native SPHEREx scale; orbital photocenter not modeled.",
+      "2MASS observed anchor retains annual parallax offset; RV unknown, zero assumed."
+    ],
+    "proper_motion_convention": "pm_ra_cosdec = d(alpha)/dt * cos(delta); pm_dec = d(delta)/dt; mas/yr",
+    "position_frame": "ICRS"
+  },
+  {
+    "id": "lalande21185",
+    "name": "Lalande 21185",
+    "identifier": "Gaia DR3 762815470562110464",
+    "gaia_source_id": "762815470562110464",
+    "status": "requires_gaia",
+    "detectors": [
+      2
+    ],
+    "references": [
+      "https://gea.esac.esa.int/archive/"
+    ],
+    "spectral_reason": "Nearby M dwarf, exploratory D2 near-IR sample, subject to saturation and quality rejection.",
+    "limitations": [
+      "Gaia single-star solution, no covariance or orbital propagation."
+    ],
+    "alternative": true,
+    "proper_motion_convention": "pm_ra_cosdec = d(alpha)/dt * cos(delta); pm_dec = d(delta)/dt; mas/yr",
+    "position_frame": "ICRS"
+  }
+]

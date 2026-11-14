@@ -107,3 +107,63 @@ The test suite covers:
 1. **WCS-WAVE Solution**: Uses the archive's approximate visualization wavelength solution, not precision CWAVE/CBAND calibration.
 2. **Static Field Visualization**: The M101 demonstration showcases two spectrally compatible, time-separated epochs of an extended galaxy; it is not a claim of moving-object detection, variability discovery, or Planet X.
 3. **Background & Noise**: Science images include zodiacal light; no background model subtraction or PSF homogenization is performed.
+
+## M4: bounded moving-target feasibility research
+
+This independent CLI leaves the M1 defaults, M101 API, frontend and Docker
+initialization unchanged. Run from `server/`:
+
+```bash
+uv run --locked python -m spherex.research --timeout 20
+uv run --locked python -m spherex.research --offline
+# Optional alternative, after evaluating the primary candidates:
+uv run --locked python -m spherex.research --targets lalande21185 --timeout 30
+uv run --locked python -m spherex.research --targets lalande21185 --offline
+uv run --locked pytest -q
+```
+
+The default targets are Barnard's Star, WISE 0855−0714 and Epsilon Indi B.
+`spherex/data/m4-targets.json` records their catalog identifiers, position epochs,
+proper-motion convention, uncertainties, references and detector rationale.
+Epsilon B requires an actual 2MASS row including its observation Julian date;
+Lalande requires an actual Gaia DR3 row. Failed catalog access blocks that target.
+No frontend preset supplies scientific astrometry.
+
+Outputs live under `outputs/m4/<target>/d<detector>/`, separately from M101:
+raw SIA XML and query sidecars, hash-verified real cutouts, inspection metadata,
+all pair decisions, optional validated comparison FITS/PNGs, latest manifests
+and timestamped `runs/*.json` histories. The campaign root also has a manifest.
+Offline mode requires exact query URL/hash agreement and verified cached FITS;
+it never contacts the archive or substitutes synthetic data. Missing files and
+remote/OVERFLOW results classify research as incomplete, not an empty archive.
+To reproduce a nondefault sample offline, repeat the same target, date, field
+size and `--max-downloads` arguments with `--offline`.
+
+Discovery covers a sampled 2025–2027 trajectory (configurable MJD interval,
+maximum 1000 days) using a cone of at most 0.03 degrees, with a 36 arcsec margin.
+One fixed sky center is used for all dates. Native cutouts are padded to twice
+the comparison side (1–5 arcmin); positions are propagated to actual FITS epochs.
+Annual observer parallax, orbital photocenter motion and covariance propagation
+are not implemented. Their uncertainties remain explicit limitations.
+
+Acceptance thresholds cannot be relaxed from this CLI: at least 30 days,
+80% common valid/spectrally matched grid, wavelength offset at most 0.25 local
+bandwidths, bandwidth ratio at most 1.2, and unchanged conservative flags.
+At most 24 products per detector, two detectors per primary target and one for
+the alternative are inspected. Downloads are sequential, each <=16 MiB, with
+bounded query sizes/timeouts, existing per-directory cache limits, and a global
+192-product/2 GiB downloaded-product ceiling including existing campaign cache.
+The budget reserves the maximum next file size; exhaustion is incomplete research.
+
+Every pair is evaluated, including those after the first acceptable pair. One
+comparison figure per detector is saved only if it passes; a separate figure
+labels both catalog positions **PREDICTED**. Native variance and local background
+contrast are exploratory diagnostics, not calibrated photometric SNR. Valid
+predicted pixels do not establish source identity, signal, or freedom from
+confusion, and no measured motion is reported.
+
+Exit codes: `0` = completed campaign with a comparable pair, `2` = completed
+negative bounded sample, `3` = incomplete/blocked research, even if some pairs
+passed. Review `accepted_pairs`, each `motion_status` and local diagnostics in
+the manifests, not just the exit code. Evidence and dataset-registry proposal:
+[`docs/m4-target-feasibility.md`](../docs/m4-target-feasibility.md).

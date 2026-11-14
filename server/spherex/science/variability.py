@@ -14,12 +14,13 @@ from itertools import combinations
 import numpy as np
 from scipy.stats import chi2 as chi2_dist
 
-from spherex.science.photometry import usable
+from spherex.science.photometry import fit_points
 
 
 def matched_pairs(points: Sequence[dict], season_a: int, season_b: int, max_offset_bw: float = 0.5) -> list[tuple[dict, dict]]:
-    a = [p for p in points if p.get("season") == season_a and usable(p)]
-    b = [p for p in points if p.get("season") == season_b and usable(p)]
+    good = fit_points(points)
+    a = [p for p in good if p.get("season") == season_a]
+    b = [p for p in good if p.get("season") == season_b]
     pairs, used = [], set()
     for pa in a:
         best, best_d = None, np.inf
@@ -45,7 +46,7 @@ def compare_seasons(points: Sequence[dict], *, max_offset_bw: float = 0.5, min_p
     ``sys_frac``: fractional calibration error added in quadrature per point (assumed 2%).
     Reports the weighted mean flux ratio last/first season for the largest pair set.
     """
-    seasons = sorted({p["season"] for p in points if "season" in p and usable(p)})
+    seasons = sorted({p["season"] for p in fit_points(points) if "season" in p})
     if len(seasons) < 2:
         return {"status": "na", "reason": f"{len(seasons)} season(s) with usable photometry; need 2"}
     chi2_tot, dof, per_pair = 0.0, 0, []
@@ -76,8 +77,10 @@ def compare_seasons(points: Sequence[dict], *, max_offset_bw: float = 0.5, min_p
     amp = None
     if biggest["flux_ratio_b_over_a"] is not None:
         amp = abs(biggest["flux_ratio_b_over_a"] - 1)
-    variable = bool(p < 1e-3 and amp is not None and amp > 0.05
+    # Amplitude must exceed 3x the (assumed) calibration repeatability and 3x its own error.
+    variable = bool(p < 1e-3 and amp is not None and amp > max(0.05, 3 * sys_frac)
                     and amp > 3 * (biggest["flux_ratio_err"] or np.inf))
     return {"status": "ok", "chi2": chi2_tot, "dof": dof, "p_constant": p, "variable": variable,
             "amplitude_fraction": amp, "pairs": per_pair, "sys_frac_assumed": sys_frac,
+            "n_pairs_total": dof,
             "method": "chi2 of matched-wavelength flux differences between seasons"}

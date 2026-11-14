@@ -341,6 +341,22 @@ def photometry_series(frames: Sequence[ScienceFrame], ra: float, dec: float, *,
     return points
 
 
+def aperture_corrected(point: dict) -> bool:
+    """True unless the point is an uncorrected aperture flux (frame had no EPSF)."""
+    return not str(point.get("aperture_correction_method") or "").startswith("none")
+
+
+def fit_points(points) -> list[dict]:
+    """Usable points on ONE flux scale for fitting/comparison.
+
+    Uncorrected aperture fluxes are 7-20% low; they are dropped when EPSF-corrected
+    points exist, so one spectrum never mixes total and aperture flux.
+    """
+    pts = [p for p in points if usable(p)]
+    corrected = [p for p in pts if aperture_corrected(p)]
+    return corrected if corrected else pts
+
+
 def usable(point: dict) -> bool:
     """Point suitable for spectral fitting / variability: measured, unsaturated, no artifacts."""
     return (point.get("status") == "ok" and not point.get("saturated")

@@ -16,11 +16,25 @@ from collections.abc import Sequence
 import numpy as np
 from scipy.optimize import nnls
 
-from spherex.science.photometry import usable
+from spherex.science.photometry import fit_points, usable
 from spherex.science.templates import Template, band_average, default_templates
 
 METHOD = "template chi2 with scale fit"
 MIN_POINTS = 6
+# Detection gate: a template "best fit" to noise is meaningless (a flat-zero spectrum with
+# large errors gives reduced chi2 ~ 1 for any template). Require real signal first.
+GATE_SNR = 3.0
+GATE_MIN_POINTS = 6
+GATE_MIN_DETECTORS = 3
+
+
+def detection_gate(points: Sequence[dict]) -> tuple[bool, str]:
+    det = [p for p in points if usable(p) and (p.get("snr") or 0) >= GATE_SNR]
+    n_det = len({p.get("detector") for p in det})
+    ok = len(det) >= GATE_MIN_POINTS and n_det >= GATE_MIN_DETECTORS
+    txt = (f"{len(det)} usable point(s) at S/N >= {GATE_SNR:g} on {n_det} detector(s); "
+           f"classification needs >= {GATE_MIN_POINTS} on >= {GATE_MIN_DETECTORS} detectors.")
+    return ok, txt
 
 
 def _fit(t: Template, lam, bw, flux, err):
@@ -50,10 +64,19 @@ def classify(points: Sequence[dict], templates: Sequence[Template] | None = None
         "The asteroid model is a toy (reflected 5778 K + thermal blackbody).",
         f"A {sys_frac:.0%} fractional calibration error is added in quadrature (assumed).",
     ]
-    pts = [p for p in points if usable(p)]
-    n_excluded = len(points) - len(pts)
+    n_usable = sum(1 for p in points if usable(p))
+    pts = fit_points(points)
+    n_excluded = len(points) - n_usable
     if n_excluded:
         caveats.append(f"{n_excluded} point(s) excluded (saturated, artifact-flagged, or not measured).")
+    if n_usable - len(pts):
+        caveats.append(f"{n_usable - len(pts)} point(s) without EPSF aperture correction excluded "
+                       "(aperture flux, not total; would bias the fit).")
+    gate_ok, gate_txt = detection_gate(points)
+    if not gate_ok:
+        return {"best": None, "ranking": [], "method": METHOD, "n_points": len(pts), "detected": False,
+                "caveats": caveats + ["Source not significantly detected at this position: " + gate_txt
+                                      + " No classification."]}
     if len(pts) < MIN_POINTS:
         return {"best": None, "ranking": [], "method": METHOD, "n_points": len(pts),
                 "caveats": caveats + [f"Only {len(pts)} usable points (< {MIN_POINTS}); no classification."]}
@@ -99,7 +122,7 @@ def classify(points: Sequence[dict], templates: Sequence[Template] | None = None
     return {
         "best": {"class": top["class"], "template": top["template"], "label": top["label"],
                  "teff": top["teff"], "spectral_type": top["spectral_type"], "chi2_red": top["chi2_red"]},
-        "ranking": ranking, "by_class": by_class, "method": METHOD, "n_points": n,
+        "ranking": ranking, "by_class": by_class, "method": METHOD, "n_points": n, "detected": True,
         "chi2_inflation": inflate, "weighting": "Akaike weights with chi2 scaled by max(1, best reduced chi2)",
         "caveats": caveats,
     }

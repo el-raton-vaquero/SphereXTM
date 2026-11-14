@@ -19,7 +19,10 @@ from collections.abc import Sequence
 from spherex.science.photometry import usable
 
 VERDICTS = ("known_star", "known_asteroid", "artifact", "variable", "candidate", "inconclusive")
-# 'known_star' covers any catalogued non-SSO point source (stars and brown dwarfs).
+# 'known_star' covers any catalogued non-SSO point source (stars, brown dwarfs, compact galaxy
+# nuclei): the UI shows it as "known catalogued source". It requires that SPHEREx actually
+# detects the source where the catalogue predicts it; a catalogue entry alone gives
+# 'inconclusive' with the counterpart as context.
 DETECTION_SNR = 5.0
 
 
@@ -170,14 +173,15 @@ def variability_check(result: dict | None) -> dict:
                   f"Consistent with constant flux (p = {result['p_constant']:.2g}{amp_txt}).", src, **result)
 
 
-def spectrum_check(result: dict | None) -> dict:
+def spectrum_check(result: dict | None, detection_status: str = "pass") -> dict:
     src = "Template chi2 fit (Beiler+2024 JWST brown dwarfs, blackbodies, asteroid toy)"
     if not result or not result.get("best"):
         why = "; ".join((result or {}).get("caveats", [])[-1:]) or "not computed"
         return _check("spectrum", "Spectral class", "na", why, src)
     b = result["best"]
     p = result["ranking"][0]["prob"]
-    clear = p >= 0.6 and b["chi2_red"] <= 5
+    # Never 'pass' on a source that is not cleanly detected in single frames.
+    clear = p >= 0.6 and b["chi2_red"] <= 5 and detection_status == "pass"
     return _check("spectrum", "Spectral class", "pass" if clear else "warn",
                   f"Best: {b['label']} (relative weight {p:.0%}, reduced chi2 {b['chi2_red']:.1f}).", src,
                   best=b, by_class=result.get("by_class"))
@@ -187,7 +191,8 @@ def evaluate(*, points: Sequence[dict], gaia_match: dict | None = None, gaia_err
              skybot: dict | None = None, motion: dict | None = None, variability: dict | None = None,
              classification: dict | None = None, registry_match: dict | None = None,
              neighbours: Sequence[dict] | None = None, match_radius_arcsec: float = 4.0,
-             blend_radius_arcsec: float = 12.3, skybot_radius_arcsec: float = 12.3) -> dict:
+             blend_radius_arcsec: float = 12.3, skybot_radius_arcsec: float = 12.3,
+             centroid_offset_arcsec: float | None = None) -> dict:
     """Combine evidence into the V2 /verdict payload."""
     checks, q = quality_checks(points)
     checks.append(gaia_check(gaia_match, gaia_error, match_radius_arcsec))
@@ -197,11 +202,22 @@ def evaluate(*, points: Sequence[dict], gaia_match: dict | None = None, gaia_err
     reg = registry_check(registry_match)
     if reg:
         checks.append(reg)
-    checks += [motion_check(motion), variability_check(variability), spectrum_check(classification)]
+    det_status = next(c["status"] for c in checks if c["id"] == "detection")
+    checks += [motion_check(motion), variability_check(variability), spectrum_check(classification, det_status)]
 
     detected = q["n_detected"] > 0
     is_variable = bool(variability and variability.get("status") == "ok" and variability.get("variable"))
     known = gaia_match is not None or registry_match is not None
+    # SPHEREx sees the source: >= 3 clean single-frame detections, or a season-to-season
+    # centroid shift consistent with the catalogue motion (co-add detection, e.g. faint Y dwarfs);
+    # and, when centroids exist, they sit within the match radius (>= 1 px) of the prediction.
+    motion_ok = bool(motion and motion.get("status") == "ok" and motion.get("consistent_with_prediction"))
+    near_radius = max(match_radius_arcsec, 6.15)
+    seen = (q["n_detected"] >= 3 or motion_ok) and (
+        centroid_offset_arcsec is None or centroid_offset_arcsec <= near_radius)
+    n_pairs = int((variability or {}).get("n_pairs_total") or sum(
+        pp.get("n_pairs", 0) for pp in (variability or {}).get("pairs", [])))
+    chi2_best = ((classification or {}).get("best") or {}).get("chi2_red")
     motion_bad = bool(motion and motion.get("consistent_with_prediction") is False)
     # Gaia DR3 also lists galaxy nuclei and quasars. Without a significant parallax or proper
     # motion (and no literature match) the counterpart is catalogued but not shown to be a star.
@@ -211,6 +227,10 @@ def evaluate(*, points: Sequence[dict], gaia_match: dict | None = None, gaia_err
         verdict, conf = "inconclusive", 0.1
     elif sb_hit is not None and (not known or q["n_detected"] <= 2):
         verdict, conf = "known_asteroid", 0.75 if sb_hit["separation_arcsec"] <= match_radius_arcsec else 0.55
+    elif known and not seen:
+        # Catalogued here, but SPHEREx does not (cleanly) see it where predicted: the catalogue
+        # match alone is circular (the query IS the catalogue position), so do not confirm it.
+        verdict, conf = "inconclusive", 0.3
     elif known:
         sep = _identification(gaia_match, registry_match)[1]["separation_arcsec"]
         verdict = "variable" if is_variable else "known_star"
@@ -219,10 +239,19 @@ def evaluate(*, points: Sequence[dict], gaia_match: dict | None = None, gaia_err
             conf -= 0.1
         if q["sat_frac"] >= 0.5:
             conf -= 0.15
+        if q["art_frac"] > 0.1:
+            conf -= 0.15
+        if q["n_frames"] and q["n_detected"] < 0.25 * q["n_frames"]:
+            conf -= 0.1
         if motion_bad:
             conf -= 0.2
         if not_stellar:
             conf -= 0.35
+        if verdict == "variable":
+            if n_pairs < 10:
+                conf -= 0.15
+            if chi2_best is not None and chi2_best > 10:
+                conf -= 0.1
     elif q["art_frac"] >= 0.5 or (detected and all(p.get("artifact_flags") for p in points if p.get("status") == "ok")):
         verdict, conf = "artifact", 0.6 + 0.3 * q["art_frac"]
     elif is_variable:
@@ -232,14 +261,36 @@ def evaluate(*, points: Sequence[dict], gaia_match: dict | None = None, gaia_err
     else:
         verdict, conf = "inconclusive", 0.2
     conf = float(min(1.0, max(0.0, conf)))
+    tentative = verdict == "variable" and (n_pairs < 10 or q["art_frac"] > 0.1
+                                           or (chi2_best is not None and chi2_best > 10))
     summary, summary_es = _summary(verdict, checks, gaia_match, registry_match, sb_hit, q)
+    if known and not seen and verdict == "inconclusive":
+        name = _identification(gaia_match, registry_match)[0]
+        if q["sat_frac"] >= 0.5:
+            why_en = f"saturated in {q['n_saturated']}/{q['n_frames']} frames"
+            why_es = f"saturada en {q['n_saturated']}/{q['n_frames']} cuadros"
+        else:
+            why_en = f"detected cleanly in only {q['n_detected']}/{q['n_frames']} frames"
+            why_es = f"detectada limpiamente en solo {q['n_detected']}/{q['n_frames']} cuadros"
+        if centroid_offset_arcsec is not None and centroid_offset_arcsec > near_radius:
+            why_en += f"; measured centroid {centroid_offset_arcsec:.1f} arcsec from the prediction"
+            why_es += f"; centroide medido a {centroid_offset_arcsec:.1f} arcsec de la predicción"
+        summary = (f"Catalogued here ({name}), but SPHEREx does not confirm it: {why_en}. "
+                   "The catalogue match alone is not evidence.")
+        summary_es = (f"Catalogada aqu\u00ed ({name}), pero SPHEREx no la confirma: {why_es}. "
+                      "La coincidencia con el cat\u00e1logo por s\u00ed sola no es evidencia.")
+    if tentative:
+        summary += (" Variability is tentative; systematics (flags, few matched pairs, poor spectral fit)"
+                    " are not excluded.")
+        summary_es += (" La variabilidad es tentativa: no se descartan sistem\u00e1ticos (marcas, pocos pares"
+                       " emparejados, mal ajuste espectral).")
     if known and not_stellar and verdict in ("known_star", "variable"):
         summary += (" The Gaia DR3 counterpart has no significant parallax or proper motion, so it may be"
                     " extragalactic (e.g. a galaxy nucleus) rather than a star.")
         summary_es += (" La contrapartida de Gaia DR3 no tiene paralaje ni movimiento propio significativos:"
                        " puede ser extragaláctica (p. ej. un núcleo de galaxia) y no una estrella.")
     return {"checks": checks, "verdict": verdict, "confidence": conf, "summary": summary,
-            "summary_es": summary_es, "stats": q,
+            "summary_es": summary_es, "stats": q, "tentative": tentative, "seen_by_spherex": seen,
             "confidence_method": "heuristic from check outcomes (see spherex/science/verdict.py), not a probability"}
 
 

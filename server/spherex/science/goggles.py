@@ -111,11 +111,14 @@ def band_depth_maps(stack: Sequence[dict], recipe_ids: Sequence[str] | None = No
     return out
 
 
+SYS_DEPTH_FRAC = 0.03  # same fractional calibration error as the classifier
+
+
 def band_depth_points(points: Sequence[dict], recipe_ids: Sequence[str] | None = None) -> list[dict]:
     """Indices from photometry points (uses only 'usable' points)."""
-    from spherex.science.photometry import usable
+    from spherex.science.photometry import fit_points
 
-    pts = [p for p in points if usable(p)]
+    pts = fit_points(points)
     data = load_recipes()
     results = []
     for rec in data["recipes"]:
@@ -132,10 +135,15 @@ def band_depth_points(points: Sequence[dict], recipe_ids: Sequence[str] | None =
         d = float(res["depth"])
         e = float(res["err"])
         ok = np.isfinite(d)
+        if ok and np.isfinite(e):
+            e = float(np.hypot(e, SYS_DEPTH_FRAC * (1 - d) * np.sqrt(2)))  # calibration term on band/continuum
+        status = "ok" if ok else "insufficient_coverage"
+        if ok and (abs(d) > 1 or not np.isfinite(e) or e <= 0 or abs(d) < 3 * e):
+            status = "not_significant"
         results.append({"id": rec["id"], "molecule": rec["molecule"], "label_es": rec["label_es"],
                         "label_en": rec["label_en"],
                         "depth": d if ok else None,
                         "err": e if ok and np.isfinite(e) else None,
                         "n_band": int(res["n_band"]), "n_cont": int(res["n_cont"]),
-                        "status": "ok" if np.isfinite(d) else "insufficient_coverage"})
+                        "status": status, "sys_frac_assumed": SYS_DEPTH_FRAC})
     return results

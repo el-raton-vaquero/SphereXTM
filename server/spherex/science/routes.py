@@ -264,7 +264,13 @@ def build_router(get_frames: GetFrames | None = None, *, cache_dir: Path | None 
         cents = [centroid.centroid_frame(f, *(pos_fn(f["mjd"]) if pos_fn else (ra, dec)),
                                          neighbours=nb_fn(f["mjd"]) if nb_fn else ()) for f in frames]
         seasons = centroid.season_positions(cents, ra0=ra, dec0=dec)
-        motion = centroid.motion_test(seasons, _predictor(match, reg))
+        pred = _predictor(match, reg)
+        motion = centroid.motion_test(seasons, pred)
+        # Does SPHEREx see the catalogued source where it is predicted? Median offset of the
+        # well-sampled season centroids from the propagated catalogue position.
+        offs = [float(gaia.angular_sep_arcsec(s["ra"], s["dec"], *pred(s["mjd_mean"])))
+                for s in seasons if pred and s.get("n_frames", 0) >= 3 and s.get("ra") is not None]
+        centroid_offset = float(np.median(offs)) if offs else None
         var = variability.compare_seasons(points)
         cls = classify.classify(points)
         # SkyBoT epochs: brightest detections first (an asteroid shows up in few frames), then even sampling.
@@ -275,10 +281,11 @@ def build_router(get_frames: GetFrames | None = None, *, cache_dir: Path | None 
                                   variability=var, classification=cls, registry_match=reg,
                                   neighbours=[{k: v for k, v in n.items() if k != "source"} for n in neighbours]
                                   if neighbours is not None else None,
-                                  match_radius_arcsec=MATCH_RADIUS_ARCSEC, blend_radius_arcsec=BLEND_RADIUS_ARCSEC)
+                                  match_radius_arcsec=MATCH_RADIUS_ARCSEC, blend_radius_arcsec=BLEND_RADIUS_ARCSEC,
+                                  centroid_offset_arcsec=centroid_offset)
         result["evidence"] = {
             "n_frames": len(frames), "tracking": tracking, "season_positions": seasons,
-            "centroids": cents, "motion": motion, "variability": var, "classification": cls,
+            "centroids": cents, "motion": motion, "centroid_offset_arcsec": centroid_offset, "variability": var, "classification": cls,
             "skybot": sb, "registry_match": reg,
             "gaia": None if g is None else {"match": match, "provenance": g["provenance"],
                                             "n_sources": g["n_sources_total"]},

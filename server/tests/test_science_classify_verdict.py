@@ -3,6 +3,12 @@ import numpy as np
 from spherex.science import classify, templates, verdict
 
 
+def detector_for(lam_um: float) -> int:
+    """Approximate SPHEREx detector for a wavelength (D1 0.75-1.1 ... D6 4.4-5.0 um)."""
+    edges = [1.1, 1.6, 2.4, 3.8, 4.4]
+    return 1 + sum(lam_um > e for e in edges)
+
+
 def make_points(fn, lam, rel_err=0.03, seed=0, scale=1.0, bw_frac=1 / 60, **extra):
     rng = np.random.default_rng(seed)
     bw = lam * bw_frac
@@ -10,7 +16,7 @@ def make_points(fn, lam, rel_err=0.03, seed=0, scale=1.0, bw_frac=1 / 60, **extr
     err = rel_err * np.abs(model) + 1e-6 * np.nanmax(np.abs(model))
     flux = model + rng.normal(0, err)
     return [{"status": "ok", "lambda_um": float(l), "bandwidth_um": float(b), "flux": float(f), "err": float(e),
-             "saturated": False, "artifact_flags": [], "mjd": 60800.0, "detector": 6, "snr": float(f / e),
+             "saturated": False, "artifact_flags": [], "mjd": 60800.0, "detector": detector_for(l), "snr": float(f / e),
              **extra} for l, b, f, e in zip(lam, bw, flux, err)]
 
 
@@ -79,9 +85,11 @@ def test_verdict_known_star_with_saturation_penalty():
     res = verdict.evaluate(points=pts, gaia_match=gaia_match())
     assert res["verdict"] == "known_star" and res["confidence"] == 0.9
     assert ids(res)["gaia"]["status"] == "pass" and ids(res)["saturation"]["status"] == "pass"
+    # All frames saturated: no clean detection, so the catalogue match alone is not confirmed.
     sat = verdict.evaluate(points=det_points(saturated=True), gaia_match=gaia_match())
-    assert sat["verdict"] == "known_star" and sat["confidence"] < 0.9
+    assert sat["verdict"] == "inconclusive" and sat["confidence"] < 0.9
     assert ids(sat)["saturation"]["status"] == "fail"
+    assert "saturated" in sat["summary"]
     assert set(res) >= {"checks", "verdict", "confidence", "summary"}
     for c in res["checks"]:
         assert c["status"] in ("pass", "warn", "fail", "na") and c["evidence_source"]
@@ -127,3 +135,25 @@ def test_confusion_and_registry_identification():
     assert res["verdict"] == "known_star" and "WISE 0855" in res["summary"] and res["confidence"] < 0.9
     clean = verdict.evaluate(points=det_points(), gaia_match=gaia_match(), neighbours=[])
     assert ids(clean)["confusion"]["status"] == "pass"
+
+
+def test_noise_only_spectrum_is_not_classified():
+    rng = np.random.default_rng(3)
+    lam = np.linspace(0.8, 4.9, 76)
+    pts = [{"status": "ok", "lambda_um": float(l), "bandwidth_um": float(l / 60), "flux": float(f), "err": 0.044,
+            "saturated": False, "artifact_flags": [], "mjd": 60800.0, "detector": detector_for(l),
+            "snr": float(f / 0.044)} for l, f in zip(lam, rng.normal(0.0, 0.044, lam.size))]
+    res = classify.classify(pts)
+    assert res["best"] is None and res["detected"] is False
+    assert any("not significantly detected" in c for c in res["caveats"])
+
+
+def test_catalogue_match_without_detection_is_inconclusive():
+    pts = [{"status": "ok", "lambda_um": 1.0 + i * 0.05, "flux": 1.0, "err": 1.0, "snr": 1.0, "saturated": True,
+            "artifact_flags": [], "detector": 1, "mjd": 60800.0 + i} for i in range(20)]
+    match = {"source": {"source_id": 1, "phot_g_mean_mag": 9.0, "parallax": 500.0, "parallax_error": 0.1},
+             "separation_arcsec": 0.2}
+    out = verdict.evaluate(points=pts, gaia_match=match)
+    assert out["verdict"] == "inconclusive"
+    assert out["seen_by_spherex"] is False
+    assert "does not confirm" in out["summary"]

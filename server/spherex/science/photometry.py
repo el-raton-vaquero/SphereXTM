@@ -140,12 +140,17 @@ def local_background(m: dict, x0: float, y0: float, r_in: float, r_out: float, m
 def forced_photometry(frame: ScienceFrame, ra: float, dec: float, *,
                       aperture_arcsec: float = DEFAULT_APERTURE_ARCSEC,
                       annulus_arcsec: tuple[float, float] | None = None,
-                      min_coverage: float = 0.95) -> dict:
+                      min_coverage: float = 0.95,
+                      neighbours: Sequence[tuple[float, float]] = ()) -> dict:
     """Aperture photometry at a fixed sky position on one native frame.
 
     Returns a dict with ``status`` in {'ok', 'off_frame', 'incomplete', 'no_background'};
     ``flux``/``err`` are None unless status == 'ok'. Saturated apertures keep their
     (biased-low) numbers but carry ``saturated: True`` so callers can exclude them.
+
+    If ``neighbours`` (known sources' predicted (ra, dec)) fall near the target, a
+    forced PSF fit deblends them and becomes the reported ``flux``
+    (``flux_method='psf_fit_deblended'``); aperture numbers stay in ``aperture_*``.
     """
     validate_frame(frame)
     m = _frame_masks(frame)
@@ -198,13 +203,104 @@ def forced_photometry(frame: ScienceFrame, ra: float, dec: float, *,
             corr_note = "EPSF enclosed-energy (truncated EPSF footprint)"
     flux = flux_mjy * MJY_TO_MJY * corr
     err = float(np.sqrt(var_mjy)) * MJY_TO_MJY * corr
-    return out | {
+    res = out | {
         "status": "ok", "flux": flux, "err": err, "snr": flux / err if err > 0 else None,
+        "flux_method": "aperture",
+        "aperture_flux": flux, "aperture_err": err,
         "aperture_flux_uncorrected": flux_mjy * MJY_TO_MJY, "aperture_correction": corr,
         "aperture_correction_method": corr_note, "background_mjy_sr": bg["level"],
         "background_err_mjy_sr": bg["error"], "background_pixels": bg["n"],
         "pixel_solid_angle_sr": omega,
     }
+    if neighbours:
+        psf = psf_photometry(frame, ra, dec, neighbours, m=m, bg=bg)
+        res["psf_fit"] = psf
+        if psf["status"] == "ok" and psf["n_neighbours_fitted"] > 0:
+            res.update(flux=psf["flux"], err=psf["err"], flux_method="psf_fit_deblended",
+                       snr=psf["flux"] / psf["err"] if psf["err"] > 0 else None)
+    return res
+
+
+def _psf_sampler(frame: ScienceFrame, scale_arcsec: float):
+    """f(px, py, xs, ys) -> fraction of a unit point source at (xs, ys) landing in pixels (px, py)."""
+    epsf = frame.get("epsf")
+    if epsf is not None:
+        from scipy.ndimage import map_coordinates
+
+        epsf = np.nan_to_num(np.asarray(epsf, float))
+        ov = int(frame.get("epsf_oversample", 5))
+        c = (np.array(epsf.shape) - 1) / 2
+        half = int(np.floor(c.min() / ov))
+
+        def sample(px, py, xs, ys):
+            return map_coordinates(epsf, [c[0] + (np.asarray(py) - ys) * ov, c[1] + (np.asarray(px) - xs) * ov],
+                                   order=1, mode="constant", cval=0.0)
+
+        def f(px, py, xs, ys):
+            gy, gx = np.mgrid[int(round(ys)) - half - 1:int(round(ys)) + half + 2,
+                              int(round(xs)) - half - 1:int(round(xs)) + half + 2]
+            return sample(px, py, xs, ys) / sample(gx.ravel(), gy.ravel(), xs, ys).sum()
+
+        return f, "EPSF"
+    from scipy.special import erf
+
+    sigma = float(frame.get("psf_fwhm_arcsec") or 1.5 * scale_arcsec) / scale_arcsec / 2.3548
+    r2 = np.sqrt(2) * sigma
+
+    def g(px, py, xs, ys):
+        px, py = np.asarray(px, float), np.asarray(py, float)
+        fx = 0.5 * (erf((px + 0.5 - xs) / r2) - erf((px - 0.5 - xs) / r2))
+        fy = 0.5 * (erf((py + 0.5 - ys) / r2) - erf((py - 0.5 - ys) / r2))
+        return fx * fy
+
+    return g, "Gaussian(PSF_FWHM)"
+
+
+def psf_photometry(frame: ScienceFrame, ra: float, dec: float, neighbours=(), *, half_box: int = 3,
+                   m: dict | None = None, bg: dict | None = None) -> dict:
+    """Forced PSF-fit photometry: amplitudes of the target and known neighbours (all at
+    FIXED catalog-predicted positions) fitted by weighted linear least squares.
+    Amplitudes are unconstrained (negative allowed) so faint targets are not biased.
+    """
+    m = m or _frame_masks(frame)
+    wcs = frame["wcs"]
+    x0, y0 = (float(v) for v in wcs.world_to_pixel_values(ra, dec))
+    omega = pixel_solid_angle_sr(wcs, x0, y0)
+    scale = float(np.degrees(np.sqrt(omega)) * 3600)
+    sampler, model_name = _psf_sampler(frame, scale)
+    ny, nx = m["image"].shape
+    ix, iy = int(round(x0)), int(round(y0))
+    ys_, xs_ = np.mgrid[max(0, iy - half_box):min(ny, iy + half_box + 1), max(0, ix - half_box):min(nx, ix + half_box + 1)]
+    good = m["valid"][ys_, xs_] & ~m["sat"][ys_, xs_]
+    px, py = xs_[good], ys_[good]
+    if bg is None:
+        fwhm = float(frame.get("psf_fwhm_arcsec") or 1.5 * scale)
+        r_in = max(2.5 * DEFAULT_APERTURE_ARCSEC, 2 * fwhm) / scale
+        bg = local_background(m, x0, y0, r_in, r_in + max(15.0, 2.5 * scale) / scale)
+    if not bg["ok"] or px.size < 8:
+        return {"status": "failed", "reason": "background or too few pixels"}
+    srcs = [(x0, y0)]
+    for nra, ndec in neighbours:
+        nx_, ny_ = (float(v) for v in wcs.world_to_pixel_values(nra, ndec))
+        if abs(nx_ - x0) <= half_box + 2 and abs(ny_ - y0) <= half_box + 2:
+            srcs.append((nx_, ny_))
+    A = np.stack([sampler(px, py, sx, sy) for sx, sy in srcs], axis=1)  # fraction of flux per pixel
+    data = (m["image"][py, px] - bg["level"]) * omega  # MJy per pixel
+    var = (m["var"][py, px] if m["var"] is not None else np.full(px.size, bg["std"] ** 2))
+    var = (var + bg["error"] ** 2) * omega ** 2
+    w = 1 / var
+    ata = A.T @ (A * w[:, None])
+    try:
+        cov = np.linalg.inv(ata)
+    except np.linalg.LinAlgError:
+        return {"status": "failed", "reason": "degenerate design (sources too close)"}
+    amps = cov @ (A.T @ (w * data))
+    chi2 = float((((A @ amps) - data) ** 2 * w).sum())
+    dof = max(1, px.size - len(srcs))
+    cov = cov * max(1.0, chi2 / dof)
+    return {"status": "ok", "flux": float(amps[0]) * MJY_TO_MJY, "err": float(np.sqrt(cov[0, 0])) * MJY_TO_MJY,
+            "neighbour_fluxes": [float(a) * MJY_TO_MJY for a in amps[1:]], "n_neighbours_fitted": len(srcs) - 1,
+            "chi2_red": chi2 / dof, "psf_model": model_name}
 
 
 def _wavelength_at(frame: ScienceFrame, x: float, y: float) -> tuple[float | None, float | None]:
@@ -225,14 +321,17 @@ PositionFn = Callable[[float], tuple[float, float]]
 
 
 def photometry_series(frames: Sequence[ScienceFrame], ra: float, dec: float, *,
-                      position_fn: PositionFn | None = None, **kwargs) -> list[dict]:
+                      position_fn: PositionFn | None = None,
+                      neighbours_fn: Callable[[float], list[tuple[float, float]]] | None = None,
+                      **kwargs) -> list[dict]:
     """Forced photometry on every frame. ``position_fn(mjd) -> (ra, dec)`` tracks a
     catalog-predicted moving position (e.g. a high proper-motion star) instead of a
-    fixed point; the tracked position is reported per point."""
+    fixed point; ``neighbours_fn(mjd)`` gives known neighbours to deblend."""
     points = []
     for f in frames:
         pra, pdec = position_fn(float(f["mjd"])) if position_fn else (ra, dec)
-        p = forced_photometry(f, pra, pdec, **kwargs)
+        nbs = neighbours_fn(float(f["mjd"])) if neighbours_fn else ()
+        p = forced_photometry(f, pra, pdec, neighbours=nbs, **kwargs)
         p["position"] = {"ra": pra, "dec": pdec, "tracked": position_fn is not None}
         points.append(p)
     if points:

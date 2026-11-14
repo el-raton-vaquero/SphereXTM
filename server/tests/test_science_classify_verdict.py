@@ -106,3 +106,15 @@ def test_verdict_variable_known_source():
     var = {"status": "ok", "variable": True, "p_constant": 1e-9, "amplitude_fraction": 0.4}
     res = verdict.evaluate(points=det_points(), gaia_match=gaia_match(), variability=var)
     assert res["verdict"] == "variable" and ids(res)["variability"]["status"] == "warn"
+
+
+def test_confusion_and_registry_identification():
+    nb = [{"source_id": "575", "phot_g_mean_mag": 16.3, "separation_arcsec": 8.7}]
+    reg = {"name": "WISE 0855-0714", "separation_arcsec": 0.2, "reference": "Luhman 2014"}
+    res = verdict.evaluate(points=det_points(), registry_match=reg, neighbours=nb)
+    c = ids(res)
+    assert c["confusion"]["status"] == "warn" and "575" in c["confusion"]["detail"]
+    assert c["gaia"]["status"] == "warn" and c["registry"]["status"] == "pass"
+    assert res["verdict"] == "known_star" and "WISE 0855" in res["summary"] and res["confidence"] < 0.9
+    clean = verdict.evaluate(points=det_points(), gaia_match=gaia_match(), neighbours=[])
+    assert ids(clean)["confusion"]["status"] == "pass"

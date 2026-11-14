@@ -29,7 +29,10 @@ from spherex.science.types import GetFrames
 SPHEREX_CITATION = ("SPHEREx Level-2 spectral images, NASA/IPAC Infrared Science Archive (IRSA), "
                     "https://irsa.ipac.caltech.edu/Missions/spherex.html")
 HIGH_PM_MAS_YR = 100.0
-MATCH_RADIUS_ARCSEC = 9.0
+MATCH_RADIUS_ARCSEC = 4.0  # identification (~0.65 px)
+BLEND_RADIUS_ARCSEC = 12.3  # 2 SPHEREx pixels: neighbours that contaminate aperture/centroid
+NEIGHBOUR_DELTA_MAG = 4.0  # heuristic, see _gaia_context
+NEIGHBOUR_G_LIMIT = 19.0  # heuristic, see _gaia_context
 
 
 def sanitize(obj: Any) -> Any:
@@ -71,11 +74,11 @@ def _utc() -> str:
 def _registry_match(ra: float, dec: float, mjd: float) -> dict | None:
     """Literature targets in spherex/data/m4-targets.json (predicted, not detected)."""
     try:
-        from spherex.targets import load_targets, predict
+        from spherex.targets import predict
     except Exception:  # noqa: BLE001
         return None
     best = None
-    for t in load_targets().values():
+    for t in _load_registry().values():
         if t.get("status") != "verified":
             continue
         try:
@@ -84,9 +87,33 @@ def _registry_match(ra: float, dec: float, mjd: float) -> dict | None:
             continue
         sep = float(gaia.angular_sep_arcsec(ra, dec, c.ra.deg, c.dec.deg))
         if sep <= 30.0 and (best is None or sep < best["separation_arcsec"]):
-            best = {"name": t["name"], "identifier": t.get("identifier"), "separation_arcsec": sep,
-                    "reference": (t.get("references") or [None])[0], "kind": "catalog_predicted"}
+            best = {"id": t["id"], "name": t["name"], "identifier": t.get("identifier"),
+                    "separation_arcsec": sep, "reference": (t.get("references") or [None])[0],
+                    "pm_mas_yr": math.hypot(t["pm_ra_cosdec_masyr"], t["pm_dec_masyr"]),
+                    "kind": "catalog_predicted"}
     return best if best and best["separation_arcsec"] <= MATCH_RADIUS_ARCSEC else None
+
+
+def _load_registry() -> dict[str, dict]:
+    """m4-targets.json read as UTF-8 (names contain non-ASCII minus signs)."""
+    import json
+
+    from spherex.targets import REGISTRY
+
+    return {t["id"]: t for t in json.loads(REGISTRY.read_text(encoding="utf-8"))}
+
+
+def _registry_predictor(match: dict):
+    """mjd -> (ra, dec) from spherex.targets.predict (space motion, no annual parallax)."""
+    from spherex.targets import predict
+
+    target = _load_registry()[match["id"]]
+
+    def fn(mjd: float) -> tuple[float, float]:
+        c = predict(target, mjd)
+        return float(c.ra.deg), float(c.dec.deg)
+
+    return fn
 
 
 def build_router(get_frames: GetFrames | None = None, *, cache_dir: Path | None = None,
@@ -139,21 +166,57 @@ def build_router(get_frames: GetFrames | None = None, *, cache_dir: Path | None 
         return sanitize(out | {"query": {"ra": ra, "dec": dec, "radius_arcmin": radius_arcmin, "mjd": mjds}})
 
     def _gaia_context(ra, dec, mjds, radius_arcmin):
+        """(payload, identification match, neighbours within the blend radius, error)."""
         try:
             g = gaia.predict_sources(ra, dec, radius_arcmin, mjds, cache_dir=cache)
-            return g, gaia.nearest_match(g["sources"], ra, dec, None, MATCH_RADIUS_ARCSEC), None
         except Exception as exc:  # noqa: BLE001 - reported as an 'na' check
-            return None, None, str(exc)
+            return None, None, None, str(exc)
+        match = gaia.nearest_match(g["sources"], ra, dec, None, MATCH_RADIUS_ARCSEC)
+        mid = float(np.median(mjds))
+        # Heuristic brightness cut (Gaia G as an optical proxy): neighbours within 4 mag of the
+        # identified source (>~2.5% of its flux), else G <= 19 when the target is not in Gaia.
+        g_match = (match or {}).get("source", {}).get("phot_g_mean_mag")
+        g_limit = (g_match + NEIGHBOUR_DELTA_MAG) if g_match is not None else NEIGHBOUR_G_LIMIT
+        neighbours = []
+        for s in g["sources"]:
+            if match and s["source_id"] == match["source"]["source_id"]:
+                continue
+            if s.get("phot_g_mean_mag") is None or s["phot_g_mean_mag"] > g_limit:
+                continue
+            pos = min(s["positions"], key=lambda p: abs(p["mjd"] - mid))
+            sep = float(gaia.angular_sep_arcsec(ra, dec, pos["ra"], pos["dec"]))
+            if sep <= BLEND_RADIUS_ARCSEC:
+                neighbours.append({"source_id": s["source_id"], "phot_g_mean_mag": s.get("phot_g_mean_mag"),
+                                   "separation_arcsec": sep, "source": s, "kind": "catalog_predicted"})
+        neighbours.sort(key=lambda n: n["separation_arcsec"])
+        return g, match, neighbours, None
 
-    def _tracking(match):
-        if not match:
-            return None, {"tracked": False}
-        s = match["source"]
-        pm = math.hypot(s.get("pmra") or 0.0, s.get("pmdec") or 0.0)
-        if pm < HIGH_PM_MAS_YR:
-            return None, {"tracked": False, "gaia_source_id": s["source_id"], "pm_mas_yr": pm}
-        return gaia.source_predictor(s), {"tracked": True, "gaia_source_id": s["source_id"], "pm_mas_yr": pm,
-                                          "note": "aperture follows the Gaia-predicted position (prediction)"}
+    def _tracking(match, reg=None):
+        """Follow a high proper-motion object: Gaia match first, else the literature registry."""
+        if match:
+            s = match["source"]
+            pm = math.hypot(s.get("pmra") or 0.0, s.get("pmdec") or 0.0)
+            if pm >= HIGH_PM_MAS_YR:
+                return gaia.source_predictor(s), {
+                    "tracked": True, "by": "gaia", "gaia_source_id": s["source_id"], "pm_mas_yr": pm,
+                    "note": "aperture follows the Gaia-predicted position (prediction)"}
+        if reg and reg.get("pm_mas_yr", 0) >= HIGH_PM_MAS_YR:
+            return _registry_predictor(reg), {
+                "tracked": True, "by": "registry", "target": reg["name"], "pm_mas_yr": reg["pm_mas_yr"],
+                "note": "aperture follows the literature-predicted position (prediction; no annual parallax)"}
+        return None, {"tracked": False}
+
+    def _neighbours_fn(nbs):
+        preds = [gaia.source_predictor(n["source"]) for n in (nbs or [])]
+        return (lambda mjd: [fn(mjd) for fn in preds]) if preds else None
+
+    def _predictor(match, reg):
+        """Predictor of the identified counterpart (the closer of Gaia / registry)."""
+        if reg and (not match or reg["separation_arcsec"] <= match["separation_arcsec"]):
+            return _registry_predictor(reg)
+        if match:
+            return gaia.source_predictor(match["source"])
+        return None
 
     @router.get("/spectrum")
     def spectrum_endpoint(ra: float = Query(..., ge=0, lt=360), dec: float = Query(..., ge=-90, le=90),
@@ -163,9 +226,11 @@ def build_router(get_frames: GetFrames | None = None, *, cache_dir: Path | None 
         t0 = time.monotonic()
         frames, report = frames_for(ra, dec, 2.0, max_frames)
         mjds = sorted({round(float(f["mjd"]), 5) for f in frames})
-        g, match, gerr = _gaia_context(ra, dec, mjds, 1.0) if (track and frames) else (None, None, None)
-        pos_fn, tracking = _tracking(match)
-        points = photometry.photometry_series(frames, ra, dec, position_fn=pos_fn, aperture_arcsec=aperture_arcsec)
+        g, match, _nb, gerr = _gaia_context(ra, dec, mjds, 1.0) if (track and frames) else (None,) * 4
+        reg = _registry_match(ra, dec, float(np.median(mjds))) if (track and mjds) else None
+        pos_fn, tracking = _tracking(match, reg)
+        points = photometry.photometry_series(frames, ra, dec, position_fn=pos_fn, neighbours_fn=_neighbours_fn(_nb),
+                                              aperture_arcsec=aperture_arcsec)
         seasons = season_table([p["mjd"] for p in points]) if points else []
         by_season = {}
         for s in seasons:
@@ -176,9 +241,11 @@ def build_router(get_frames: GetFrames | None = None, *, cache_dir: Path | None 
             "unit": photometry.UNIT, "points": points, "by_season": by_season,
             "classification": classify.classify(points), "goggles": goggles.band_depth_points(points),
             "tracking": tracking | ({"gaia_error": gerr} if gerr else {}),
+            "blend_neighbours": [{k: v for k, v in n.items() if k != "source"} for n in (_nb or [])],
             "provenance": {"citation": SPHEREX_CITATION, "frames": report, "generated_utc": _utc(),
                            "method": "forced circular aperture, sigma-clipped median annulus background, "
-                                     "VARIANCE errors, EPSF aperture correction"},
+                                     "VARIANCE errors, EPSF aperture correction; forced PSF fit with Gaia "
+                                     "neighbours at fixed positions when blended (flux_method per point)"},
             "elapsed_s": time.monotonic() - t0,
         }
         return sanitize(out)
@@ -189,23 +256,26 @@ def build_router(get_frames: GetFrames | None = None, *, cache_dir: Path | None 
         t0 = time.monotonic()
         frames, report = frames_for(ra, dec, fov, max_frames)
         mjds = sorted({round(float(f["mjd"]), 5) for f in frames})
-        g, match, gerr = _gaia_context(ra, dec, mjds, max(fov / 2, 1.0)) if frames else (None, None, None)
-        pos_fn, tracking = _tracking(match)
-        points = photometry.photometry_series(frames, ra, dec, position_fn=pos_fn)
-        cents = [centroid.centroid_frame(f, *(pos_fn(f["mjd"]) if pos_fn else (ra, dec))) for f in frames]
+        g, match, neighbours, gerr = _gaia_context(ra, dec, mjds, max(fov / 2, 1.0)) if frames else (None,) * 4
+        reg = _registry_match(ra, dec, float(np.median(mjds))) if mjds else None
+        pos_fn, tracking = _tracking(match, reg)
+        nb_fn = _neighbours_fn(neighbours)
+        points = photometry.photometry_series(frames, ra, dec, position_fn=pos_fn, neighbours_fn=nb_fn)
+        cents = [centroid.centroid_frame(f, *(pos_fn(f["mjd"]) if pos_fn else (ra, dec)),
+                                         neighbours=nb_fn(f["mjd"]) if nb_fn else ()) for f in frames]
         seasons = centroid.season_positions(cents, ra0=ra, dec0=dec)
-        predictor = gaia.source_predictor(match["source"]) if match else None
-        motion = centroid.motion_test(seasons, predictor)
+        motion = centroid.motion_test(seasons, _predictor(match, reg))
         var = variability.compare_seasons(points)
         cls = classify.classify(points)
         # SkyBoT epochs: brightest detections first (an asteroid shows up in few frames), then even sampling.
         det = sorted((p for p in points if photometry.usable(p)), key=lambda p: -(p.get("snr") or 0))
         epochs = [p["mjd"] for p in det[:8]] + mjds[:: max(1, len(mjds) // 4)]
         sb = skybot.cone_search_epochs(ra, dec, 1.0, epochs, max_queries=12, cache_dir=cache) if epochs else None
-        reg = _registry_match(ra, dec, float(np.median(mjds))) if mjds else None
         result = verdict.evaluate(points=points, gaia_match=match, gaia_error=gerr, skybot=sb, motion=motion,
                                   variability=var, classification=cls, registry_match=reg,
-                                  match_radius_arcsec=MATCH_RADIUS_ARCSEC)
+                                  neighbours=[{k: v for k, v in n.items() if k != "source"} for n in neighbours]
+                                  if neighbours is not None else None,
+                                  match_radius_arcsec=MATCH_RADIUS_ARCSEC, blend_radius_arcsec=BLEND_RADIUS_ARCSEC)
         result["evidence"] = {
             "n_frames": len(frames), "tracking": tracking, "season_positions": seasons,
             "centroids": cents, "motion": motion, "variability": var, "classification": cls,

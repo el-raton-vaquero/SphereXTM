@@ -56,8 +56,13 @@ def http_get(url: str, timeout: float = 30.0, limit: int = MAX_BYTES) -> bytes:
                             raise TimeoutError("Response exceeded elapsed deadline")
                         chunks.append(chunk)
                     return b"".join(chunks)
-            except HTTPError as exc:  # server answered: do not retry other trust stores
-                raise RuntimeError(f"HTTP {exc.code} from {url.split('?')[0]}") from exc
+            except HTTPError as exc:  # server answered
+                exc.close()
+                last = RuntimeError(f"HTTP {exc.code} from {url.split('?')[0]}")
+                if exc.code < 500:
+                    raise last from exc
+                time.sleep(1.0)  # 5xx: one retry on the same trust store
+                continue
             except URLError as exc:
                 last = exc
                 if isinstance(exc.reason, ssl.SSLCertVerificationError):

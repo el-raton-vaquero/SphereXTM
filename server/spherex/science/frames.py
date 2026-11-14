@@ -14,6 +14,7 @@ from concurrent.futures import ThreadPoolExecutor
 import hashlib
 from pathlib import Path
 import threading
+import time
 from urllib.parse import urlencode
 
 from astropy import units as u
@@ -141,13 +142,30 @@ class ArchiveFrameSource:
         self.max_cache_bytes = max_cache_bytes
         self._lock = threading.Lock()
 
+    def _sia(self, url: str) -> list[dict]:
+        """SIA2 rows, cached on disk for a day; 3 attempts with backoff on transient errors."""
+        key = http.cache_key("sia", url)
+        cached = http.cache_read(self.cache_dir, key, 86400)
+        if cached is not None:
+            return cached["rows"]
+        last = None
+        for delay in (0, 3, 8):
+            time.sleep(delay)
+            try:
+                rows = archive.parse_sia(archive.fetch_bytes(url, archive.MAX_QUERY_BYTES, self.timeout))
+                http.cache_write(self.cache_dir, key, {"rows": rows, "url": url})
+                return rows
+            except RuntimeError as exc:  # network / HTTP errors; parse errors propagate
+                last = exc
+        raise RuntimeError(f"SIA2 unavailable after 3 attempts: {last}")
+
     def discover(self, ra: float, dec: float) -> tuple[list[dict], list[str]]:
         rows, urls = [], []
         for coll in self.collections:
-            q = archive.SIA_URL + "?" + urlencode({"COLLECTION": coll, "POS": f"circle {ra} {dec} 0.0005",
+            q = archive.SIA_URL + "?" + urlencode({"COLLECTION": coll, "POS": f"circle {ra:.6f} {dec:.6f} 0.0005",
                                                    "MAXREC": "2000"})
             urls.append(q)
-            rows += archive.parse_sia(archive.fetch_bytes(q, archive.MAX_QUERY_BYTES, self.timeout))
+            rows += self._sia(q)
         seen, unique = set(), []
         for r in rows:
             if r["access_url"] not in seen:

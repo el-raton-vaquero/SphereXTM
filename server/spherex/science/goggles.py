@@ -130,10 +130,12 @@ def band_depth_points(points: Sequence[dict], recipe_ids: Sequence[str] | None =
         var = np.array([p["err"] for p in pts]) ** 2
         res = band_depth(lam, val, var, rec)
         d = float(res["depth"])
+        e = float(res["err"])
+        ok = np.isfinite(d)
         results.append({"id": rec["id"], "molecule": rec["molecule"], "label_es": rec["label_es"],
                         "label_en": rec["label_en"],
-                        "depth": d if np.isfinite(d) else None,
-                        "err": float(res["err"]) if np.isfinite(res["err"]) else None,
+                        "depth": d if ok else None,
+                        "err": e if ok and np.isfinite(e) else None,
                         "n_band": int(res["n_band"]), "n_cont": int(res["n_cont"]),
                         "status": "ok" if np.isfinite(d) else "insufficient_coverage"})
     return results

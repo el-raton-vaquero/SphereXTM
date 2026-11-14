@@ -121,3 +121,30 @@ def test_goggles_recipes_and_depth():
     assert maps["ch4"]["depth"].shape == (4, 5) and np.allclose(maps["ch4"]["depth"], 0.4)
     empty = goggles.band_depth(np.array([1.0, 1.1]), np.array([1.0, 1.0]), None, rec)
     assert np.isnan(empty["depth"])
+
+
+def test_centroid_with_fixed_neighbour_is_not_dragged():
+    # Faint target at the query position, brighter neighbour 8.7" away (WISE 0855-like blend).
+    nb = (RA + 7.0 / 3600 / np.cos(np.radians(DEC)), DEC + 5.2 / 3600)
+    f = make_frame(sources=[(RA, DEC, 0.6), (*nb, 2.0)], noise=0.003)
+    naive = centroid.centroid_frame(f, RA, DEC)
+    fixed = centroid.centroid_frame(f, RA, DEC, neighbours=[nb])
+
+    def off(c):
+        return float(np.hypot(*centroid.tangent_offsets_arcsec(c["ra"], c["dec"], RA, DEC)))
+
+    assert fixed["n_neighbours_fitted"] == 1 and off(fixed) < 1.0
+    assert off(naive) > off(fixed)
+
+
+def test_psf_fit_deblends_neighbour():
+    nb = (RA + 7.0 / 3600 / np.cos(np.radians(DEC)), DEC + 5.2 / 3600)
+    f = make_frame(sources=[(RA, DEC, 0.5), (*nb, 3.0)], noise=0.003)
+    p = photometry.forced_photometry(f, RA, DEC, neighbours=[nb])
+    assert p["flux_method"] == "psf_fit_deblended"
+    assert abs(p["flux"] - 0.5) < max(3 * p["err"], 0.03)
+    assert p["aperture_flux"] > 0.7  # aperture alone is contaminated by the neighbour
+    assert abs(p["psf_fit"]["neighbour_fluxes"][0] - 3.0) < 0.15
+    # Gaussian fallback when no EPSF is supplied
+    g = photometry.forced_photometry(dict(f, epsf=None), RA, DEC, neighbours=[nb])
+    assert g["psf_fit"]["psf_model"].startswith("Gaussian") and abs(g["flux"] - 0.5) < 0.05

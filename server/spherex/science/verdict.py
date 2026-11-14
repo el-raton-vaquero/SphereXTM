@@ -19,6 +19,7 @@ from collections.abc import Sequence
 from spherex.science.photometry import usable
 
 VERDICTS = ("known_star", "known_asteroid", "artifact", "variable", "candidate", "inconclusive")
+# 'known_star' covers any catalogued non-SSO point source (stars and brown dwarfs).
 DETECTION_SNR = 5.0
 
 
@@ -73,12 +74,32 @@ def gaia_check(match: dict | None, error: str | None, radius_arcsec: float) -> d
                       "Gaia misses very red/faint objects (e.g. Y dwarfs).", src)
     s = match["source"]
     g = s.get("phot_g_mean_mag")
+    gtxt = f" (G = {g:.2f} mag)" if g is not None else ""
     return _check("gaia", "Gaia DR3 counterpart", "pass",
-                  f"Gaia DR3 {s['source_id']} (G = {g:.2f} mag) at {match['separation_arcsec']:.2f} arcsec "
-                  f"of its predicted position (prediction, not detection)." if g is not None else
-                  f"Gaia DR3 {s['source_id']} at {match['separation_arcsec']:.2f} arcsec (predicted).",
+                  f"Gaia DR3 {s['source_id']}{gtxt}: predicted position {match['separation_arcsec']:.2f} arcsec "
+                  "from the query position (prediction, not detection).",
                   src, source_id=s["source_id"], separation_arcsec=match["separation_arcsec"],
                   pmra=s.get("pmra"), pmdec=s.get("pmdec"), parallax=s.get("parallax"))
+
+
+def confusion_check(neighbours: Sequence[dict] | None, error: str | None, blend_radius_arcsec: float) -> dict:
+    """Known Gaia sources close enough to contaminate the aperture / centroid."""
+    src = "Gaia DR3 neighbours (propagated) within the blend radius"
+    if error:
+        return _check("confusion", "Blending with known neighbours", "na", f"Gaia query failed: {error}", src)
+    if neighbours is None:
+        return _check("confusion", "Blending with known neighbours", "na", "Not evaluated.", src)
+    if not neighbours:
+        return _check("confusion", "Blending with known neighbours", "pass",
+                      f"No other Gaia DR3 source within {blend_radius_arcsec:.1f} arcsec.", src)
+    txt = ", ".join(f"{n['source_id']} (G={n['phot_g_mean_mag']:.1f}) at {n['separation_arcsec']:.1f} arcsec"
+                    if n.get("phot_g_mean_mag") is not None else f"{n['source_id']} at {n['separation_arcsec']:.1f} arcsec"
+                    for n in neighbours[:5])
+    return _check("confusion", "Blending with known neighbours", "warn",
+                  f"{len(neighbours)} Gaia neighbour(s) within {blend_radius_arcsec:.1f} arcsec: {txt}. "
+                  "Photometry deblends them with a forced PSF fit and centroids fit them at fixed "
+                  "(predicted) positions; residual contamination is possible.",
+                  src, neighbours=list(neighbours[:20]))
 
 
 def skybot_check(result: dict | None, radius_arcsec: float) -> tuple[dict, dict | None]:
@@ -165,10 +186,12 @@ def spectrum_check(result: dict | None) -> dict:
 def evaluate(*, points: Sequence[dict], gaia_match: dict | None = None, gaia_error: str | None = None,
              skybot: dict | None = None, motion: dict | None = None, variability: dict | None = None,
              classification: dict | None = None, registry_match: dict | None = None,
-             match_radius_arcsec: float = 9.0, skybot_radius_arcsec: float = 12.3) -> dict:
+             neighbours: Sequence[dict] | None = None, match_radius_arcsec: float = 4.0,
+             blend_radius_arcsec: float = 12.3, skybot_radius_arcsec: float = 12.3) -> dict:
     """Combine evidence into the V2 /verdict payload."""
     checks, q = quality_checks(points)
     checks.append(gaia_check(gaia_match, gaia_error, match_radius_arcsec))
+    checks.append(confusion_check(neighbours, gaia_error, blend_radius_arcsec))
     sb_check, sb_hit = skybot_check(skybot, skybot_radius_arcsec)
     checks.append(sb_check)
     reg = registry_check(registry_match)
@@ -186,9 +209,11 @@ def evaluate(*, points: Sequence[dict], gaia_match: dict | None = None, gaia_err
     elif sb_hit is not None and (not known or q["n_detected"] <= 2):
         verdict, conf = "known_asteroid", 0.75 if sb_hit["separation_arcsec"] <= match_radius_arcsec else 0.55
     elif known:
-        sep = (gaia_match or registry_match)["separation_arcsec"]
+        sep = _identification(gaia_match, registry_match)[1]["separation_arcsec"]
         verdict = "variable" if is_variable else "known_star"
         conf = 0.9 if sep <= match_radius_arcsec / 2 else 0.75
+        if neighbours:
+            conf -= 0.1
         if q["sat_frac"] >= 0.5:
             conf -= 0.15
         if motion_bad:
@@ -208,13 +233,20 @@ def evaluate(*, points: Sequence[dict], gaia_match: dict | None = None, gaia_err
             "confidence_method": "heuristic from check outcomes (see spherex/science/verdict.py), not a probability"}
 
 
+def _identification(gaia_match, registry_match):
+    """(name, match) of the closer counterpart; the literature registry wins ties."""
+    if registry_match and (not gaia_match or registry_match["separation_arcsec"] <= gaia_match["separation_arcsec"]):
+        return registry_match["name"], registry_match
+    return f"Gaia DR3 {gaia_match['source']['source_id']}", gaia_match
+
+
 def _summary(verdict, checks, gaia_match, registry_match, sb_hit, q):
     sat = f" Saturated in {q['n_saturated']}/{q['n_frames']} frames." if q["n_saturated"] else ""
     if verdict == "known_asteroid":
         return (f"A known solar-system object ({sb_hit['name']}) is predicted here at MJD {sb_hit['mjd']:.3f}.",
                 f"Un objeto conocido del Sistema Solar ({sb_hit['name']}) pasa por aquí según efemérides (MJD {sb_hit['mjd']:.3f}).")
     if verdict in ("known_star", "variable") and (gaia_match or registry_match):
-        name = (f"Gaia DR3 {gaia_match['source']['source_id']}" if gaia_match else registry_match["name"])
+        name = _identification(gaia_match, registry_match)[0]
         if verdict == "variable":
             return (f"Known source ({name}) with flux changes between seasons.{sat}",
                     f"Fuente conocida ({name}) con cambios de flujo entre temporadas.{sat}")

@@ -61,8 +61,13 @@ def from_tangent_offsets(xi_as, eta_as, ra0, dec0):
 
 
 def centroid_frame(frame: ScienceFrame, ra: float, dec: float, *, half_box: int = 2,
-                   min_snr: float = 5.0) -> dict:
-    """Fit the source nearest (ra, dec) in one native frame."""
+                   min_snr: float = 5.0, neighbours: Sequence[tuple[float, float]] = ()) -> dict:
+    """Fit the source nearest (ra, dec) in one native frame.
+
+    ``neighbours``: (ra, dec) of known nearby sources (e.g. Gaia predictions at this
+    epoch) fitted simultaneously with FIXED positions and free non-negative
+    amplitudes, so a blended neighbour does not drag the target centroid.
+    """
     validate_frame(frame)
     m = _frame_masks(frame)
     wcs = frame["wcs"]
@@ -92,20 +97,31 @@ def centroid_frame(frame: ScienceFrame, ra: float, dec: float, *, half_box: int 
     var = var + bg["error"] ** 2
     xs, ys, d, s = xx[good], yy[good], data[good], np.sqrt(var[good])
     amp0 = max(float(np.nansum(np.clip(d, 0, None))), 1e-12)
+    nb_xy = []
+    for nra, ndec in neighbours:
+        nx_, ny_ = (float(v) for v in wcs.world_to_pixel_values(nra, ndec))
+        if abs(nx_ - x0) <= half_box + 3 and abs(ny_ - y0) <= half_box + 3:
+            nb_xy.append((nx_, ny_))
+    k = len(nb_xy)
 
     def resid(p):
-        return (_pixel_integrated_gaussian(xs, ys, p[0], p[1], p[2], sigma) - d) / s
+        model = _pixel_integrated_gaussian(xs, ys, p[0], p[1], p[2], sigma)
+        for j, (nx_, ny_) in enumerate(nb_xy):
+            model = model + _pixel_integrated_gaussian(xs, ys, p[3 + j], nx_, ny_, sigma)
+        return (model - d) / s
 
-    fit = least_squares(resid, [amp0, x0, y0],
-                        bounds=([0, x0 - half_box, y0 - half_box], [np.inf, x0 + half_box, y0 + half_box]))
-    dof = max(1, d.size - 3)
+    fit = least_squares(resid, [amp0, x0, y0] + [amp0 / 2] * k,
+                        bounds=([0, x0 - half_box, y0 - half_box] + [0] * k,
+                                [np.inf, x0 + half_box, y0 + half_box] + [np.inf] * k))
+    dof = max(1, d.size - 3 - k)
     chi2_red = float(2 * fit.cost / dof)
     try:
         cov = np.linalg.inv(fit.jac.T @ fit.jac) * max(1.0, chi2_red)
     except np.linalg.LinAlgError:
         return base | {"status": "fit_failed"}
-    amp, xc, yc = fit.x
+    amp, xc, yc = fit.x[:3]
     snr = float(amp / np.sqrt(cov[0, 0])) if cov[0, 0] > 0 else 0.0
+    cov = cov[:3, :3]
     at_bound = (abs(xc - x0) > half_box - 1e-3) or (abs(yc - y0) > half_box - 1e-3)
     # Propagate pixel covariance to (xi, eta) through the local WCS Jacobian.
     rac, decc = (float(v) for v in wcs.pixel_to_world_values(xc, yc))
@@ -120,8 +136,9 @@ def centroid_frame(frame: ScienceFrame, ra: float, dec: float, *, half_box: int 
         "status": status, "ra": rac, "dec": decc, "x": float(xc), "y": float(yc),
         "err_ra_arcsec": float(np.sqrt(sky_cov[0, 0])), "err_dec_arcsec": float(np.sqrt(sky_cov[1, 1])),
         "corr": float(sky_cov[0, 1] / np.sqrt(sky_cov[0, 0] * sky_cov[1, 1])),
-        "snr": snr, "chi2_red": chi2_red, "pixel_scale_arcsec": scale,
-        "method": "pixel-integrated Gaussian, sigma fixed from PSF_FWHM",
+        "snr": snr, "chi2_red": chi2_red, "pixel_scale_arcsec": scale, "n_neighbours_fitted": k,
+        "method": "pixel-integrated Gaussian, sigma fixed from PSF_FWHM"
+                  + (f"; {k} known neighbour(s) fitted at fixed positions" if k else ""),
     }
 
 
@@ -159,16 +176,20 @@ Predictor = Callable[[float], tuple[float, float]]
 
 
 def motion_test(seasons: Sequence[dict], predictor: Predictor | None = None, *,
-                pixel_scale_arcsec: float = 6.15) -> dict:
-    """Measured shift between the first and last season vs a catalog prediction.
+                pixel_scale_arcsec: float = 6.15, min_frames: int = 3) -> dict:
+    """Measured shift between the first and last well-sampled season vs a catalog prediction.
 
-    Returns status 'na' with a reason if fewer than two seasons have positions.
+    Seasons with fewer than ``min_frames`` good centroids are skipped when at least
+    two seasons meet it. Returns status 'na' with a reason if fewer than two
+    seasons have positions.
     ``significant_motion``: measured shift differs from zero at > 3 sigma (2 dof).
     ``consistent_with_prediction``: residual (measured - predicted) within 3 sigma.
     """
-    if len(seasons) < 2:
-        return {"status": "na", "reason": f"{len(seasons)} season(s) with usable centroids; need 2"}
-    a, b = seasons[0], seasons[-1]
+    rich = [s for s in seasons if s["n_frames"] >= min_frames]
+    use = rich if len(rich) >= 2 else list(seasons)
+    if len(use) < 2:
+        return {"status": "na", "reason": f"{len(use)} season(s) with usable centroids; need 2"}
+    a, b = use[0], use[-1]
     ra0, dec0 = a["ra"], a["dec"]
     bx, by = tangent_offsets_arcsec(b["ra"], b["dec"], ra0, dec0)
     sx, sy = np.hypot(a["err_ra_arcsec"], b["err_ra_arcsec"]), np.hypot(a["err_dec_arcsec"], b["err_dec_arcsec"])

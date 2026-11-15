@@ -1,52 +1,61 @@
-# SPHEREx Time Machine — PRISM
+# StarChord — SPHEREx, seen and heard
 
-**Cada cuadro de SPHEREx es de un color distinto.** PRISM separa el color del movimiento
-y te dice si lo que se movió es conocido (Gaia DR3, SkyBoT), un artefacto (FLAGS de
-SPHEREx) o algo sin explicar. Usa observaciones reales de SPHEREx (NASA/IPAC IRSA, DR1 +
-QR3). Las predicciones de catálogo se etiquetan como predicciones, y nada sintético se
-mezcla con datos reales. No afirma descubrimientos.
+**Every SPHEREx frame is a different colour.** StarChord separates colour from motion and
+tells you whether what moved is known (Gaia DR3, SkyBoT), an artifact (SPHEREx FLAGS) or
+unexplained. It uses real SPHEREx observations (NASA/IPAC IRSA, DR1 + QR3). Catalogue
+predictions are labelled as predictions; anything computed or modelled (ephemerides,
+historical skies, phone pointing, sonification) is labelled as such; nothing synthetic is
+mixed with real data. It makes no discovery claims. English is the default language;
+a Spanish toggle is on every page.
 
-| Ruta | Qué es |
+| Route | What it is |
 |---|---|
-| `/` | Esfera celeste 3D: estrellas reales (BSC5), órbita de SPHEREx y barrido ilustrativo. Elige un objetivo y vuela a él. |
-| `/prism` | Explorador: secuencia de cuadros reprojectados al norte, pad tiempo × λ, co-suma, diferencia a λ emparejada, gafas moleculares, cubo 3D, espectro por fotometría forzada y veredicto con evidencia. |
-| `/classic` | Observatorio original (M101 real o simulación etiquetada). |
+| `/` | 3D celestial sphere: real stars (BSC5), the SPHEREx orbit and an illustrative sweep. Pick a target and fly to it. |
+| `/explore` | Explorer (formerly `/prism`, which redirects here with its query string): north-up reprojected frame sequence, time × λ pad, co-add, matched-λ difference, molecular goggles, 3D cube, forced-photometry spectrum and an evidence-based verdict. |
+| `/sky` | Sky time machine: date + speed, trajectories, the sky of 700 years ago, VR (in progress; positions are computed). |
+| `/symphony` | Star symphony: the 102 SPHEREx bands as music (in progress; an artistic mapping of real data). |
+| `/look` | Look up: phone camera + orientation to find the SPHEREx view of where you point; on desktop, what is above you (in progress). |
+| `/cosmos/cube` | Stand-alone spectral cube of real frames. |
+
+`/classic` was removed; old `/classic` and `/cosmos` links redirect.
 
 API v2 (FastAPI, `server/`): `/v2/targets`, `/v2/search` (+ `/v2/search/stream` SSE),
-`/v2/gaia`, `/v2/skybot`, `/v2/spectrum` y `/v2/verdict`. Están descritas en
-[docs/api-contract.md](docs/api-contract.md).
+`/v2/gaia`, `/v2/skybot`, `/v2/spectrum` and `/v2/verdict` (both take `lang=en|es`).
+They are described in [docs/api-contract.md](docs/api-contract.md).
 
-### Arranque rápido de PRISM
+### Quick start
 
 ```sh
 cd server && uv sync --locked && uv run --locked uvicorn spherex.api:app --port 8000
 cd frontend && npm ci && npm run dev        # http://localhost:3000
 ```
 
-Sin el servidor, el frontend muestra las instantáneas reales de los seis objetivos
-(`frontend/public/snapshots`). Para regenerarlas:
-`cd server && PYTHONUTF8=1 uv run --locked python scripts/precompute_snapshots.py`.
-El despliegue (frontend en Vercel, backend en contenedor) está en
-[docs/deploy.md](docs/deploy.md).
+Without the server the frontend shows the real snapshots of the six targets
+(`frontend/public/snapshots`). To regenerate them:
+`cd server && PYTHONUTF8=1 uv run --locked python scripts/precompute_snapshots.py`, then
+`uv run --locked python scripts/localize_snapshots.py` (adds the English/Spanish text).
+Deployment (frontend on Vercel, backend in a container) is in [docs/deploy.md](docs/deploy.md).
 
-**Límites honestos:**
-- Los movimientos esperados en DR1 son de ~0.5–1.4 px.
-- Barnard, RW Aur y R Dra saturan: PRISM lo marca, no lo oculta.
-- Las búsquedas en frío tardan ~20–50 s porque descargan datos reales.
-- λ viene de WCS-WAVE (aproximado).
-- La confianza del veredicto es heurística.
-- El estado detallado está en [docs/current-state.md](docs/current-state.md).
+Translations live in `frontend/lib/i18n/en.ts` and `es.ts` (`useLocale()` hook); brand
+assets go in `frontend/public/brand/` (see its README).
+
+**Honest limits:**
+- Expected motions in DR1 are ~0.5–1.4 px.
+- Barnard, RW Aur and R Dra saturate: StarChord flags it, it does not hide it.
+- Cold searches take ~20–50 s because they download real data.
+- λ comes from WCS-WAVE (approximate).
+- The verdict confidence is a heuristic.
+- The detailed status is in [docs/current-state.md](docs/current-state.md).
 
 ---
 
-## Observatorio clásico (M101)
+## Original M101 pipeline
 
-Compare authentic infrared observations of M101 from two dates, or explore a
-separate educational simulation. This application does not claim detection of
-Planet X or confirmed moving objects.
+The `/frames` endpoint still serves the original WCS-aligned M101 comparison (two real
+QR3 observations 37.7 days apart) used by the early milestones; its browser view
+(`/classic`) was retired in favour of `/explore`.
 
-- `frontend/`: Next.js / React, integrated SphereXTM visuals, blink, difference,
-  curtain comparison, scientific provenance and educational tools.
+- `frontend/`: Next.js / React UI (explorer, 3D landing, new sections).
 - `server/`: authoritative Python / FastAPI / Astropy scientific service.
 - `docs/`: API contract, scientific limitations and verification evidence.
 
@@ -83,10 +92,9 @@ npm run build
 npm run start
 ```
 
-Visit http://localhost:3000/classic?api=real for authentic M101 data or
-http://localhost:3000/classic?api=mock for simulation. Real mode is the default. FITS
-products are prepared locally and are not included in Git. Offline replay needs
-an existing verified cache; errors never silently substitute simulation.
+Visit http://localhost:3000/explore. FITS products are prepared locally and are not
+included in Git. Offline replay needs an existing verified cache; errors never silently
+substitute simulation.
 
 [Integration report](docs/frontend-integration.md) contains exact source commit,
 migration decisions, testing commands, screenshots and limitations.

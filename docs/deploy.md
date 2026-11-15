@@ -45,8 +45,9 @@ npx vercel@latest --prod      # production deployment
 npx vercel@latest git connect # connect the GitHub repository for automatic deploys
 ```
 
-What runs where on Vercel: `/`, `/classic`, `/cosmos` and `/cosmos/cube` are static.
-`/prism` is rendered on demand. The snapshots (~3–3.5 MB each, ~20 MB in total) are
+What runs where on Vercel: `/`, `/sky`, `/symphony`, `/look` and `/cosmos/cube` are
+static. `/explore` is rendered on demand. `/prism` (→ `/explore`, query string kept),
+`/classic` (→ `/explore`) and `/cosmos` (→ `/`) are redirects from `next.config.ts`. The snapshots (~3–3.5 MB each, ~20 MB in total) are
 static files.
 
 ## 2. Science server

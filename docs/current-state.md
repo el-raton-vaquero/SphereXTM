@@ -361,3 +361,40 @@ scroll at 390 px. Key screenshots in `docs/assets/prism-*.png`.
 vs 8.07″) and the backend verdict (WISE 0855 inconclusive: backend season centroids usable in
 only 1 season) use different methods and can disagree; both are labelled. Verdict details are
 English only. Static-mode preset blurbs come from `lib/prism/presets.ts`, not `/v2/targets`.
+
+## StarChord foundation — 2026-11-14 (branch `prism`)
+
+The product is renamed **PRISM → StarChord** (user-visible strings, metadata, docs, API
+title; env vars `NEXT_PUBLIC_PRISM_API_BASE` / `PRISM_*` and internal identifiers such as
+`lib/prism/`, `components/prism/`, `.prism-root` are unchanged for deploy compatibility).
+
+**Routes.** `/` 3D landing · `/explore` explorer (moved from `app/prism`; `/prism`,
+`/prism/*` → `/explore` keeping the query; `/classic` → `/explore`; `/cosmos` → `/`, all
+in `next.config.ts` `redirects()`) · `/sky`, `/symphony`, `/look` placeholder pages
+(`components/site/ComingSoon.tsx`) for the feature work · `/cosmos/cube`.
+`/classic` and everything only it used (store, mock data, render engine, cone search,
+Tailwind build, standalone HTML demo, classic scripts/diagnostics) are deleted.
+
+**i18n.** One module, `frontend/lib/i18n/` (`en.ts` default, `es.ts` typed against it,
+`index.ts` with `useLocale()` → `{ locale, t, setLocale, toggleLocale }`, `withLang()`,
+`pickLocalized()`). Locale: `?lang=` > localStorage `starchord.lang` > `en`. All component
+strings go through it, including per-target texts (namespace `targets`).
+
+**Backend language.** `/v2/verdict` and `/v2/spectrum` take `lang=en|es`
+(`spherex/science/i18n.py`; fields only added, see `docs/api-contract.md`). Snapshots carry
+the same `*_en/*_es` fields (`server/scripts/localize_snapshots.py`). Verdict details are
+now Spanish too (the earlier "details stay English" limitation is resolved for every
+template; unknown upstream error texts stay English and are marked `lang="en"`).
+
+**Design.** Fonts Fraunces (display) / Figtree (body, 15px base) / JetBrains Mono (data)
+via `next/font/google`; type-scale tokens `--p-fs-*` in `app/prism-tokens.css`; small
+labels ≥ 11.5px. Brand slot `components/brand/BrandMark.tsx` (text wordmark;
+`BRAND_HAS_LOGO` flips to `public/brand/logo.svg`), shared `SiteNav`/`SiteHeader`,
+`app/icon.svg` placeholder favicon. `astronomy-engine` (MIT) added for computed
+ephemerides.
+
+**Checks.** `npx tsc --noEmit` and `npm run lint` clean; `npm run build` passes (9 routes);
+`uv run --locked pytest -q`: 163 passed (7 new i18n tests, incl. every saved snapshot
+sentence). Headless Chrome on the production build: landing, `/explore` (EN and
+`?lang=es`, real WISE 0855 snapshot with Spanish verdict details), `/sky` placeholder;
+redirects return 307 with the query preserved.

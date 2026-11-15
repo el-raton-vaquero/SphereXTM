@@ -120,6 +120,17 @@ Router: `server/spherex/v2.py`, mounted in `spherex.api:app` next to the unchang
   `skybot(ra, dec, radius_arcmin, mjd)`, `spectrum(ra, dec, aperture_arcsec)`,
   `verdict(ra, dec, fov)`. For photometry, `spherex.live.native_frames()` returns
   native IMAGE/FLAGS/VARIANCE cutouts with celestial and spectral WCS.
+- Language (`/v2/spectrum`, `/v2/verdict`): optional `lang=en|es` (default `en`; anything
+  else → 422). Backward compatible, fields are only added (`spherex/science/i18n.py`):
+  - verdict: each check's `label`, `detail`, `evidence_source` are in `lang`, and the
+    check also carries `label_en/label_es`, `detail_en/detail_es`,
+    `evidence_source_en/evidence_source_es`; `summary` is in `lang`, `summary_en` and
+    `summary_es` are always present; top-level `lang` echoes the language.
+  - spectrum: `classification.caveats`/`method` (and `provenance.method`) are in `lang`,
+    with `caveats_en/caveats_es` and `method_en/method_es` copies; top-level `lang`.
+  - A sentence with no known template (e.g. an upstream error text) stays English and has
+    no `*_es` copy, so clients can mark it `lang="en"`. Snapshots carry the same fields
+    (`server/scripts/localize_snapshots.py`).
 
 Snapshots: `frontend/public/snapshots/<id>.json` (same schema, `cache: "snapshot"`,
 plus `target`, `snapshot`, and `gaia/spectrum/verdict` only if providers exist) and

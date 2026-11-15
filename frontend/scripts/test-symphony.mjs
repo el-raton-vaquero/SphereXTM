@@ -4,7 +4,19 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { register } from 'node:module';
 import * as core from '../lib/symphony/core.ts';
+
+// lib/symphony/*.ts import each other without extensions (bundler resolution); teach Node to add '.ts'.
+register('data:text/javascript,' + encodeURIComponent(`
+export async function resolve(spec, ctx, next) {
+  if ((spec.startsWith('./') || spec.startsWith('../')) && !/\.[cm]?[jt]s$/.test(spec) && ctx.parentURL?.includes('/lib/symphony/')) {
+    try { return await next(spec + '.ts', ctx); } catch { /* fall through */ }
+  }
+  return next(spec, ctx);
+}`));
+const song = await import('../lib/symphony/export.ts');
+const { composeSong, scoreToMidi, SONG_VOICES } = song;
 
 const {
   BANDS, N_BANDS, bandIndexFor, binToBands, robustNormalize, finitePercentile, quantizeToScale, SCALES,
@@ -198,6 +210,132 @@ test('real snapshot (WISE 0855) bins into many bands', () => {
   const out = binToBands(frames.map((f) => f.lambda_um), frames.map(() => 1));
   const filled = [...out].filter(Number.isFinite).length;
   assert.ok(filled >= 60, `only ${filled} bands filled`);
+});
+
+// ---------------------------------------------------------------- export.ts (fixed piece)
+
+/** A spectrum with an H2O-ice dip, sampled at the band centres, with a few nulls. */
+function icySpectrum() {
+  const lambda_um = BANDS.map((b) => b.center);
+  const intensity = BANDS.map((b, i) => {
+    if (i === 5 || i === 60) return null;
+    const cont = 2 - 0.25 * b.center + 0.05 * Math.sin(b.center * 9);
+    return Math.abs(b.center - 3.05) <= 0.15 ? cont * 0.6 : cont;
+  });
+  return { lambda_um, intensity, label: 'test' };
+}
+
+test('composeSong is deterministic and seed-sensitive', () => {
+  const a = composeSong(icySpectrum());
+  const b = composeSong(icySpectrum());
+  assert.deepEqual(a, b);
+  assert.equal(a.seconds, 45);
+  assert.ok(a.notes.length > 40, `only ${a.notes.length} notes`);
+  const c = composeSong({ ...icySpectrum(), seed: 'other' });
+  assert.notDeepEqual(a.notes, c.notes);
+  assert.ok(a.bpm >= 60 && a.bpm <= 140);
+  assert.match(a.key, /pentatonic/);
+});
+
+test('composeSong: form, ranges, ice voice and every voice present', () => {
+  const s = composeSong(icySpectrum(), 45);
+  assert.ok(s.features.includes('h2o'), `features ${s.features}`);
+  for (const v of SONG_VOICES) assert.ok(s.notes.some((n) => n.voice === v), `no ${v} notes`);
+  for (const n of s.notes) {
+    assert.ok(n.t >= 0 && n.t < 45 && n.t + n.dur <= 45 + 1e-6, `note out of range ${JSON.stringify(n)}`);
+    assert.ok(n.vel > 0 && n.vel <= 1 && n.pan >= -1 && n.pan <= 1);
+    assert.ok(Number.isInteger(n.midi) && n.midi >= 0 && n.midi <= 127);
+  }
+  for (let i = 1; i < s.notes.length; i++) assert.ok(s.notes[i].t >= s.notes[i - 1].t, 'notes not sorted');
+  // Climax (46-78%) is louder than the intro, the fade-out quieter than the climax.
+  const mean = (a, b) => { const l = s.notes.filter((n) => n.voice === 'lead' && n.t >= a && n.t < b); return l.reduce((x, n) => x + n.vel, 0) / l.length; };
+  assert.ok(mean(0.46 * 45, 0.78 * 45) > mean(0.14 * 45, 0.46 * 45) * 0.95);
+  assert.ok(mean(0.85 * 45, 45) < mean(0.46 * 45, 0.78 * 45));
+  // Longer pieces stretch.
+  const long = composeSong(icySpectrum(), 90);
+  assert.ok(Math.max(...long.notes.map((n) => n.t)) > 60);
+});
+
+test('composeSong: null bands are silent', () => {
+  const lambda_um = BANDS.map((b) => b.center);
+  const none = composeSong({ lambda_um, intensity: lambda_um.map(() => null) });
+  assert.equal(none.notes.length, 0);
+  // Only detector 6 (4.42-5.0 um, lowest pitches) measured: no melody note may come from D1-D5.
+  const d6 = composeSong({ lambda_um, intensity: BANDS.map((b) => (b.detector === 6 ? 1 + Math.sin(b.center * 9) : null)) });
+  const melody = d6.notes.filter((n) => n.voice === 'lead' || n.voice === 'ice');
+  assert.ok(melody.length > 0);
+  // Highest note a D6 band can make in this key, plus the octave "sparkle" on peaks.
+  const key = Object.values(core.KEYS).find((k) => d6.key.startsWith(k.name + ' '));
+  const keyRoot = key.root;
+  const sc = SCALES[key.scale];
+  const top = Math.max(...BANDS.filter((b) => b.detector === 6).map((b) => bandMidi(b.index, keyRoot + 12, sc)));
+  for (const n of melody) assert.ok(n.midi <= top + 12, `note ${n.midi} above D6 range (${top})`);
+});
+
+/** Walk a Standard MIDI File and return its chunk/event structure. */
+function parseMidi(bytes) {
+  const v = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const id = (o) => String.fromCharCode(bytes[o], bytes[o + 1], bytes[o + 2], bytes[o + 3]);
+  assert.equal(id(0), 'MThd');
+  assert.equal(v.getUint32(4), 6);
+  const header = { format: v.getUint16(8), ntracks: v.getUint16(10), division: v.getUint16(12) };
+  let o = 14;
+  const tracks = [];
+  while (o < bytes.length) {
+    assert.equal(id(o), 'MTrk', `chunk at ${o}`);
+    const len = v.getUint32(o + 4);
+    const end = o + 8 + len;
+    assert.ok(end <= bytes.length, 'chunk overruns file');
+    let p = o + 8;
+    const vlq = () => { let n = 0, b; do { b = bytes[p++]; n = (n << 7) | (b & 0x7f); } while (b & 0x80); return n; };
+    const tr = { name: '', tempo: 0, program: -1, on: 0, off: 0, cc10: 0, eot: false, ticks: 0 };
+    while (p < end) {
+      tr.ticks += vlq();
+      const st = bytes[p++];
+      assert.ok(st & 0x80, 'running status not expected');
+      if (st === 0xff) {
+        const type = bytes[p++]; const l = vlq();
+        if (type === 0x03) tr.name = String.fromCharCode(...bytes.subarray(p, p + l));
+        if (type === 0x51) tr.tempo = (bytes[p] << 16) | (bytes[p + 1] << 8) | bytes[p + 2];
+        if (type === 0x2f) { tr.eot = true; assert.equal(p + l, end, 'end-of-track is not last'); }
+        p += l;
+      } else if ((st & 0xf0) === 0xc0) tr.program = bytes[p++];
+      else if ((st & 0xf0) === 0x90) { if (bytes[p + 1] > 0) tr.on++; p += 2; }
+      else if ((st & 0xf0) === 0x80) { tr.off++; p += 2; }
+      else if ((st & 0xf0) === 0xb0) { if (bytes[p] === 10) tr.cc10++; p += 2; }
+      else assert.fail(`unexpected status ${st.toString(16)}`);
+    }
+    assert.equal(p, end);
+    assert.ok(tr.eot, 'track without end-of-track');
+    tracks.push(tr);
+    o = end;
+  }
+  return { header, tracks };
+}
+
+test('scoreToMidi writes a valid type-1 SMF: header, tempo, one named track per voice', () => {
+  const s = composeSong(icySpectrum());
+  const midi = scoreToMidi(s);
+  assert.ok(midi instanceof Uint8Array);
+  const { header, tracks } = parseMidi(midi);
+  assert.equal(header.format, 1);
+  assert.equal(header.division, 480);
+  assert.equal(header.ntracks, 1 + SONG_VOICES.length);
+  assert.equal(tracks.length, header.ntracks);
+  assert.equal(tracks[0].tempo, Math.round(60e6 / s.bpm));
+  assert.match(tracks[0].name, /StarChord/);
+  SONG_VOICES.forEach((voice, k) => {
+    const tr = tracks[k + 1];
+    const n = s.notes.filter((x) => x.voice === voice).length;
+    assert.ok(tr.name.toLowerCase().startsWith(voice), `track ${k + 1} name ${tr.name}`);
+    assert.ok(tr.program >= 0 && tr.program < 128);
+    assert.equal(tr.on, n, `${voice} note-ons`);
+    assert.equal(tr.off, n, `${voice} note-offs`);
+    if (n) assert.ok(tr.cc10 >= 1, `${voice} has no pan`);
+  });
+  // Silent score still produces a valid file.
+  const empty = parseMidi(scoreToMidi(composeSong({ lambda_um: [1, 2], intensity: [null, null] })));
+  assert.equal(empty.tracks.length, 5);
 });
 
 for (const [name, fn] of tests) {

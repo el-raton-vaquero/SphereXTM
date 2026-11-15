@@ -303,6 +303,14 @@ export const es: Messages = {
     kicker: 'StarChord · SPHEREx',
     title: 'Cada imagen de SPHEREx es de otro color.',
     lede: 'StarChord separa el color del movimiento y te dice si lo que se movió es conocido, un artefacto o algo nuevo.',
+    // --- portada: accesos a las cuatro secciones ---
+    entriesLabel: 'Cuatro maneras de entrar',
+    entries: {
+      explore: 'Cuadros reales de SPHEREx de cualquier punto, como una película corta',
+      sky: 'El cielo calculado en cualquier fecha, incluido hace 700 años, también en RV',
+      symphony: 'Escucha una región del cielo: sus 102 colores se vuelven notas',
+      look: 'Apunta tu teléfono al cielo o mira qué hay sobre ti ahora',
+    },
     searchLabel: 'Objeto o coordenadas α δ',
     placeholder: 'Barnard, M101 o 269.446 +4.768',
     go: 'Apuntar',
@@ -535,6 +543,7 @@ export const es: Messages = {
     scp: 'Polo sur celeste',
     bandsLabel: 'Aproximación por color de las estrellas visibles, no son datos de SPHEREx',
     symphonySlot: 'Sinfonía estelar',
+    symphonyDockLabel: (date: string, stars: number) => `Cielo visible · ${date} UTC · ${stars} estrellas`,
     credits: 'Estrellas: Yale Bright Star Catalogue (Hoffleit y Warren 1991, CDS V/50). Líneas de constelaciones: d3-celestial © Olaf Frohn (BSD de 3 cláusulas). Efemérides: astronomy-engine (MIT). Objetivos: Gaia DR3 y SIMBAD.',
     au: 'UA',
     arcsecYr: '″/año',

@@ -310,6 +310,14 @@ export const en = {
     kicker: 'StarChord · SPHEREx',
     title: 'Every SPHEREx frame is a different colour.',
     lede: 'StarChord separates colour from motion and tells you whether what moved is known, an artifact, or something new.',
+    // --- landing: entry points to the four sections ---
+    entriesLabel: 'Four ways in',
+    entries: {
+      explore: 'Real SPHEREx frames of any spot, played like a short film',
+      sky: 'The computed sky on any date, 700 years ago included, in VR too',
+      symphony: 'Hear a region of sky: its 102 colours become notes',
+      look: 'Point your phone at the sky, or see what is above you now',
+    },
     searchLabel: 'Object or α δ coordinates',
     placeholder: "Barnard, M101 or 269.446 +4.768",
     go: 'Point',
@@ -543,6 +551,7 @@ export const en = {
     scp: 'S celestial pole',
     bandsLabel: 'Colour-based approximation from the visible stars, not SPHEREx data',
     symphonySlot: 'Star symphony',
+    symphonyDockLabel: (date: string, stars: number) => `Visible sky · ${date} UTC · ${stars} stars`,
     credits: 'Stars: Yale Bright Star Catalogue (Hoffleit & Warren 1991, CDS V/50). Constellation lines: d3-celestial © Olaf Frohn (BSD 3-Clause). Ephemeris: astronomy-engine (MIT). Targets: Gaia DR3 and SIMBAD.',
     au: 'AU',
     arcsecYr: '″/yr',

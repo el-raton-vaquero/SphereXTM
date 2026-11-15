@@ -15,6 +15,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import * as Astro from 'astronomy-engine';
 import { useLocale, withLang } from '../../lib/i18n';
 import SiteHeader from '../site/SiteHeader';
+import SkySymphony from '../symphony/SkySymphony';
 import { formatDec, formatRA } from '../cosmos/astro';
 import { writeUrl } from '../../lib/prism/url';
 import { loadSkyCatalog } from '../../lib/sky/catalog';
@@ -80,8 +81,16 @@ function sunAltitude(ms: number, lat: number, lon: number): number {
   return Astro.Horizon(d, obs, eq.ra, eq.dec).altitude;
 }
 
-/** Initial state from the URL (?t=unix-ms&lat=&lon=&epoch=). */
-function readSkyUrl(): { t?: number; lat?: number; lon?: number; epoch?: string; speed?: SpeedId; trails?: boolean; select?: string } {
+/**
+ * Initial state from the URL (?t=unix-ms&lat=&lon=&epoch=).
+ * ?epoch= also accepts a year ("1326", "-2500": same calendar day, night sky) and ?date= takes
+ * YYYY-MM-DD with an optional THH:MM local time (a leading "-" for years BCE, astronomical).
+ */
+function readSkyUrl(): {
+  t?: number; lat?: number; lon?: number; epoch?: string; epochYear?: number;
+  date?: { year: number; month: number; day: number; hour: number; minute: number; hasTime: boolean };
+  speed?: SpeedId; trails?: boolean; select?: string;
+} {
   if (typeof window === 'undefined') return {};
   const p = new URLSearchParams(window.location.search);
   const num = (k: string) => {
@@ -97,6 +106,17 @@ function readSkyUrl(): { t?: number; lat?: number; lon?: number; epoch?: string;
     lat: lat !== undefined && Math.abs(lat) <= 90 ? lat : undefined,
     lon: lon !== undefined && Math.abs(lon) <= 180 ? lon : undefined,
     epoch: p.get('epoch') ?? undefined,
+    epochYear: /^-?\d{1,4}$/.test(p.get('epoch') ?? '') ? Math.max(-3000, Math.min(3000, Number(p.get('epoch')))) : undefined,
+    date: (() => {
+      const m = /^(-?\d{1,4})-(\d{1,2})-(\d{1,2})(?:[T ](\d{1,2}):(\d{2}))?$/.exec(p.get('date') ?? '');
+      if (!m) return undefined;
+      const [year, month, day] = [Number(m[1]), Number(m[2]), Number(m[3])];
+      if (Math.abs(year) > 3000 || month < 1 || month > 12 || day < 1 || day > 31) return undefined;
+      const hasTime = m[4] !== undefined;
+      const hour = hasTime ? Math.min(23, Number(m[4])) : 22;
+      const minute = hasTime ? Math.min(59, Number(m[5])) : 0;
+      return { year, month, day, hour, minute, hasTime };
+    })(),
     speed: SPEEDS.some((s) => s.id === p.get('speed')) ? (p.get('speed') as SpeedId) : undefined,
     trails: p.get('trails') === '1' ? true : undefined,
     select: /^(body|target|star|mark):[A-Za-z0-9 '-]{1,40}$/.test(p.get('select') ?? '') ? (p.get('select') as string) : undefined,
@@ -232,8 +252,26 @@ export default function SkyApp() {
         if (process.env.NODE_ENV !== 'production') (window as unknown as { __skyEngine?: SkyEngine }).__skyEngine = engine; // dev-only debugging handle
         setStatus('ready');
         // ?epoch= (without an explicit ?t=) opens straight on that preset.
-        const ep = EPOCHS.find((x) => x.id === initial.epoch);
-        if (ep && ep.id !== 'now' && initial.t === undefined) applyEpochRef.current?.(ep);
+        // A numeric ?epoch= equal to "700 years ago" maps onto that preset; other years and
+        // ?date= open the same way (night sky at the chosen place).
+        const ago700Year = toLocalParts(Date.now(), tzOffsetHours(pl.lon)).year - 700;
+        const ep =
+          EPOCHS.find((x) => x.id === initial.epoch) ??
+          (initial.epochYear === ago700Year && !initial.date ? EPOCHS.find((x) => x.id === 'ago700') : undefined);
+        if (initial.t === undefined) {
+          if (ep && ep.id !== 'now') applyEpochRef.current?.(ep);
+          else if (initial.date || initial.epochYear !== undefined) {
+            const zone = tzOffsetHours(pl.lon);
+            const parts = initial.date
+              ? { year: initial.date.year, month: initial.date.month, day: initial.date.day, hour: initial.date.hour, minute: initial.date.minute }
+              : { ...toLocalParts(Date.now(), zone), year: initial.epochYear as number };
+            let ms = fromLocalParts(parts, zone);
+            if (!initial.date?.hasTime && sunAltitude(ms, pl.lat, pl.lon) > -6) ms = fromLocalParts({ ...parts, hour: 22, minute: 0 }, zone);
+            ms = clampTime(ms);
+            engine.setTime(ms);
+            setTimeMs(ms);
+          }
+        }
         if (initial.select) engine.select(initial.select, true);
       } catch (e) {
         if (ac.signal.aborted) return;
@@ -815,7 +853,9 @@ export default function SkyApp() {
         <section className="sky-sec sky-symphony" aria-label={t.symphonySlot}>
           <h3 className="sky-sec-h">{t.symphonySlot}</h3>
           <p className="sky-note">{t.bandsLabel}</p>
-          <div data-symphony-slot="sky" className="sky-symphony-slot" />
+          <div data-symphony-slot="sky" className="sky-symphony-slot">
+            <SkySymphony />
+          </div>
         </section>
 
         <section className="sky-sec sky-fine">

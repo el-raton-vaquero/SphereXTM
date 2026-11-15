@@ -2,6 +2,7 @@
 
 import { useLocale, withLang } from '../../lib/i18n';
 import { useProbeSpectrum } from '../../lib/prism/probeSpectrum';
+import ExploreSymphony from '../symphony/ExploreSymphony';
 
 /**
  * "Listen" tab of the explorer's Details drawer.
@@ -25,7 +26,7 @@ export default function ListenTab() {
         <p className="xp-small p-data">{spec.label} · {spec.lambda_um.length} {text.frames}</p>
       )}
       <div data-symphony-slot className="xp-slot">
-        <p className="xp-small">{text.listenSlot}</p>
+        <ExploreSymphony />
       </div>
       <a className="xp-link" href={withLang('/symphony', locale)}>{text.listenOpen}</a>
     </div>

@@ -17,7 +17,7 @@ const SURVEY_DAYS = 184; // 2025-05-01 → 2025-11-01
 const SURVEY_START_MS = Date.UTC(2025, 4, 1);
 const AUTO_NAV_S = 4;
 const LOCK_FOV = 6;
-const ENTRY_IDS = ['explore', 'sky', 'symphony', 'look', 'song'] as const;
+const ENTRY_IDS = ['explore', 'sky', 'symphony', 'look', 'song', 'match'] as const;
 
 interface Target {
   id?: CosmosPresetId;

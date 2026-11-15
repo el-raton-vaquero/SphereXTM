@@ -16,7 +16,7 @@
  */
 import {
   analyseSpectrum, bandMidi, BANDS, binToBands, detectorPan, encodeWav, KEYS, mulberry32, N_BANDS,
-  noteDuration, noteVelocity, quantizeToScale, REST_BELOW, SCALES, stepLength,
+  noteDuration, noteVelocity, pitchPosition, quantizeToScale, REST_BELOW, SCALES, stepLength,
   type FeatureId, type ScaleId, type SpectralColour,
 } from './core';
 import { buildChain, playPadNote, playVoice, type Voice } from './voices';
@@ -26,6 +26,31 @@ export interface SongNote { t: number; dur: number; midi: number; vel: number; v
 export interface SongScore { seconds: number; bpm: number; notes: SongNote[]; key: string; features: string[]; input: SongInput }
 
 export type SongVoice = SongNote['voice'];
+
+/** A chord of the song to play along with (seconds from the start of the score). */
+export interface SongChord { t: number; dur: number; root: number; quality: 'maj' | 'min' | 'dim' }
+
+/**
+ * Optional "play along" options for composeSong. When any is given, the piece is composed in the
+ * song's key / mode / tempo / chords instead of the spectrum's own colour key (see composeAlong).
+ */
+export interface ComposeOptions {
+  /** Tonic pitch class 0-11 (C = 0). Default: the spectral-colour key's root. */
+  tonic?: number;
+  mode?: 'major' | 'minor';
+  /** Default 'diatonic' (7 notes); 'pentatonic' = major / minor pentatonic of the key. */
+  scale?: 'diatonic' | 'pentatonic';
+  /** Tempo of the beat grid (default 100). */
+  bpm?: number;
+  /** Time (s) of a beat of the grid (default 0); the grid extends both ways. */
+  beatOffset?: number;
+  /** Chord progression; looped if it ends before the piece. Default: I-vi-IV-V / i-VI-III-VII per bar. */
+  chords?: SongChord[];
+  /** Length of the piece (overrides the `seconds` argument; clamped 2..600). */
+  seconds?: number;
+  /** Sit under / around a mix: softer pad, light bass, melody an octave up, no sparkles. */
+  accompaniment?: boolean;
+}
 export const SONG_VOICES: readonly SongVoice[] = ['lead', 'pad', 'ice', 'bass'];
 
 /** Same feature -> timbre table as the live engine. */
@@ -57,7 +82,8 @@ function thirdFor(c: SpectralColour): number {
  * Compose a fixed piece from a spectrum. Deterministic: same input (+ seed) -> identical score.
  * `seconds` (default 45, clamped 10..600) is the length of the music; renders add a reverb tail.
  */
-export function composeSong(input: SongInput, seconds = 45): SongScore {
+export function composeSong(input: SongInput, seconds = 45, options?: ComposeOptions): SongScore {
+  if (options && Object.values(options).some((v) => v !== undefined)) return composeAlong(input, options.seconds ?? seconds, options);
   const T = Math.min(600, Math.max(10, Number.isFinite(seconds) ? seconds : 45));
   const lam = input.lambda_um ?? [];
   const inten = (input.intensity ?? []).map((v) => (v === null || v === undefined ? NaN : Number(v)));
@@ -189,6 +215,199 @@ export function composeSong(input: SongInput, seconds = 45): SongScore {
   }
 
   // Stable order, rounded times, and no duplicate (voice, pitch) onsets within 10 ms.
+  for (const n of notes) { n.t = r4(n.t); n.dur = r4(n.dur); n.vel = r4(n.vel); n.pan = r4(n.pan); }
+  notes.sort((x, y) => x.t - y.t || SONG_VOICES.indexOf(x.voice) - SONG_VOICES.indexOf(y.voice) || x.midi - y.midi || y.vel - x.vel);
+  const lastOn = new Map<string, number>();
+  out.notes = notes.filter((n) => {
+    const k = `${n.voice}:${n.midi}`;
+    const p = lastOn.get(k);
+    if (p !== undefined && n.t - p < 0.01) return false;
+    lastOn.set(k, n.t);
+    return true;
+  });
+  return out;
+}
+
+// ---------------------------------------------------------------- play along
+
+const NOTE_EN = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'];
+const DIATONIC = { major: [0, 2, 4, 5, 7, 9, 11], minor: [0, 2, 3, 5, 7, 8, 10] } as const;
+const TRIAD_STEPS: Record<SongChord['quality'], number[]> = { maj: [0, 4, 7], min: [0, 3, 7], dim: [0, 3, 6] };
+const pcOf = (m: number) => ((Math.round(m) % 12) + 12) % 12;
+
+/** Pitch classes of a chord. */
+export function songChordPcs(c: Pick<SongChord, 'root' | 'quality'>): number[] {
+  return (TRIAD_STEPS[c.quality] ?? TRIAD_STEPS.maj).map((s) => pcOf(c.root + s));
+}
+
+/** The scale (semitones above the tonic) the play-along piece uses. */
+export function alongScale(mode: 'major' | 'minor', scale: 'diatonic' | 'pentatonic' = 'diatonic'): readonly number[] {
+  if (scale === 'pentatonic') return mode === 'major' ? SCALES.majorPent : SCALES.minorPent;
+  return DIATONIC[mode];
+}
+
+/**
+ * The play-along piece. Same data -> sound mapping as composeSong (shorter wavelength = higher
+ * pitch, brightness = velocity / note length / how long the sweep lingers, null bands silent,
+ * ice / CO2 / CO / CH4 bands on the 'ice' voice), but:
+ *  - pitches are degrees of the song's key (diatonic or pentatonic), not the colour key;
+ *  - every onset sits on the song's beat grid (8ths, or 16ths for faint bands outside
+ *    accompaniment) and durations are whole 16ths;
+ *  - a melody note on a beat snaps to the nearest tone of the chord sounding there (if in scale);
+ *  - the pad plays the chord progression, the bass its roots.
+ * Form: about a bar of pad, then the melody sweeps long -> short wavelength and back short -> long.
+ * Deterministic (no humanising jitter, so the grid stays exact).
+ */
+function composeAlong(input: SongInput, seconds: number, o: ComposeOptions): SongScore {
+  const T = Math.min(600, Math.max(2, Number.isFinite(seconds) ? seconds : 30));
+  const lam = input.lambda_um ?? [];
+  const inten = (input.intensity ?? []).map((v) => (v === null || v === undefined ? NaN : Number(v)));
+  const a = analyseSpectrum(binToBands(lam, inten));
+  const tonic = pcOf(Number.isFinite(o.tonic) ? (o.tonic as number) : KEYS[a.colour].root);
+  const mode = o.mode ?? (a.colour === 'red' ? 'minor' : 'major');
+  const scaleKind = o.scale ?? 'diatonic';
+  const steps = alongScale(mode, scaleKind);
+  const inScale = new Set(steps.map((s) => pcOf(tonic + s)));
+  const bpm = Math.min(240, Math.max(40, Number.isFinite(o.bpm) && (o.bpm as number) > 0 ? (o.bpm as number) : 100));
+  const beat = 60 / bpm, six = beat / 4, bar = 4 * beat;
+  const off0 = Number.isFinite(o.beatOffset) ? (o.beatOffset as number) : 0;
+  const off = ((off0 % beat) + beat) % beat;
+  const acc = !!o.accompaniment;
+  const features = a.features
+    .filter((f) => f.detected)
+    .sort((x, y) => y.strength - x.strength || x.id.localeCompare(y.id))
+    .map((f) => f.id as string);
+  const out: SongScore = { seconds: T, bpm, notes: [], key: `${NOTE_EN[tonic]} ${mode} (${scaleKind})`, features, input };
+  if (a.valid < 3) return out; // nothing measured -> silence
+
+  // ---- chord timeline: the given progression (looped), or a default one per bar from the grid
+  let prog: SongChord[] = (o.chords ?? [])
+    .filter((c) => Number.isFinite(c.t) && Number.isFinite(c.dur) && c.dur > 0 && Number.isFinite(c.root))
+    .map((c) => ({ t: c.t, dur: c.dur, root: pcOf(c.root), quality: TRIAD_STEPS[c.quality] ? c.quality : 'maj' }))
+    .sort((x, y) => x.t - y.t);
+  if (!prog.length) {
+    const deg: [number, SongChord['quality']][] = mode === 'major'
+      ? [[0, 'maj'], [9, 'min'], [5, 'maj'], [7, 'maj']]
+      : [[0, 'min'], [8, 'maj'], [3, 'maj'], [10, 'maj']];
+    prog = deg.map(([s, q], k) => ({ t: off + k * bar, dur: bar, root: pcOf(tonic + s), quality: q }));
+  }
+  const p0 = prog[0].t, pEnd = Math.max(...prog.map((c) => c.t + c.dur)), span = pEnd - p0;
+  /** Chord sounding at t and when it ends (before the first: the first; after the last: loop). */
+  const chordAt = (t: number): { c: SongChord; end: number } => {
+    let tt = t, shift = 0;
+    if (t >= pEnd && span > 0) { const k = Math.floor((t - p0) / span); tt = t - k * span; shift = k * span; }
+    const eps = 1e-3; // chord times are rounded: treat boundaries within 1 ms as equal
+    let c = prog[0];
+    for (const x of prog) { if (x.t <= tt + eps) c = x; else break; }
+    const next = prog.find((x) => x.t > tt + eps);
+    const end = tt < p0 - eps ? p0 : Math.min(c.t + c.dur > tt + eps ? c.t + c.dur : Infinity, next ? next.t : pEnd);
+    return { c, end: Math.max(t + 0.05, end + shift) };
+  };
+  const segs: { t0: number; t1: number; c: SongChord }[] = [];
+  for (let t = 0; t < T - 1e-6;) {
+    const { c, end } = chordAt(t);
+    const t1 = Math.min(T, end);
+    const last = segs[segs.length - 1];
+    if (last && last.c.root === c.root && last.c.quality === c.quality) last.t1 = t1;
+    else segs.push({ t0: t, t1, c });
+    t = t1;
+  }
+  const chordPcsAt = (t: number) => songChordPcs((segs.find((g) => t >= g.t0 - 1e-6 && t < g.t1 - 1e-6) ?? segs[segs.length - 1]).c);
+
+  const norm = a.norm;
+  const rng = mulberry32((a.seed ^ hashString(input.seed ?? '') ^ 0x2c1b3c6d) >>> 0);
+  const notes: SongNote[] = [];
+  const push = (t: number, dur: number, midi: number, vel: number, voice: SongVoice, pan: number) => {
+    if (!(vel > 0) || t >= T - 0.05 || t < 0) return;
+    notes.push({ t, dur: Math.max(0.05, Math.min(dur, T - t)), midi: Math.round(midi), vel: clamp01(vel), voice, pan: Math.max(-1, Math.min(1, pan)) });
+  };
+  const iceBands = new Set<number>();
+  for (const f of a.features) if (f.detected && ICE_FEATURES.includes(f.id)) f.bands.forEach((b) => iceBands.add(b));
+  const finite = (i: number) => Number.isFinite(norm[i]);
+
+  // melody register: in accompaniment the tonic sits in C4..B4 and spans 28 semitones (above the
+  // vocal / chord middle of most mixes); stand-alone: an octave lower, 3 octaves
+  const base = (acc ? 60 : 48) + tonic;
+  const spanSemis = acc ? 28 : 36;
+  /** Gentle dynamics: one-bar fade-in, last two beats softer. */
+  const env = (t: number) => (0.7 + 0.3 * Math.min(1, t / bar)) * (t > T - 2 * beat ? 0.75 : 1);
+
+  const mStart = Math.min(T * 0.12, bar), mEnd = T - Math.max(beat, T * 0.03);
+  const mid = (mStart + mEnd) / 2;
+  const snap = (t: number, unit: number) => off + Math.round((t - off) / unit) * unit;
+  const slots = new Map<number, { i: number; v: number; t: number; loud: number; harmony: boolean }>();
+  const sweep = (order: number[], t0: number, t1: number, loud: number, harmony: boolean) => {
+    const lens = order.map((i) => (finite(i) ? stepLength(norm[i]) : stepLength(0) * 0.5));
+    const k = (t1 - t0) / lens.reduce((s, x) => s + x, 0);
+    let t = t0;
+    order.forEach((i, j) => {
+      const v = norm[i];
+      if (finite(i) && v >= REST_BELOW && (v > 0.5 || rng() < 0.35 + v)) {
+        const unit = acc || v >= 0.55 ? 2 * six : six;
+        let q = snap(t, unit);
+        if (q < t0 - 1e-6) q += unit;
+        if (q < mEnd) {
+          const slot = Math.round((q - off) / six);
+          const prev = slots.get(slot);
+          if (!prev || v > prev.v) slots.set(slot, { i, v, t: q, loud, harmony }); // brighter band wins the slot
+        }
+      }
+      t += lens[j] * k;
+    });
+  };
+  if (mEnd - mStart > 4 * six) {
+    sweep(Array.from({ length: N_BANDS }, (_, j) => N_BANDS - 1 - j), mStart, mid, 1, false);
+    sweep(Array.from({ length: N_BANDS }, (_, j) => j), mid, mEnd, acc ? 1.05 : 1.12, !acc);
+  }
+  const maxUnits = acc ? 8 : 16;
+  for (const [slot, n] of [...slots.entries()].sort((x, y) => x[0] - y[0])) {
+    const { i, v, t } = n;
+    let midi = base + quantizeToScale(pitchPosition(BANDS[i].center) * spanSemis, steps);
+    const onBeat = ((slot % 4) + 4) % 4 === 0;
+    const chord = chordPcsAt(t);
+    if (onBeat) {
+      // nearest chord tone that is also in the scale (ties go down)
+      for (let d = 0; d <= 4; d++) {
+        if (chord.includes(pcOf(midi - d)) && inScale.has(pcOf(midi - d))) { midi -= d; break; }
+        if (chord.includes(pcOf(midi + d)) && inScale.has(pcOf(midi + d))) { midi += d; break; }
+      }
+    }
+    const units = Math.min(maxUnits, Math.max(1, Math.round(noteDuration(v) / six)));
+    const vel = noteVelocity(v) * env(t) * n.loud * (acc ? 0.7 : 1) * (onBeat ? 1 : 0.85);
+    const pan = detectorPan(BANDS[i].detector);
+    const voice: SongVoice = iceBands.has(i) ? 'ice' : 'lead';
+    push(t, units * six, midi, vel, voice, pan);
+    if (n.harmony && v > 0.6) {
+      for (let d = 3; d <= 9; d++) { // a chord tone (in scale) a third to a sixth below
+        const m = midi - d;
+        if (chord.includes(pcOf(m)) && inScale.has(pcOf(m))) { push(t, units * six * 0.8, m, vel * 0.45, 'lead', -pan * 0.5); break; }
+      }
+    }
+    if (!acc && a.peaks[i] && v > 0.6 && rng() < 0.5) push(t, units * six * 0.7, midi + 12, vel * 0.3, voice, pan);
+  }
+
+  // ---- pad: the chord progression (close voicing); bass: the chord roots
+  const padLo = acc ? 55 : 50, padVel = acc ? 0.4 : 0.8;
+  segs.forEach((g, k) => {
+    const len = g.t1 - g.t0;
+    const overlap = k === segs.length - 1 ? 0 : 0.25;
+    songChordPcs(g.c).forEach((pc, j) => push(g.t0, len + overlap, padLo + pcOf(pc - padLo), padVel * env(g.t0), 'pad', j % 2 ? 0.35 : -0.35));
+    const root = pcOf(g.c.root);
+    if (acc) push(g.t0, len * 0.9, 48 + root, 0.3 * env(g.t0), 'bass', 0);
+    else for (let t = g.t0; t < g.t1 - 0.1; t += 2 * beat) push(t, Math.max(0.2, Math.min(2 * beat * 0.9, g.t1 - t)), 36 + root, 0.6 * env(t), 'bass', 0);
+  });
+
+  // ---- ice layer (as in the fixed piece): a sustained high chord tone on the feature timbre
+  // through the middle of the piece, following the chords
+  const iceStrength = Math.max(0, ...a.features.filter((f) => f.detected && ICE_FEATURES.includes(f.id)).map((f) => f.strength));
+  if (iceStrength > 0) {
+    segs.forEach((g, k) => {
+      if (g.t0 < T * 0.3 || g.t0 >= T * 0.85) return;
+      const pcs = songChordPcs(g.c), pc5 = inScale.has(pcs[2]) ? pcs[2] : pcs[0];
+      push(g.t0, g.t1 - g.t0, base + 12 + pcOf(pc5 - base), (0.3 + 0.35 * iceStrength) * (acc ? 0.6 : 1), 'ice', k % 2 ? 0.5 : -0.5);
+    });
+  }
+
   for (const n of notes) { n.t = r4(n.t); n.dur = r4(n.dur); n.vel = r4(n.vel); n.pan = r4(n.pan); }
   notes.sort((x, y) => x.t - y.t || SONG_VOICES.indexOf(x.voice) - SONG_VOICES.indexOf(y.voice) || x.midi - y.midi || y.vel - x.vel);
   const lastOn = new Map<string, number>();

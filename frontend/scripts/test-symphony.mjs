@@ -273,6 +273,92 @@ test('composeSong: null bands are silent', () => {
   for (const n of melody) assert.ok(n.midi <= top + 12, `note ${n.midi} above D6 range (${top})`);
 });
 
+// ---------------------------------------------------------------- composeSong play-along options
+
+test('composeSong without options (or with an empty object) is the unchanged default piece', () => {
+  const a = composeSong(icySpectrum(), 45);
+  assert.deepEqual(composeSong(icySpectrum(), 45, undefined), a);
+  assert.deepEqual(composeSong(icySpectrum(), 45, {}), a);
+  assert.deepEqual(composeSong(icySpectrum(), 45, { bpm: undefined }), a);
+});
+
+/** A minor i-VI-III-VII, one chord per bar at 100 BPM, first beat at 0.3 s. */
+const AM = { tonic: 9, mode: 'minor', bpm: 100, beatOffset: 0.3, chords: [
+  { t: 0, dur: 2.7, root: 9, quality: 'min' }, { t: 2.7, dur: 2.4, root: 5, quality: 'maj' },
+  { t: 5.1, dur: 2.4, root: 0, quality: 'maj' }, { t: 7.5, dur: 2.4, root: 7, quality: 'maj' },
+] };
+const pc = (m) => ((m % 12) + 12) % 12;
+function chordAtT(chords, t) {
+  const span = chords[chords.length - 1].t + chords[chords.length - 1].dur - chords[0].t;
+  let tt = t;
+  while (tt >= chords[0].t + span) tt -= span;
+  let c = chords[0];
+  for (const x of chords) if (x.t <= tt + 1e-6) c = x;
+  return c;
+}
+
+for (const accompaniment of [false, true]) {
+  test(`composeSong play-along (${accompaniment ? 'accompaniment' : 'stand-alone'}): in key, on the grid, chords followed`, () => {
+    const s = composeSong(icySpectrum(), 30, { ...AM, accompaniment });
+    assert.deepEqual(composeSong(icySpectrum(), 30, { ...AM, accompaniment }), s, 'not deterministic');
+    assert.equal(s.seconds, 30);
+    assert.equal(s.bpm, 100);
+    assert.match(s.key, /^A minor/);
+    const scale = new Set(song.alongScale('minor', 'diatonic').map((x) => pc(9 + x)));
+    const six = 60 / 100 / 4;
+    const melody = s.notes.filter((n) => n.voice === 'lead' || n.voice === 'ice');
+    assert.ok(melody.length > 30, `only ${melody.length} melody notes`);
+    let onBeat = 0;
+    for (const n of melody) {
+      assert.ok(scale.has(pc(n.midi)), `out of scale ${JSON.stringify(n)}`);
+      const k = (n.t - 0.3) / six;
+      assert.ok(Math.abs(k - Math.round(k)) < 0.002, `off the 16th grid ${JSON.stringify(n)}`);
+      if (accompaniment) assert.ok(Math.round(k) % 2 === 0, `accompaniment uses 8ths ${JSON.stringify(n)}`);
+      const units = n.dur / six;
+      if (n.t + n.dur < 29.9) assert.ok(Math.abs(units - Math.round(units)) < 0.01 || n.voice === 'lead', `duration not whole 16ths ${JSON.stringify(n)}`);
+      if (Math.round(k) % 4 === 0 && n.vel > 0.1) {
+        const c = chordAtT(AM.chords, n.t);
+        if (song.songChordPcs(c).includes(pc(n.midi))) onBeat++;
+        else assert.ok(!song.songChordPcs(c).some((p) => scale.has(p) && Math.min(pc(p - n.midi), pc(n.midi - p)) <= 4), `on-beat note not a chord tone ${JSON.stringify(n)} over ${JSON.stringify(c)}`);
+      }
+    }
+    assert.ok(onBeat > 5);
+    // pad follows the progression (incl. after it loops), bass on the roots
+    const pads = s.notes.filter((n) => n.voice === 'pad');
+    const bass = s.notes.filter((n) => n.voice === 'bass');
+    assert.ok(pads.length >= 3 * 10 && bass.length >= 10);
+    for (const n of pads) assert.ok(song.songChordPcs(chordAtT(AM.chords, n.t + 0.01)).includes(pc(n.midi)), `pad ${JSON.stringify(n)}`);
+    for (const n of bass) assert.equal(pc(n.midi), chordAtT(AM.chords, n.t + 0.01).root, `bass ${JSON.stringify(n)}`);
+    assert.ok(pads.some((n) => n.t > 20 && pc(n.midi) === 5), 'progression did not loop');
+    for (const n of s.notes) assert.ok(n.t >= 0 && n.t < 30 && n.t + n.dur <= 30 + 1e-6 && n.vel > 0 && n.vel <= 1);
+    if (accompaniment) {
+      const full = composeSong(icySpectrum(), 30, { ...AM });
+      const mean = (sc, v) => { const l = sc.notes.filter((n) => n.voice === v); return l.reduce((x, n) => x + n.vel, 0) / l.length; };
+      assert.ok(mean(s, 'pad') < mean(full, 'pad') && mean(s, 'bass') < mean(full, 'bass'), 'accompaniment should be softer');
+      assert.ok(Math.min(...bass.map((n) => n.midi)) >= 48, 'no low bass in accompaniment');
+      const med = (l) => l.map((n) => n.midi).sort((x, y) => x - y)[l.length >> 1];
+      assert.ok(med(melody) >= med(full.notes.filter((n) => n.voice === 'lead')) + 6, 'accompaniment melody is higher');
+    }
+  });
+}
+
+test('composeSong play-along: pentatonic scale, default progression, ice voice and null bands', () => {
+  const s = composeSong(icySpectrum(), 20, { tonic: 2, mode: 'major', scale: 'pentatonic', bpm: 128, beatOffset: -0.1 });
+  const scale = new Set([0, 2, 4, 7, 9].map((x) => pc(2 + x)));
+  for (const n of s.notes) if (n.voice === 'lead' || n.voice === 'ice') assert.ok(scale.has(pc(n.midi)), `out of D major pentatonic ${JSON.stringify(n)}`);
+  assert.ok(s.notes.some((n) => n.voice === 'ice'), 'h2o band lost its ice voice');
+  // default progression D Bm G A
+  const roots = [...new Set(s.notes.filter((n) => n.voice === 'bass').map((n) => pc(n.midi)))];
+  assert.deepEqual(roots.slice(0, 4), [2, 11, 7, 9]);
+  const lambda_um = BANDS.map((b) => b.center);
+  assert.equal(composeSong({ lambda_um, intensity: lambda_um.map(() => null) }, 20, { bpm: 120 }).notes.length, 0);
+  const d6 = composeSong({ lambda_um, intensity: BANDS.map((b) => (b.detector === 6 ? 1 + Math.sin(b.center * 9) : null)) }, 30, { ...AM, accompaniment: true });
+  const mel = d6.notes.filter((n) => n.voice === 'lead' || n.voice === 'ice');
+  assert.ok(mel.length > 0);
+  for (const n of mel) assert.ok(n.midi <= 60 + 9 + 12, `D6-only melody too high ${n.midi}`); // longest wavelengths = lowest notes
+  assert.ok(scoreToMidi(s).length > 100);
+});
+
 /** Walk a Standard MIDI File and return its chunk/event structure. */
 function parseMidi(bytes) {
   const v = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);

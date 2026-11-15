@@ -8,7 +8,7 @@
  */
 export const en = {
   common: {
-    brand: 'StarChord',
+    brand: 'Listar',
     brandTagline: 'Listen to and look at the infrared sky of NASA SPHEREx',
     subline: 'SPHEREx · NASA Space Apps 2026',
     langToggle: 'ES',
@@ -28,9 +28,9 @@ export const en = {
     openExplorer: 'Open the explorer',
     credit: 'SPHEREx data: NASA / Caltech / JPL / IPAC (IRSA). Not an official NASA product.',
     skipToContent: 'Skip to content',
-    metaTitle: 'StarChord · SPHEREx',
+    metaTitle: 'Listar · SPHEREx',
     metaDescription:
-      'StarChord turns real NASA SPHEREx infrared observations into something you can explore, watch move and listen to. Real frames from IRSA; anything modelled is labelled.',
+      'Listar turns real NASA SPHEREx infrared observations into something you can explore, watch move and listen to. Real frames from IRSA; anything modelled is labelled.',
   },
   nav: {
     label: 'Main',
@@ -43,10 +43,10 @@ export const en = {
     match: 'Star match',
   },
   explore: {
-    metaTitle: 'Explore · StarChord',
+    metaTitle: 'Explore · Listar',
     metaDescription:
-      'Every SPHEREx frame is a different colour. StarChord separates colour from motion: real IRSA SPHEREx observations, catalogue predictions labelled as such.',
-    tagline: 'Every SPHEREx frame is a different colour. StarChord separates colour from motion and tells you whether what moved is known, an artifact, or new.',
+      'Every SPHEREx frame is a different colour. Listar separates colour from motion: real IRSA SPHEREx observations, catalogue predictions labelled as such.',
+    tagline: 'Every SPHEREx frame is a different colour. Listar separates colour from motion and tells you whether what moved is known, an artifact, or new.',
     taglineShort: 'Separate colour from motion.',
     homeTitle: 'Back to the 3D sky',
     inputLabel: 'Position or object',
@@ -61,7 +61,7 @@ export const en = {
     copy: 'Copy',
     copied: 'Copied',
     embedHelp: 'Paste this iframe to show this exact view.',
-    embedTitle: 'StarChord · SPHEREx',
+    embedTitle: 'Listar · SPHEREx',
     perYear: 'yr',
     satTag: 'SAT',
     originLive: 'Real SPHEREx data · live from IRSA',
@@ -70,7 +70,7 @@ export const en = {
     liveOffSnapshot: 'Static deployment: live search needs the science server. Showing a cached real snapshot.',
     liveOffTitle: 'Live search needs the science server',
     liveOffBody:
-      'This deployment is static and only includes real snapshots of the six presets. For any other position, the site needs the StarChord science server (see docs/deploy.md). No synthetic data is substituted.',
+      'This deployment is static and only includes real snapshots of the six presets. For any other position, the site needs the Listar science server (see docs/deploy.md). No synthetic data is substituted.',
     loading: 'Querying the archive',
     loadingDefault: 'SIA2 · spherex_dr1, spherex_qr3',
     stage: { query: 'SIA2 query', download: 'Downloading cutouts', reproject: 'Reprojecting', snapshot: 'Reading snapshot', done: 'Done' } as Record<string, string>,
@@ -306,12 +306,12 @@ export const en = {
     resultUnavailable: 'No SPHEREx frames could be shown for this position. Pick one of the suggestions or try another spot.',
   },
   cosmos: {
-    metaTitle: 'StarChord · the SPHEREx sky in 3D',
+    metaTitle: 'Listar · the SPHEREx sky in 3D',
     metaDescription:
-      'A celestial sphere with real Yale Bright Star Catalogue stars, the SPHEREx orbit and an illustrative pattern of its sweep. Pick a target and open it in the StarChord explorer of real SPHEREx frames.',
-    kicker: 'StarChord · SPHEREx',
+      'A celestial sphere with real Yale Bright Star Catalogue stars, the SPHEREx orbit and an illustrative pattern of its sweep. Pick a target and open it in the Listar explorer of real SPHEREx frames.',
+    kicker: 'Listar · SPHEREx',
     title: 'Every SPHEREx frame is a different colour.',
-    lede: 'StarChord separates colour from motion and tells you whether what moved is known, an artifact, or something new.',
+    lede: 'Listar separates colour from motion and tells you whether what moved is known, an artifact, or something new.',
     // --- landing: entry points to the four sections ---
     entriesLabel: 'Five ways in',
     entries: {
@@ -392,8 +392,8 @@ export const en = {
     ],
   },
   cube: {
-    metaTitle: 'Spectral cube · StarChord',
-    kicker: 'StarChord · SpectralCube3D',
+    metaTitle: 'Spectral cube · Listar',
+    kicker: 'Listar · SpectralCube3D',
     title: 'Spectral cube',
     lede: 'Each slice is one reprojected SPHEREx frame; its position on the axis is its λ (or date). Nothing is interpolated between frames.',
     target: 'target',
@@ -421,7 +421,7 @@ export const en = {
     'm101': { name: 'M101 (Pinwheel Galaxy)', kind: 'spiral galaxy (static)', blurb: 'Spiral galaxy: a static control field.', why: 'Nothing should move here: any “change” is colour or artifact.' },
   } as Record<string, { name?: string; kind: string; blurb: string; why: string }>,
   sky: {
-    metaTitle: 'Sky time machine · StarChord',
+    metaTitle: 'Sky time machine · Listar',
     metaDescription: 'See the sky for any date, watch celestial bodies move at the speed you choose, and look at the sky of 700 years ago. Positions are computed.',
     title: 'Sky time machine',
     lede: 'Pick a date and a speed and watch the Sun, Moon and planets move against the stars. Every position here is computed, not observed.',
@@ -569,7 +569,7 @@ export const en = {
     // ---- end /sky block ----
   },
   symphony: {
-    metaTitle: 'Star symphony · StarChord',
+    metaTitle: 'Star symphony · Listar',
     metaDescription: 'Listen to the 102 SPHEREx infrared bands: the spectrum of a sky region becomes a melody. An artistic mapping of real data.',
     title: 'Star symphony',
     lede: 'Each of the 102 SPHEREx colours becomes a note. Brighter bands play louder and longer, so every region of the sky has its own melody.',
@@ -639,7 +639,7 @@ export const en = {
     howTitle: 'How the light becomes music',
     howSteps: [
       'SPHEREx photographs the same patch of sky through 102 infrared colours, from 0.75 to 5 µm.',
-      'For the circle you place, StarChord averages the real pixels of every frame, giving one brightness per colour.',
+      'For the circle you place, Listar averages the real pixels of every frame, giving one brightness per colour.',
       'Each colour is a note on a pentatonic scale: shorter wavelengths are higher, like light itself. Bright colours play louder and longer.',
       'A cursor sweeps the colours back and forth like a music box; the overall colour of the spectrum picks the key and the drone underneath.',
       'Absorption bands of water ice, CO₂, CO or methane switch their notes to a distinct voice, so icy places sound different.',
@@ -660,11 +660,11 @@ export const en = {
     exportStemsHint: 'One WAV per voice (lead, pad, ice, bass) in a ZIP.',
     exportBusy: 'Rendering…',
     exportError: 'Export failed in this browser. Try again or use another browser.',
-    exportNote: 'Music generated algorithmically from real SPHEREx measurements — not generative AI. Free to use with credit: StarChord / NASA SPHEREx (IRSA)',
+    exportNote: 'Music generated algorithmically from real SPHEREx measurements — not generative AI. Free to use with credit: Listar / NASA SPHEREx (IRSA)',
     // ---- end star symphony ----
   },
   look: {
-    metaTitle: 'Look up · StarChord',
+    metaTitle: 'Look up · Listar',
     metaDescription: 'Point your phone at the sky and see that region as SPHEREx mapped it, or see which celestial bodies are above you right now.',
     title: 'Look up',
     lede: 'Point your phone at the sky to see where it is looking, or use your location to see what is above you now.',
@@ -674,7 +674,7 @@ export const en = {
     tabAbove: 'Above me',
     camIntroTitle: 'Point your phone at the sky',
     camIntroBody:
-      'StarChord uses the rear camera, your location and the motion sensors to work out where the phone is pointing. Capture a photo and we show that same patch of sky as SPHEREx mapped it in infrared.',
+      'Listar uses the rear camera, your location and the motion sensors to work out where the phone is pointing. Capture a photo and we show that same patch of sky as SPHEREx mapped it in infrared.',
     camStart: 'Start camera and sensors',
     camManual: 'Explore without the camera',
     camDesktopHint: 'No phone at hand? Use “Above me” to see what is overhead from your location, or explore by dragging.',
@@ -712,7 +712,7 @@ export const en = {
     capture: 'Capture',
     captureHint: 'Freeze this view and show it as SPHEREx saw it',
     backToCamera: 'Back to the sky',
-    nearestTargets: 'Nearest StarChord targets',
+    nearestTargets: 'Nearest Listar targets',
     inView: 'in view',
     degAway: (d: string) => `${d}° away`,
     layerStars: 'Stars',
@@ -723,7 +723,7 @@ export const en = {
     cardinal: ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'],
     horizon: 'horizon',
     bodies: { Sun: 'Sun', Moon: 'Moon', Mercury: 'Mercury', Venus: 'Venus', Mars: 'Mars', Jupiter: 'Jupiter', Saturn: 'Saturn', Uranus: 'Uranus', Neptune: 'Neptune' } as Record<string, string>,
-    overlayLabel: 'Sky overlay: reticle, star and planet labels, StarChord targets.',
+    overlayLabel: 'Sky overlay: reticle, star and planet labels, Listar targets.',
     reticle: 'Centre of view',
     resultTitle: 'This patch of sky, as SPHEREx saw it',
     belowHorizon: 'You were pointing below the horizon, so this patch of sky is under the ground right now. SPHEREx mapped the whole sky, so its view of the patch is still shown.',
@@ -739,7 +739,7 @@ export const en = {
     hipsColor: 'Colour',
     hipsBand: (d: string, um: string) => `${d} · ${um} µm`,
     hipsLoading: 'Loading the SPHEREx all-sky map…',
-    hipsFailed: 'The SPHEREx all-sky map could not be loaded (neither IRSA nor the CDS mirror responded). The StarChord frames below are still real SPHEREx data.',
+    hipsFailed: 'The SPHEREx all-sky map could not be loaded (neither IRSA nor the CDS mirror responded). The Listar frames below are still real SPHEREx data.',
     hipsNote: 'Real SPHEREx images from the DR1 all-sky cube at IRSA, drawn in your browser and aligned to your view with the approximate pointing. The map tiles are display-stretched (asinh), not calibrated fluxes.',
     hipsNoteCds: 'Real SPHEREx images (IRSA QR2), mosaicked by CDS (backup source: the IRSA map tiles did not load). Aligned to your view with the approximate pointing.',
     hipsReleaseIrsa: 'SPHEREx DR1 all-sky cube · IRSA (Caltech/IPAC)',
@@ -757,7 +757,7 @@ export const en = {
     cutoutField: (f: string) => `${f}′ field`,
     cutoutInset: 'Shown magnified at the centre of the photo (the real patch is far smaller).',
     loadingFrames: 'Fetching SPHEREx frames…',
-    noLive: 'No StarChord snapshot is within 1° of this point and this deployment has no live archive search. Try one of the nearest targets.',
+    noLive: 'No Listar snapshot is within 1° of this point and this deployment has no live archive search. Try one of the nearest targets.',
     noCoverage: 'SPHEREx has no frames for this exact point yet.',
     failed: 'The SPHEREx search failed. Nothing synthetic is shown instead.',
     retry: 'Try again',
@@ -780,7 +780,7 @@ export const en = {
     computedNote: 'Positions are computed for this place and time with astronomy-engine. Refraction is ignored.',
     solarSystem: 'Sun, Moon and planets',
     brightStars: 'Brightest stars above the horizon',
-    targetsUp: 'StarChord targets',
+    targetsUp: 'Listar targets',
     colName: 'Object',
     colAlt: 'Alt',
     colAz: 'Az',
@@ -808,9 +808,9 @@ export const en = {
     } as Record<string, string>,
   },
   song: {
-    metaTitle: 'Your sky song · StarChord',
+    metaTitle: 'Your sky song · Listar',
     metaDescription:
-      'Pick a date and a place. StarChord computes the sky over it, fetches what NASA SPHEREx measured straight overhead in 102 infrared colours, and turns it into a song and a print-ready poster.',
+      'Pick a date and a place. Listar computes the sky over it, fetches what NASA SPHEREx measured straight overhead in 102 infrared colours, and turns it into a song and a print-ready poster.',
     eyebrow: 'Your sky song',
     title: 'The sky over the night you love, as a song',
     lede: 'Choose a date and a place. We compute the stars over it, find the patch of sky straight overhead, and play what NASA’s SPHEREx telescope measured there in 102 infrared colours.',
@@ -890,7 +890,7 @@ export const en = {
     integrityDetail:
       'Spectrum: mean of the cube’s display-stretched pixels (asinh, 0–40 MJy/sr) within about 7′ of the zenith, HiPS order 3; the two blank dichroic frames stay silent. A picture of the data, not calibrated fluxes. Stars: Yale Bright Star Catalogue; Moon and planets: astronomy-engine.',
     credit: 'NASA/JPL-Caltech/IPAC SPHEREx DR1 · IRSA',
-    posterBrand: 'StarChord · Your sky song',
+    posterBrand: 'Listar · Your sky song',
     posterInset: 'SPHEREx · the patch overhead · 9°',
     posterBarcode: '102 colours SPHEREx measured overhead · 0.75–5.0 µm',
     posterQr: 'Scan to listen',
@@ -904,12 +904,12 @@ export const en = {
     detectors: 'Detectors D1–D6',
   },
   match: {
-    metaTitle: 'Find your song in the stars · StarChord',
+    metaTitle: 'Find your song in the stars · Listar',
     metaDescription:
-      'Play any song and StarChord searches the real SPHEREx sky for the spot whose 102-colour light spectrum has the same shape as the song’s 102-band sound spectrum. Audio never leaves your device.',
+      'Play any song and Listar searches the real SPHEREx sky for the spot whose 102-colour light spectrum has the same shape as the song’s 102-band sound spectrum. Audio never leaves your device.',
     eyebrow: 'Star Match',
     title: 'Find your song in the stars',
-    lede: 'Play any music: pop, banda, cumbia, classical, anything. StarChord splits it into 102 pitch bands and searches the real SPHEREx sky for the point whose 102-colour light has the same shape.',
+    lede: 'Play any music: pop, banda, cumbia, classical, anything. Listar splits it into 102 pitch bands and searches the real SPHEREx sky for the point whose 102-colour light has the same shape.',
     inputHeading: 'Your music',
     listen: 'Listen',
     listenStop: 'Done',
@@ -918,7 +918,7 @@ export const en = {
     listenHint: 'Play a song near your device and press Listen, like a song finder. Press again to stop early.',
     or: 'or',
     upload: 'Choose an audio file',
-    uploadHint: (s: number) => `mp3, wav, m4a… StarChord analyses up to ${s} s of it.`,
+    uploadHint: (s: number) => `mp3, wav, m4a… Listar analyses up to ${s} s of it.`,
     privacy: 'Your audio never leaves this device: it is analysed in your browser and nothing is uploaded.',
     visLabel: '102 sound bands of your music, highest pitch on the left',
     axisHigh: 'high pitch · blue',
@@ -985,7 +985,7 @@ export const en = {
     share: 'Share',
     copied: 'Copied to the clipboard',
     shareFailed: 'Could not share',
-    shareText: (title: string, where: string, p: number) => `My song “${title}” sounds like this spot in ${where} (${p}% similar shape) · StarChord Star Match with NASA SPHEREx`,
+    shareText: (title: string, where: string, p: number) => `My song “${title}” sounds like this spot in ${where} (${p}% similar shape) · Listar Star Match with NASA SPHEREx`,
     posterDedication: (title: string) => `Where “${title}” lives in the sky`,
     errSilent: 'That was too quiet to analyse. Turn the music up or bring it closer.',
     errMic: 'The microphone could not be started.',
@@ -994,9 +994,9 @@ export const en = {
     errSearch: (m: string) => `The search stopped: ${m}`,
     integrityHeading: 'What this is',
     integrity:
-      'A playful comparison under StarChord’s mapping (sound frequency ↔ light wavelength). The sky spectra are real SPHEREx DR1 measurements (IRSA all-sky cube, display-stretched, not calibrated). A match means similar shape, not that the stars make music.',
+      'A playful comparison under Listar’s mapping (sound frequency ↔ light wavelength). The sky spectra are real SPHEREx DR1 measurements (IRSA all-sky cube, display-stretched, not calibrated). A match means similar shape, not that the stars make music.',
     method:
-      'How: your song’s long-term average energy in 102 bands (FFT, Hann window, silence ignored), minus a reference music spectrum, z-scored. The sky: a precomputed all-sky index (HEALPix order 6, per-band z-scores against the sky median), then every full-resolution pixel of the best regions from IRSA’s order-5 tiles, normalised the same way. Similarity is the correlation over the valid bands; the two blank dichroic frames are skipped. The sky point’s song is composed by StarChord’s symphony from its 102 values.',
+      'How: your song’s long-term average energy in 102 bands (FFT, Hann window, silence ignored), minus a reference music spectrum, z-scored. The sky: a precomputed all-sky index (HEALPix order 6, per-band z-scores against the sky median), then every full-resolution pixel of the best regions from IRSA’s order-5 tiles, normalised the same way. Similarity is the correlation over the valid bands; the two blank dichroic frames are skipped. The sky point’s song is composed by Listar’s symphony from its 102 values.',
     credit: 'Data: NASA/JPL-Caltech/IPAC SPHEREx DR1 · IRSA. Constellation: nearest stick figure (d3-celestial, BSC5), not the official IAU boundary.',
   },
 };

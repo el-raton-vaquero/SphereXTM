@@ -16,7 +16,7 @@ the default is Camera on touch devices and Above me elsewhere).
   rear camera = device -z), then `lib/look/sky.ts` rotates it to J2000 RA/Dec with
   astronomy-engine (`Rotation_EQJ_HOR`, includes precession and nutation; refraction ignored).
 - The overlay (`lib/look/overlay.ts`) projects BSC5 stars, named bright stars, the Sun, Moon,
-  planets and the six StarChord targets with a pinhole model. The vertical field of view is
+  planets and the six Listar targets with a pinhole model. The vertical field of view is
   adjustable (stored in `localStorage`), and **Align** lets the user drag the sky onto a known
   star; the azimuth and altitude correction is stored too.
 - Without a camera or sensors (desktop, denied permission, plain http) the same view becomes a
@@ -29,7 +29,7 @@ the default is Camera on touch devices and Above me elsewhere).
      within 1 deg, otherwise a live `/v2/search` (10 arcmin, 48 frames) through
      `lib/prism/api.ts`. A false-colour median of the real frames (blue D1+D2, green D3+D4,
      red D5+D6) is shown, with **Open in explorer**.
-  3. The nearest StarChord targets, each of which can be shown or opened in /explore.
+  3. The nearest Listar targets, each of which can be shown or opened in /explore.
 
 The pointing is always labelled "approximate, from phone sensors" or "manual". Compass error
 is typically 5 to 15 deg, and magnetic declination is not corrected.
@@ -43,7 +43,7 @@ under `starchord.look.place`. The time is live, or fixed with a picker. The tab 
   HiPS cut-out (3 deg, north up) and the real frames there;
 - Sun, Moon and planets with altitude, azimuth, rise, set and magnitude (astronomy-engine);
 - the brightest named stars above the horizon;
-- the six StarChord targets: up or down, the next transit time and altitude, and links to
+- the six Listar targets: up or down, the next transit time and altitude, and links to
   /explore and /sky.
 
 Everything here is labelled **computed**.
@@ -67,7 +67,7 @@ percentile display stretch. Tiles are display-stretched, not calibrated fluxes, 
 `sampleSpectrum(ra, dec)` returns the 102-frame display values at one position (not wired up yet).
 
 CDS hips2fits (below) is kept only as the fallback when the IRSA tiles fail to load; the
-StarChord snapshot / live-search frames remain the last fallback.
+Listar snapshot / live-search frames remain the last fallback.
 
 ## SPHEREx HiPS at CDS (fallback; research, 2026-11-14)
 
@@ -87,7 +87,7 @@ MJD 60789 to 61165):
   WCS (`lib/look/hips.ts`). We never download or ship the tiles themselves.
 - **Status on 2026-11-14:** the alasky data host returned the CDS "page unavailable" response
   and alaskybis timed out, while the registry still answered. The UI therefore tries both hosts,
-  with a 15 s timeout each. If both fail it says so and keeps showing the StarChord frames,
+  with a 15 s timeout each. If both fail it says so and keeps showing the Listar frames,
   which are also real SPHEREx data.
 
 No other survey's imagery is ever shown as SPHEREx.

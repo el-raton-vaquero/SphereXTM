@@ -3,7 +3,7 @@
  * all-sky search and the "keep searching" deep search over full-resolution SPHEREx tiles.
  *
  * Tiles come from hipsRender.loadTile (the same IRSA DR1 HiPS cube, LRU cache and 8-request
- * throttle as the rest of StarChord); hipsRender.ts itself is not modified.
+ * throttle as the rest of Listar); hipsRender.ts itself is not modified.
  */
 import { BLANK_FRAMES, CUBE_DEPTH, isAbort, loadTile } from '../look/hipsRender';
 import { analyseSamples, type SongAnalysis } from './bands';

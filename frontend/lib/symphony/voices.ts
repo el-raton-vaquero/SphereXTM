@@ -1,5 +1,5 @@
 /**
- * StarChord star symphony — shared Web Audio voices and effects chain.
+ * Listar star symphony — shared Web Audio voices and effects chain.
  *
  * Used by the live engine (engine.ts) and by fixed-piece playback/rendering (export.ts), so a
  * downloaded song sounds exactly like the live symphony. Works on any BaseAudioContext

@@ -1,5 +1,5 @@
 /**
- * StarChord "star symphony" — pure, dependency-free core (no DOM, no Web Audio, no imports),
+ * Listar "star symphony" — pure, dependency-free core (no DOM, no Web Audio, no imports),
  * so it can be unit-tested with plain Node:  node scripts/test-symphony.mjs
  *
  * What is real and what is artistic:

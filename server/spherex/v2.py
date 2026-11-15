@@ -1,4 +1,4 @@
-"""StarChord v2 API router (mounted by ``spherex.api``; Next.js proxies ``/api/v2/*`` here).
+"""Listar v2 API router (mounted by ``spherex.api``; Next.js proxies ``/api/v2/*`` here).
 
 Implemented here: ``/v2/targets``, ``/v2/search`` and ``/v2/search/stream`` (SSE).
 

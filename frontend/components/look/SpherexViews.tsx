@@ -83,7 +83,7 @@ function memoIrsa(key: string, v: RenderResult | 'failed') {
 /**
  * The real SPHEREx all-sky map for an exact TAN WCS. Primary: the SPHEREx DR1 all-sky HiPS cube
  * from IRSA, rendered in the browser (lib/look/hipsRender). Secondary: CDS hips2fits. When both
- * fail the parent shows the StarChord snapshot / live-search frames instead.
+ * fail the parent shows the Listar snapshot / live-search frames instead.
  */
 export function HipsImage({ wcs, layer, className, style, onStatus, alt }: {
   wcs: TanWcs; layer: HipsLayer; className?: string; style?: React.CSSProperties; onStatus?: (s: HipsStatus, source: HipsSource) => void; alt: string;
@@ -226,7 +226,7 @@ export function explorerHref(ra: number, dec: number, presetId?: string) {
   return presetId ? `/explore?target=${presetId}` : `/explore?ra=${ra.toFixed(5)}&dec=${dec.toFixed(5)}`;
 }
 
-/** Real SPHEREx frames at a position, with provenance, actions and the nearest StarChord targets. */
+/** Real SPHEREx frames at a position, with provenance, actions and the nearest Listar targets. */
 export function RegionPanel({ ra, dec, onRegion, onPickTarget, compact }: {
   ra: number; dec: number; onRegion?: (r: RegionImage | null) => void; onPickTarget?: (id: string) => void; compact?: boolean;
 }) {

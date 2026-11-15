@@ -1,5 +1,5 @@
 /**
- * StarChord star symphony — Web Audio engine (no dependencies).
+ * Listar star symphony — Web Audio engine (no dependencies).
  *
  * Signal flow
  *   notes ─┐                                    ┌─ dry ─────────────┐

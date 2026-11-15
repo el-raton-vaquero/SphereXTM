@@ -66,7 +66,7 @@ export default function DomeChart({ m, field, bodies, targets, cardinal, bodyNam
           ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.fill();
         }
       }
-      // marks: bodies, then StarChord targets
+      // marks: bodies, then Listar targets
       const labels: { text: string; x: number; y: number; off: number; font: string; color: string }[] = [];
       for (const b of bodies) {
         if (b.alt < 0) continue;

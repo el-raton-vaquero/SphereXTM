@@ -1,6 +1,6 @@
-# StarChord — SPHEREx, seen and heard
+# Listar — SPHEREx, seen and heard
 
-**Every SPHEREx frame is a different colour.** StarChord separates colour from motion and
+**Every SPHEREx frame is a different colour.** Listar separates colour from motion and
 tells you whether what moved is known (Gaia DR3, SkyBoT), an artifact (SPHEREx FLAGS) or
 unexplained. It uses real SPHEREx observations (NASA/IPAC IRSA, DR1 + QR3). Catalogue
 predictions are labelled as predictions; anything computed or modelled (ephemerides,
@@ -71,7 +71,7 @@ The core is in `frontend/lib/symphony/core.ts` (pure, tested by `npm run test:sy
 - Ephemerides: astronomy-engine (Don Cross, MIT). Name resolution: CDS Sesame. Catalogues: Gaia
   DR3 (ESA), SIMBAD (CDS), SkyBoT (IMCCE).
 - Fonts: Fraunces, Figtree and JetBrains Mono (SIL Open Font License), from Google Fonts.
-- Logos: `frontend/public/brand/` is the slot for the official StarChord logos (see its README).
+- Logos: `frontend/public/brand/` is the slot for the official Listar logos (see its README).
 
 API v2 (FastAPI, `server/`): `/v2/targets`, `/v2/search` (+ `/v2/search/stream` SSE),
 `/v2/gaia`, `/v2/skybot`, `/v2/spectrum` and `/v2/verdict` (both take `lang=en|es`).
@@ -95,7 +95,7 @@ assets go in `frontend/public/brand/` (see its README).
 
 **Honest limits:**
 - Expected motions in DR1 are ~0.5–1.4 px.
-- Barnard, RW Aur and R Dra saturate: StarChord flags it, it does not hide it.
+- Barnard, RW Aur and R Dra saturate: Listar flags it, it does not hide it.
 - Cold searches take ~20–50 s because they download real data.
 - λ comes from WCS-WAVE (approximate).
 - The verdict confidence is a heuristic.

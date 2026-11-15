@@ -24,10 +24,10 @@ from spherex.service import (
 
 
 app = FastAPI(
-    title="StarChord SPHEREx Scientific API",
+    title="Listar SPHEREx Scientific API",
     version=__version__,
     description=(
-        "StarChord science API: real, WCS-aligned NASA SPHEREx Level 2 observations, forced "
+        "Listar science API: real, WCS-aligned NASA SPHEREx Level 2 observations, forced "
         "photometry and evidence-based verdicts for the NASA Space Apps Challenge 2026."
     ),
 )
@@ -41,7 +41,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# StarChord v2 routes (/v2/*), mounted alongside the original /frames API.
+# Listar v2 routes (/v2/*), mounted alongside the original /frames API.
 from spherex.v2 import router as v2_router  # noqa: E402
 
 app.include_router(v2_router)

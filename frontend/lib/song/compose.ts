@@ -1,5 +1,5 @@
 /**
- * StarChord "Your sky song" composer: the data decides, the rules compose.
+ * Listar "Your sky song" composer: the data decides, the rules compose.
  *
  * The real 102-band SPHEREx spectrum of the zenith patch chooses
  *  - the key (one of the warm keys C D Eb F G A Bb, from the spectral colour index),

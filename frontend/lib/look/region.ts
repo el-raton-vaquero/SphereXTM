@@ -1,6 +1,6 @@
 /**
  * "What did SPHEREx see there?" for a pointed (RA, Dec), from REAL SPHEREx pixels only:
- *   1. a StarChord preset snapshot (public/snapshots) when its centre is within 1 deg, else
+ *   1. a Listar preset snapshot (public/snapshots) when its centre is within 1 deg, else
  *   2. the live science backend (/v2/search at the pointed position, small field).
  * Never substitutes synthetic or other-survey pixels. The colour composite is a false-colour
  * rendering of real frames: blue = D1+D2 (0.75-1.62 um), green = D3+D4 (1.63-3.82 um),
@@ -37,7 +37,7 @@ export interface RegionImage {
 
 export interface NearTarget { id: string; name: string; ra: number; dec: number; sep: number }
 
-/** StarChord presets sorted by angular distance from (ra, dec). */
+/** Listar presets sorted by angular distance from (ra, dec). */
 export function targetsByDistance(ra: number, dec: number): NearTarget[] {
   return PRESETS.map((p) => ({ id: p.id, name: p.name, ra: p.ra, dec: p.dec, sep: sepDeg(ra, dec, p.ra, p.dec) })).sort((a, b) => a.sep - b.sep);
 }

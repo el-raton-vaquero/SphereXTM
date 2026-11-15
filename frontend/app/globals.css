@@ -1,5 +1,5 @@
 /*
- * Base layer for every StarChord route. Tokens live in prism-tokens.css; page styles in
+ * Base layer for every Listar route. Tokens live in prism-tokens.css; page styles in
  * app/explore/explore.css and components/cosmos/cosmos.css. This is a small reset (the same
  * rules as the Tailwind v4 preflight the pages were designed on) plus the body defaults.
  */

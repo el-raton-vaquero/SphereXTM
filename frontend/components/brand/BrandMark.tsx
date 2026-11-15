@@ -3,12 +3,12 @@
 import { useLocale, withLang } from '../../lib/i18n';
 
 /**
- * StarChord brand slot.
+ * Listar brand slot.
  *
  * Swapping in the real logo is one line: drop the files into public/brand/ (see the README
  * there) and set BRAND_HAS_LOGO = true. Until then the wordmark is plain Fraunces text.
  */
-export const BRAND_NAME = 'StarChord';
+export const BRAND_NAME = 'Listar';
 export const BRAND_LOGO = '/brand/logo-mark.png';
 export const BRAND_LOGO_MARK = '/brand/logo-mark.png';
 export const BRAND_LOGO_FULL = '/brand/logo-full.png';

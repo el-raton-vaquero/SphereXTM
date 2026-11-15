@@ -16,7 +16,7 @@
  * We request ready-made JPEG cut-outs from the CDS hips2fits service, giving it the exact TAN
  * WCS of the phone camera (or of a dome-chart pick), so the image lines up with the photo.
  * The mirror (alaskybis) is tried when the main host fails. If both fail the UI falls back to
- * the StarChord snapshots / live IRSA search. No other survey is ever shown as SPHEREx.
+ * the Listar snapshots / live IRSA search. No other survey is ever shown as SPHEREx.
  */
 import { R2D, transpose, applyM, radecToVec, type M3 } from './sky';
 import { focalPx, type CamBasis, type View } from './camera';

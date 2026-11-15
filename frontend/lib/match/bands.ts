@@ -1,7 +1,7 @@
 /**
  * Star Match: the song side. Pure functions (no DOM), shared by the worker and the main thread.
  *
- * StarChord's mapping (a design choice, not physics): SPHEREx splits light 0.75-5.0 um into 102
+ * Listar's mapping (a design choice, not physics): SPHEREx splits light 0.75-5.0 um into 102
  * bands; we split sound into 102 log-spaced bands from ~55 Hz to ~7 kHz. Band i of the song sits
  * next to band i of the sky, with the order mirrored: short wavelength (blue, band 0) <-> high
  * pitch, long wavelength (red, band 101) <-> low pitch.

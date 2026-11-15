@@ -2,7 +2,7 @@
 
 import { useLocale, withLang, type Locale } from '../../lib/i18n';
 
-/** The StarChord routes, in navigation order. */
+/** The Listar routes, in navigation order. */
 export const SITE_ROUTES = [
   { id: 'home', href: '/' },
   { id: 'explore', href: '/explore' },

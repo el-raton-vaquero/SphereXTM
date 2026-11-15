@@ -51,8 +51,8 @@ FIXED_ES = {
     "Gaia DR3 neighbours (propagated) within the blend radius":
         "Vecinas de Gaia DR3 (propagadas) dentro del radio de mezcla",
     "IMCCE SkyBoT cone search (geocentric ephemerides)": "Búsqueda cónica de IMCCE SkyBoT (efemérides geocéntricas)",
-    "PRISM target registry (literature astrometry)": "Registro de objetivos de StarChord (astrometría de la literatura)",
-    "StarChord target registry (literature astrometry)": "Registro de objetivos de StarChord (astrometría de la literatura)",
+    "PRISM target registry (literature astrometry)": "Registro de objetivos de Listar (astrometría de la literatura)",
+    "Listar target registry (literature astrometry)": "Registro de objetivos de Listar (astrometría de la literatura)",
     "Season centroids (pixel-integrated Gaussian fit) vs Gaia prediction":
         "Centroides por temporada (ajuste gaussiano integrado en píxel) vs. predicción de Gaia",
     "Season-to-season photometry at matched wavelengths":
@@ -91,9 +91,9 @@ FIXED_ES = {
 
 
 # English sentences renamed since older payloads/snapshots were produced (project renamed
-# PRISM -> StarChord). Applied to the English output only.
+# PRISM -> Listar). Applied to the English output only.
 EN_RENAMES = {
-    "PRISM target registry (literature astrometry)": "StarChord target registry (literature astrometry)",
+    "PRISM target registry (literature astrometry)": "Listar target registry (literature astrometry)",
 }
 
 

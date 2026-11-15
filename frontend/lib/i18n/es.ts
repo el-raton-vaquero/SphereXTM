@@ -3,7 +3,7 @@ import type { Messages } from './en';
 /** Spanish dictionary. Same shape as en.ts (enforced by the Messages type). */
 export const es: Messages = {
   common: {
-    brand: 'StarChord',
+    brand: 'Listar',
     brandTagline: 'Escucha y mira el cielo infrarrojo de SPHEREx (NASA)',
     subline: 'SPHEREx · NASA Space Apps 2026',
     langToggle: 'EN',
@@ -23,9 +23,9 @@ export const es: Messages = {
     openExplorer: 'Abrir el explorador',
     credit: 'Datos de SPHEREx: NASA / Caltech / JPL / IPAC (IRSA). No es un producto oficial de la NASA.',
     skipToContent: 'Saltar al contenido',
-    metaTitle: 'StarChord · SPHEREx',
+    metaTitle: 'Listar · SPHEREx',
     metaDescription:
-      'StarChord convierte observaciones infrarrojas reales de SPHEREx (NASA) en algo que puedes explorar, ver moverse y escuchar. Cuadros reales de IRSA; todo lo modelado se indica.',
+      'Listar convierte observaciones infrarrojas reales de SPHEREx (NASA) en algo que puedes explorar, ver moverse y escuchar. Cuadros reales de IRSA; todo lo modelado se indica.',
   },
   nav: {
     label: 'Principal',
@@ -38,10 +38,10 @@ export const es: Messages = {
     match: 'Star Match',
   },
   explore: {
-    metaTitle: 'Explorar · StarChord',
+    metaTitle: 'Explorar · Listar',
     metaDescription:
-      'Cada cuadro de SPHEREx es de un color distinto. StarChord separa color y movimiento con observaciones reales de SPHEREx (IRSA); las predicciones de catálogo se indican como tales.',
-    tagline: 'Cada cuadro de SPHEREx es de un color distinto. StarChord separa el color del movimiento y te dice si lo que se movió es conocido, un artefacto o nuevo.',
+      'Cada cuadro de SPHEREx es de un color distinto. Listar separa color y movimiento con observaciones reales de SPHEREx (IRSA); las predicciones de catálogo se indican como tales.',
+    tagline: 'Cada cuadro de SPHEREx es de un color distinto. Listar separa el color del movimiento y te dice si lo que se movió es conocido, un artefacto o nuevo.',
     taglineShort: 'Separa color de movimiento.',
     homeTitle: 'Volver al cielo 3D',
     inputLabel: 'Posición u objeto',
@@ -56,7 +56,7 @@ export const es: Messages = {
     copy: 'Copiar',
     copied: 'Copiado',
     embedHelp: 'Pega este iframe para mostrar esta misma vista.',
-    embedTitle: 'StarChord · SPHEREx',
+    embedTitle: 'Listar · SPHEREx',
     perYear: 'año',
     satTag: 'SAT',
     originLive: 'Datos reales SPHEREx · en vivo desde IRSA',
@@ -65,7 +65,7 @@ export const es: Messages = {
     liveOffSnapshot: 'Despliegue estático: la búsqueda en vivo necesita el servidor científico. Se muestra una instantánea real guardada.',
     liveOffTitle: 'La búsqueda en vivo necesita el servidor científico',
     liveOffBody:
-      'Este despliegue es estático y sólo incluye instantáneas reales de los seis objetivos predefinidos. Para cualquier otra posición, el sitio necesita el servidor científico de StarChord (ver docs/deploy.md). No se sustituyen datos sintéticos.',
+      'Este despliegue es estático y sólo incluye instantáneas reales de los seis objetivos predefinidos. Para cualquier otra posición, el sitio necesita el servidor científico de Listar (ver docs/deploy.md). No se sustituyen datos sintéticos.',
     loading: 'Consultando el archivo',
     loadingDefault: 'SIA2 · spherex_dr1, spherex_qr3',
     stage: { query: 'Consulta SIA2', download: 'Descargando recortes', reproject: 'Reproyectando', snapshot: 'Leyendo instantánea', done: 'Listo' },
@@ -299,12 +299,12 @@ export const es: Messages = {
     resultUnavailable: 'No se pudieron mostrar cuadros de SPHEREx para esta posición. Elige una de las sugerencias o prueba otro punto.',
   },
   cosmos: {
-    metaTitle: 'StarChord · el cielo de SPHEREx en 3D',
+    metaTitle: 'Listar · el cielo de SPHEREx en 3D',
     metaDescription:
       'Esfera celeste con estrellas reales del Yale Bright Star Catalogue, la órbita de SPHEREx y un patrón ilustrativo de su barrido. Elige un objetivo y ábrelo en el explorador de cuadros reales de SPHEREx.',
-    kicker: 'StarChord · SPHEREx',
+    kicker: 'Listar · SPHEREx',
     title: 'Cada imagen de SPHEREx es de otro color.',
-    lede: 'StarChord separa el color del movimiento y te dice si lo que se movió es conocido, un artefacto o algo nuevo.',
+    lede: 'Listar separa el color del movimiento y te dice si lo que se movió es conocido, un artefacto o algo nuevo.',
     // --- portada: accesos a las cuatro secciones ---
     entriesLabel: 'Cinco maneras de entrar',
     entries: {
@@ -385,8 +385,8 @@ export const es: Messages = {
     ],
   },
   cube: {
-    metaTitle: 'Cubo espectral · StarChord',
-    kicker: 'StarChord · SpectralCube3D',
+    metaTitle: 'Cubo espectral · Listar',
+    kicker: 'Listar · SpectralCube3D',
     title: 'Cubo espectral',
     lede: 'Cada corte es un cuadro SPHEREx reproyectado; su posición en el eje es su λ (o su fecha). No se interpola entre cuadros.',
     target: 'objetivo',
@@ -413,7 +413,7 @@ export const es: Messages = {
     'm101': { name: 'M101 (Galaxia del Molinete)', kind: 'galaxia espiral (fija)', blurb: 'Galaxia espiral: campo estático de control.', why: 'Nada debería moverse aquí: cualquier «cambio» es color o artefacto.' },
   },
   sky: {
-    metaTitle: 'Máquina del tiempo del cielo · StarChord',
+    metaTitle: 'Máquina del tiempo del cielo · Listar',
     metaDescription: 'Mira el cielo de cualquier fecha, observa moverse los cuerpos celestes a la velocidad que elijas y asómate al cielo de hace 700 años. Las posiciones son calculadas.',
     title: 'Máquina del tiempo del cielo',
     lede: 'Elige una fecha y una velocidad y mira al Sol, la Luna y los planetas moverse sobre las estrellas. Todas las posiciones aquí son calculadas, no observadas.',
@@ -561,7 +561,7 @@ export const es: Messages = {
     // ---- fin del bloque /sky ----
   },
   symphony: {
-    metaTitle: 'Sinfonía estelar · StarChord',
+    metaTitle: 'Sinfonía estelar · Listar',
     metaDescription: 'Escucha las 102 bandas infrarrojas de SPHEREx: el espectro de una región del cielo se vuelve melodía. Un mapeo artístico de datos reales.',
     title: 'Sinfonía estelar',
     lede: 'Cada uno de los 102 colores de SPHEREx se vuelve una nota. Las bandas más brillantes suenan más fuerte y más largo, así que cada región del cielo tiene su propia melodía.',
@@ -631,7 +631,7 @@ export const es: Messages = {
     howTitle: 'Cómo la luz se vuelve música',
     howSteps: [
       'SPHEREx fotografía el mismo trozo de cielo a través de 102 colores infrarrojos, de 0,75 a 5 µm.',
-      'Para el círculo que colocas, StarChord promedia los píxeles reales de cada cuadro y obtiene un brillo por color.',
+      'Para el círculo que colocas, Listar promedia los píxeles reales de cada cuadro y obtiene un brillo por color.',
       'Cada color es una nota de una escala pentatónica: las longitudes de onda más cortas suenan más agudas, como la propia luz. Los colores brillantes suenan más fuerte y más largo.',
       'Un cursor recorre los colores de ida y vuelta como una caja de música; el color global del espectro elige la tonalidad y el bordón de fondo.',
       'Las bandas de absorción de hielo de agua, CO₂, CO o metano cambian sus notas a una voz distinta, así que los lugares helados suenan diferente.',
@@ -652,11 +652,11 @@ export const es: Messages = {
     exportStemsHint: 'Un WAV por voz (melodía, pad, hielo, bajo) en un ZIP.',
     exportBusy: 'Generando…',
     exportError: 'La exportación falló en este navegador. Inténtalo de nuevo o usa otro navegador.',
-    exportNote: 'Música generada algorítmicamente a partir de mediciones reales de SPHEREx — no es IA generativa. Uso libre citando: StarChord / NASA SPHEREx (IRSA)',
+    exportNote: 'Música generada algorítmicamente a partir de mediciones reales de SPHEREx — no es IA generativa. Uso libre citando: Listar / NASA SPHEREx (IRSA)',
     // ---- fin sinfonía estelar ----
   },
   look: {
-    metaTitle: 'Mira arriba · StarChord',
+    metaTitle: 'Mira arriba · Listar',
     metaDescription: 'Apunta tu teléfono al cielo y mira esa región tal como la mapeó SPHEREx, o descubre qué cuerpos celestes están sobre ti ahora.',
     title: 'Mira arriba',
     lede: 'Apunta tu teléfono al cielo para ver hacia dónde mira, o usa tu ubicación para ver qué hay sobre ti ahora.',
@@ -666,7 +666,7 @@ export const es: Messages = {
     tabAbove: 'Sobre mí',
     camIntroTitle: 'Apunta tu teléfono al cielo',
     camIntroBody:
-      'StarChord usa la cámara trasera, tu ubicación y los sensores de movimiento para calcular hacia dónde apunta el teléfono. Toma una foto y te mostramos ese mismo trozo de cielo tal como SPHEREx lo mapeó en infrarrojo.',
+      'Listar usa la cámara trasera, tu ubicación y los sensores de movimiento para calcular hacia dónde apunta el teléfono. Toma una foto y te mostramos ese mismo trozo de cielo tal como SPHEREx lo mapeó en infrarrojo.',
     camStart: 'Activar cámara y sensores',
     camManual: 'Explorar sin cámara',
     camDesktopHint: '¿No tienes el teléfono a mano? Usa “Sobre mí” para ver qué hay arriba desde tu ubicación, o explora arrastrando.',
@@ -704,7 +704,7 @@ export const es: Messages = {
     capture: 'Capturar',
     captureHint: 'Congela esta vista y muéstrala como la vio SPHEREx',
     backToCamera: 'Volver al cielo',
-    nearestTargets: 'Objetivos StarChord más cercanos',
+    nearestTargets: 'Objetivos Listar más cercanos',
     inView: 'en vista',
     degAway: (d: string) => `a ${d}°`,
     layerStars: 'Estrellas',
@@ -715,7 +715,7 @@ export const es: Messages = {
     cardinal: ['N', 'NE', 'E', 'SE', 'S', 'SO', 'O', 'NO'],
     horizon: 'horizonte',
     bodies: { Sun: 'Sol', Moon: 'Luna', Mercury: 'Mercurio', Venus: 'Venus', Mars: 'Marte', Jupiter: 'Júpiter', Saturn: 'Saturno', Uranus: 'Urano', Neptune: 'Neptuno' } as Record<string, string>,
-    overlayLabel: 'Superposición del cielo: retícula, etiquetas de estrellas y planetas, objetivos StarChord.',
+    overlayLabel: 'Superposición del cielo: retícula, etiquetas de estrellas y planetas, objetivos Listar.',
     reticle: 'Centro de la vista',
     resultTitle: 'Este trozo de cielo, tal como lo vio SPHEREx',
     belowHorizon: 'Apuntabas por debajo del horizonte: esta parte del cielo está bajo el suelo en este momento. SPHEREx cartografió todo el cielo, así que su vista de esta zona se muestra igualmente.',
@@ -731,7 +731,7 @@ export const es: Messages = {
     hipsColor: 'Color',
     hipsBand: (d: string, um: string) => `${d} · ${um} µm`,
     hipsLoading: 'Cargando el mapa de todo el cielo de SPHEREx…',
-    hipsFailed: 'No se pudo cargar el mapa de todo el cielo de SPHEREx (no respondieron ni IRSA ni el espejo del CDS). Los cuadros StarChord de abajo siguen siendo datos reales de SPHEREx.',
+    hipsFailed: 'No se pudo cargar el mapa de todo el cielo de SPHEREx (no respondieron ni IRSA ni el espejo del CDS). Los cuadros Listar de abajo siguen siendo datos reales de SPHEREx.',
     hipsNote: 'Imágenes reales de SPHEREx del cubo de todo el cielo DR1 en IRSA, dibujadas en tu navegador y alineadas a tu vista con el apuntado aproximado. Las teselas del mapa tienen un estirado de visualización (asinh); no son flujos calibrados.',
     hipsNoteCds: 'Imágenes reales de SPHEREx (IRSA QR2), en mosaico hecho por el CDS (fuente de respaldo: las teselas de IRSA no cargaron). Alineadas a tu vista con el apuntado aproximado.',
     hipsReleaseIrsa: 'Cubo de todo el cielo SPHEREx DR1 · IRSA (Caltech/IPAC)',
@@ -749,7 +749,7 @@ export const es: Messages = {
     cutoutField: (f: string) => `campo de ${f}′`,
     cutoutInset: 'Se muestra ampliado en el centro de la foto (el trozo real es mucho más pequeño).',
     loadingFrames: 'Obteniendo cuadros de SPHEREx…',
-    noLive: 'No hay una instantánea StarChord a menos de 1° de este punto y este despliegue no tiene búsqueda en vivo en el archivo. Prueba con uno de los objetivos más cercanos.',
+    noLive: 'No hay una instantánea Listar a menos de 1° de este punto y este despliegue no tiene búsqueda en vivo en el archivo. Prueba con uno de los objetivos más cercanos.',
     noCoverage: 'SPHEREx todavía no tiene cuadros de este punto exacto.',
     failed: 'La búsqueda en SPHEREx falló. No se muestra nada sintético en su lugar.',
     retry: 'Reintentar',
@@ -772,7 +772,7 @@ export const es: Messages = {
     computedNote: 'Las posiciones se calculan para este lugar y hora con astronomy-engine. Se ignora la refracción.',
     solarSystem: 'Sol, Luna y planetas',
     brightStars: 'Estrellas más brillantes sobre el horizonte',
-    targetsUp: 'Objetivos StarChord',
+    targetsUp: 'Objetivos Listar',
     colName: 'Objeto',
     colAlt: 'Alt',
     colAz: 'Az',
@@ -800,9 +800,9 @@ export const es: Messages = {
     } as Record<string, string>,
   },
   song: {
-    metaTitle: 'La canción de tu cielo · StarChord',
+    metaTitle: 'La canción de tu cielo · Listar',
     metaDescription:
-      'Elige una fecha y un lugar. StarChord calcula el cielo de ese momento, trae lo que SPHEREx de la NASA midió justo encima en 102 colores infrarrojos y lo convierte en una canción y un póster listo para imprimir.',
+      'Elige una fecha y un lugar. Listar calcula el cielo de ese momento, trae lo que SPHEREx de la NASA midió justo encima en 102 colores infrarrojos y lo convierte en una canción y un póster listo para imprimir.',
     eyebrow: 'La canción de tu cielo',
     title: 'El cielo de la noche que amas, hecho canción',
     lede: 'Elige una fecha y un lugar. Calculamos las estrellas de ese momento, encontramos el trozo de cielo justo encima y tocamos lo que el telescopio SPHEREx de la NASA midió ahí en 102 colores infrarrojos.',
@@ -882,7 +882,7 @@ export const es: Messages = {
     integrityDetail:
       'Espectro: promedio de los píxeles del cubo con estiramiento de visualización (asinh, 0–40 MJy/sr) a unos 7′ del cenit, HiPS orden 3; los dos cuadros dicroicos vacíos quedan en silencio. Es una imagen de los datos, no flujos calibrados. Estrellas: Catálogo de Estrellas Brillantes de Yale; Luna y planetas: astronomy-engine.',
     credit: 'NASA/JPL-Caltech/IPAC SPHEREx DR1 · IRSA',
-    posterBrand: 'StarChord · La canción de tu cielo',
+    posterBrand: 'Listar · La canción de tu cielo',
     posterInset: 'SPHEREx · el cielo justo encima · 9°',
     posterBarcode: '102 colores que SPHEREx midió justo encima · 0.75–5.0 µm',
     posterQr: 'Escanea para escuchar',
@@ -896,12 +896,12 @@ export const es: Messages = {
     detectors: 'Detectores D1–D6',
   },
   match: {
-    metaTitle: 'Encuentra tu canción en las estrellas · StarChord',
+    metaTitle: 'Encuentra tu canción en las estrellas · Listar',
     metaDescription:
-      'Pon cualquier canción y StarChord busca en el cielo real de SPHEREx el punto cuya luz de 102 colores tiene la misma forma que las 102 bandas de sonido de tu canción. El audio nunca sale de tu dispositivo.',
+      'Pon cualquier canción y Listar busca en el cielo real de SPHEREx el punto cuya luz de 102 colores tiene la misma forma que las 102 bandas de sonido de tu canción. El audio nunca sale de tu dispositivo.',
     eyebrow: 'Star Match',
     title: 'Encuentra tu canción en las estrellas',
-    lede: 'Pon cualquier música: pop, banda, cumbia, clásica, lo que sea. StarChord la divide en 102 bandas de tono y busca en el cielo real de SPHEREx el punto cuya luz de 102 colores tiene la misma forma.',
+    lede: 'Pon cualquier música: pop, banda, cumbia, clásica, lo que sea. Listar la divide en 102 bandas de tono y busca en el cielo real de SPHEREx el punto cuya luz de 102 colores tiene la misma forma.',
     inputHeading: 'Tu música',
     listen: 'Escuchar',
     listenStop: 'Listo',
@@ -910,7 +910,7 @@ export const es: Messages = {
     listenHint: 'Pon una canción cerca de tu dispositivo y pulsa Escuchar, como un buscador de canciones. Pulsa otra vez para terminar antes.',
     or: 'o',
     upload: 'Elige un archivo de audio',
-    uploadHint: (s: number) => `mp3, wav, m4a… StarChord analiza hasta ${s} s.`,
+    uploadHint: (s: number) => `mp3, wav, m4a… Listar analiza hasta ${s} s.`,
     privacy: 'Tu audio nunca sale de este dispositivo: se analiza en tu navegador y no se sube nada.',
     visLabel: '102 bandas de sonido de tu música, el tono más agudo a la izquierda',
     axisHigh: 'agudo · azul',
@@ -977,7 +977,7 @@ export const es: Messages = {
     share: 'Compartir',
     copied: 'Copiado al portapapeles',
     shareFailed: 'No se pudo compartir',
-    shareText: (title: string, where: string, p: number) => `Mi canción “${title}” suena como este punto en ${where} (${p}% de forma parecida) · StarChord Star Match con SPHEREx de la NASA`,
+    shareText: (title: string, where: string, p: number) => `Mi canción “${title}” suena como este punto en ${where} (${p}% de forma parecida) · Listar Star Match con SPHEREx de la NASA`,
     posterDedication: (title: string) => `Donde vive “${title}” en el cielo`,
     errSilent: 'Eso fue demasiado bajo para analizarlo. Sube el volumen o acerca la música.',
     errMic: 'No se pudo iniciar el micrófono.',
@@ -986,9 +986,9 @@ export const es: Messages = {
     errSearch: (m: string) => `La búsqueda se detuvo: ${m}`,
     integrityHeading: 'Qué es esto',
     integrity:
-      'Una comparación lúdica bajo la correspondencia de StarChord (frecuencia del sonido ↔ longitud de onda de la luz). Los espectros del cielo son mediciones reales de SPHEREx DR1 (cubo de todo el cielo de IRSA, estirado para visualización, no calibrado). Una coincidencia significa forma parecida, no que las estrellas hagan música.',
+      'Una comparación lúdica bajo la correspondencia de Listar (frecuencia del sonido ↔ longitud de onda de la luz). Los espectros del cielo son mediciones reales de SPHEREx DR1 (cubo de todo el cielo de IRSA, estirado para visualización, no calibrado). Una coincidencia significa forma parecida, no que las estrellas hagan música.',
     method:
-      'Cómo: la energía promedio de tu canción en 102 bandas (FFT, ventana de Hann, sin silencios), menos un espectro musical de referencia, normalizada (puntuación z). El cielo: un índice precalculado de todo el cielo (HEALPix orden 6, puntuaciones z por banda frente a la mediana del cielo) y luego cada píxel a resolución completa de las mejores regiones a partir de las teselas de orden 5 de IRSA, normalizado igual. El parecido es la correlación en las bandas válidas; se omiten los dos cuadros dicroicos vacíos. La canción del punto del cielo la compone la sinfonía de StarChord a partir de sus 102 valores.',
+      'Cómo: la energía promedio de tu canción en 102 bandas (FFT, ventana de Hann, sin silencios), menos un espectro musical de referencia, normalizada (puntuación z). El cielo: un índice precalculado de todo el cielo (HEALPix orden 6, puntuaciones z por banda frente a la mediana del cielo) y luego cada píxel a resolución completa de las mejores regiones a partir de las teselas de orden 5 de IRSA, normalizado igual. El parecido es la correlación en las bandas válidas; se omiten los dos cuadros dicroicos vacíos. La canción del punto del cielo la compone la sinfonía de Listar a partir de sus 102 valores.',
     credit: 'Datos: NASA/JPL-Caltech/IPAC SPHEREx DR1 · IRSA. Constelación: la figura más cercana (d3-celestial, BSC5), no el límite oficial de la IAU.',
   },
 };

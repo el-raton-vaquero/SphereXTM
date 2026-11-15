@@ -1,5 +1,5 @@
 /**
- * StarChord star symphony — fixed-piece export.
+ * Listar star symphony — fixed-piece export.
  *
  * composeSong() turns a real spectrum into a deterministic ~45 s piece with a musical form,
  * using the same data -> sound mapping as the live symphony (core.ts):
@@ -465,7 +465,7 @@ export function scoreToMidi(score: SongScore): Uint8Array {
   const tracks: number[][] = [];
 
   const usPerQuarter = Math.round(60e6 / bpm);
-  const title = score.input.label ? `StarChord - ${score.input.label}` : 'StarChord - star symphony';
+  const title = score.input.label ? `Listar - ${score.input.label}` : 'Listar - star symphony';
   tracks.push([
     0, ...meta(0x03, textBytes(title)),
     0, ...meta(0x01, textBytes(`Generated algorithmically from SPHEREx measurements (NASA SPHEREx / IRSA). Key: ${score.key}.`)),
@@ -624,5 +624,5 @@ export function downloadBlob(blob: Blob, filename: string): void {
 /** File-name-safe slug for downloads. */
 export function songSlug(label?: string): string {
   const s = (label ?? '').normalize('NFKD').replace(/[^\w\s-]/g, '').trim().toLowerCase().replace(/[\s_]+/g, '-').slice(0, 48);
-  return s ? `starchord-${s}` : 'starchord-symphony';
+  return s ? `listar-${s}` : 'listar-symphony';
 }

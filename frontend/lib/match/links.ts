@@ -1,4 +1,4 @@
-/** Links from a Star Match result to the other StarChord routes. */
+/** Links from a Star Match result to the other Listar routes. */
 import { writeUrl } from '../prism/url';
 import { specToQuery, zenithOf } from '../song/sky';
 

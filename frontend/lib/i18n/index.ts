@@ -1,5 +1,5 @@
 /**
- * StarChord i18n: one shared module for every route.
+ * Listar i18n: one shared module for every route.
  *
  *   const { locale, t, setLocale, toggleLocale } = useLocale();
  *   <h1>{t.sky.title}</h1>

@@ -410,7 +410,7 @@ test('scoreToMidi writes a valid type-1 SMF: header, tempo, one named track per 
   assert.equal(header.ntracks, 1 + SONG_VOICES.length);
   assert.equal(tracks.length, header.ntracks);
   assert.equal(tracks[0].tempo, Math.round(60e6 / s.bpm));
-  assert.match(tracks[0].name, /StarChord/);
+  assert.match(tracks[0].name, /Listar/);
   SONG_VOICES.forEach((voice, k) => {
     const tr = tracks[k + 1];
     const n = s.notes.filter((x) => x.voice === voice).length;

@@ -42,9 +42,9 @@ PRESETS = [
         "expected": {"saturated": True, "best_detectors": [1, 2, 3],
                      "basis": "K ~ 4.5 mag; M4 study found OVERFLOW/BLOOM flags at predicted positions"},
         "blurb": "La estrella con mayor movimiento propio conocido: ~10.4\"/año.",
-        "why": "Se mueve ~1.7 px por año de SPHEREx, pero satura el detector: StarChord lo muestra con banderas, no lo oculta.",
+        "why": "Se mueve ~1.7 px por año de SPHEREx, pero satura el detector: Listar lo muestra con banderas, no lo oculta.",
         "en": {"blurb": "Largest known proper motion: ~10.4\"/yr.",
-               "why": "Moves ~1.7 px per SPHEREx year but saturates the detector; StarChord flags it instead of hiding it."},
+               "why": "Moves ~1.7 px per SPHEREx year but saturates the detector; Listar flags it instead of hiding it."},
     },
     {
         "id": "eps-indi-b", "name": "Epsilon Indi B", "category": "brown_dwarf",

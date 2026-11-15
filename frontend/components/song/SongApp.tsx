@@ -329,7 +329,7 @@ function SongStudio() {
     return () => { alive = false; };
   }, [result, theme, posterData]);
 
-  const slug = result ? songSlug(`${placeName(result.spec, all) || 'sky'} ${localDateInput(result.spec.ms, specOffsetHours(result.spec))}`) : 'starchord-sky-song';
+  const slug = result ? songSlug(`${placeName(result.spec, all) || 'sky'} ${localDateInput(result.spec.ms, specOffsetHours(result.spec))}`) : 'listar-sky-song';
 
   const downloadImage = async (format: PosterFormat) => {
     if (!result) return;

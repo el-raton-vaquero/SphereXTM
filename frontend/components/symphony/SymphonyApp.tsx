@@ -127,7 +127,7 @@ export default function SymphonyApp() {
     const e = getEngine();
     const blob = e?.stopRecording();
     setRecSecs(null);
-    if (blob) downloadBlob(blob, `starchord-${targetId}-${Date.now()}.wav`);
+    if (blob) downloadBlob(blob, `listar-${targetId}-${Date.now()}.wav`);
   }, [getEngine, targetId]);
 
   // Recording timer.

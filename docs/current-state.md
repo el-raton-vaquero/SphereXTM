@@ -362,9 +362,9 @@ vs 8.07″) and the backend verdict (WISE 0855 inconclusive: backend season cent
 only 1 season) use different methods and can disagree; both are labelled. Verdict details are
 English only. Static-mode preset blurbs come from `lib/prism/presets.ts`, not `/v2/targets`.
 
-## StarChord foundation — 2026-11-14 (branch `prism`)
+## Listar foundation — 2026-11-14 (branch `prism`)
 
-The product is renamed **PRISM → StarChord** (user-visible strings, metadata, docs, API
+The product is renamed **PRISM → Listar** (user-visible strings, metadata, docs, API
 title; env vars `NEXT_PUBLIC_PRISM_API_BASE` / `PRISM_*` and internal identifiers such as
 `lib/prism/`, `components/prism/`, `.prism-root` are unchanged for deploy compatibility).
 
@@ -399,7 +399,7 @@ sentence). Headless Chrome on the production build: landing, `/explore` (EN and
 `?lang=es`, real WISE 0855 snapshot with Spanish verdict details), `/sky` placeholder;
 redirects return 307 with the query preserved.
 
-## StarChord feature integration — 2026-11-15 (branch `prism`)
+## Listar feature integration — 2026-11-15 (branch `prism`)
 
 Merged (no conflicts) the five feature branches on top of the foundation: real-Earth landing
 (`components/cosmos/*`, NASA SVS textures in `public/cosmos/`), `/sky` time machine
@@ -420,7 +420,7 @@ Merged (no conflicts) the five feature branches on top of the foundation: real-E
   keeping the query, `/classic` → `/explore`, snapshots served; /sky dock shows "Visible sky ·
   1326-11-15 UTC · 556 stars" as computed; /explore Listen dock shows M101 as real SPHEREx.
 
-## StarChord QA fixes — 2026-11-15 (branch `prism`)
+## Listar QA fixes — 2026-11-15 (branch `prism`)
 
 Fixes for the QA report on 2ca1063 (no blockers; 3 major, 13 minor):
 - **/sky local time** (major): `lib/sky/time.ts` gives every preset city an IANA zone. From 1970

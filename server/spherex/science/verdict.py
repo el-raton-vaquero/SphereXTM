@@ -137,7 +137,7 @@ def registry_check(match: dict | None) -> dict | None:
     return _check("registry", "Literature target registry", "pass",
                   f"Matches {match['name']} ({match.get('reference', 'registry')}) at "
                   f"{match['separation_arcsec']:.1f} arcsec of its predicted position.",
-                  "StarChord target registry (literature astrometry)", **match)
+                  "Listar target registry (literature astrometry)", **match)
 
 
 def motion_check(result: dict | None) -> dict:

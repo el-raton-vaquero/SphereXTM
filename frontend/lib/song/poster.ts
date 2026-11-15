@@ -6,7 +6,7 @@
  *
  * Contents: the computed star map of that sky (stereographic dome, zenith centre, North up,
  * East left), the real SPHEREx colour image of the zenith patch, the 102-band spectral barcode
- * coloured by the StarChord wavelength ramp, the dedication, date, place, coordinates, a QR code
+ * coloured by the Listar wavelength ramp, the dedication, date, place, coordinates, a QR code
  * to the shareable song URL, and the integrity/credit lines.
  */
 import { lambdaColor } from '../prism/ramp';
@@ -18,7 +18,7 @@ export type PosterFormat = 'poster' | 'story';
 export type PosterTheme = 'night' | 'paper';
 
 export interface PosterText {
-  brand: string;          // "StarChord · Your Sky Song"
+  brand: string;          // "Listar · Your Sky Song"
   dedication: string;
   dateLine: string;       // "15 November 2026 · 21:30 (UTC−6)"
   placeLine: string;      // "Mexico City · 19.43° N · 99.13° W"

@@ -1,7 +1,7 @@
-# StarChord brand assets
+# Listar brand assets
 
-This folder is the drop-in slot for the official StarChord logos. Until they arrive the site
-shows a plain text wordmark ("StarChord", set in Fraunces) and a placeholder icon.
+This folder is the drop-in slot for the official Listar logos. Until they arrive the site
+shows a plain text wordmark ("Listar", set in Fraunces) and a placeholder icon.
 
 ## Files to drop here
 

@@ -1,8 +1,8 @@
 /**
  * Canvas overlay for the camera / manual sky view: horizon and alt-az grid, BSC5 stars, named
- * stars, Sun/Moon/planets and the StarChord targets, projected with the pinhole camera model.
- * Colours follow the StarChord tokens: paper ink for the sky furniture, signal orange only for
- * StarChord targets and the reticle.
+ * stars, Sun/Moon/planets and the Listar targets, projected with the pinhole camera model.
+ * Colours follow the Listar tokens: paper ink for the sky furniture, signal orange only for
+ * Listar targets and the reticle.
  */
 import { focalPx, project, dot, type CamBasis, type View } from './camera';
 import type { StarField } from './hooks';
@@ -150,7 +150,7 @@ export function drawOverlay(o: OverlayInput): { id: string; x: number; y: number
     }
   }
 
-  // StarChord targets
+  // Listar targets
   const hits: { id: string; x: number; y: number }[] = [];
   if (layers.targets) {
     ctx.font = `500 12.5px ${o.fonts.body}`;

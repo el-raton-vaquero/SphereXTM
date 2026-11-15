@@ -1,6 +1,6 @@
 import type { NextConfig } from "next";
 
-// Live StarChord data comes from the FastAPI science server (server/). Two ways to reach it:
+// Live Listar data comes from the FastAPI science server (server/). Two ways to reach it:
 //  - NEXT_PUBLIC_PRISM_API_BASE: the browser calls that URL directly (CORS must allow the site);
 //  - SPHEREX_API_INTERNAL_URL: Next proxies /api/* to it (default http://127.0.0.1:8000 locally).
 // On Vercel with neither set, the build is static: no /api proxy, the explorer serves the

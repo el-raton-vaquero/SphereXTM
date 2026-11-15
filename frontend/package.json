@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:symphony": "node --no-warnings scripts/test-symphony.mjs"
   },
   "dependencies": {
     "astronomy-engine": "^2.1.19",

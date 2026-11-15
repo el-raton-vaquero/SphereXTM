@@ -24,11 +24,11 @@ from spherex.service import (
 
 
 app = FastAPI(
-    title="SPHEREx Time Machine Scientific API",
+    title="StarChord SPHEREx Scientific API",
     version=__version__,
     description=(
-        "Minimal scientific API serving real, WCS-aligned NASA SPHEREx Level 2 observations "
-        "for the NASA Space Apps Challenge 2026."
+        "StarChord science API: real, WCS-aligned NASA SPHEREx Level 2 observations, forced "
+        "photometry and evidence-based verdicts for the NASA Space Apps Challenge 2026."
     ),
 )
 
@@ -41,7 +41,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# PRISM v2 routes (/v2/*), mounted alongside the original /frames API.
+# StarChord v2 routes (/v2/*), mounted alongside the original /frames API.
 from spherex.v2 import router as v2_router  # noqa: E402
 
 app.include_router(v2_router)

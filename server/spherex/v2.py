@@ -1,4 +1,4 @@
-"""PRISM v2 API router (mounted by ``spherex.api``; Next.js proxies ``/api/v2/*`` here).
+"""StarChord v2 API router (mounted by ``spherex.api``; Next.js proxies ``/api/v2/*`` here).
 
 Implemented here: ``/v2/targets``, ``/v2/search`` and ``/v2/search/stream`` (SSE).
 
@@ -15,6 +15,9 @@ Provider call signatures (keyword arguments; return a JSON-serialisable dict, ra
 - ``skybot(ra, dec, radius_arcmin, mjd: float)``
 - ``spectrum(ra, dec, aperture_arcsec)``
 - ``verdict(ra, dec, fov)``
+
+``/v2/spectrum`` and ``/v2/verdict`` accept ``lang=en|es`` (default ``en``) for their
+human-readable sentences; see :mod:`spherex.science.i18n`.
 """
 from __future__ import annotations
 
@@ -31,6 +34,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 
 from spherex import live, targets_v2
 from spherex.archive import COLLECTIONS
+from spherex.science.i18n import localize_spectrum, localize_verdict
 
 router = APIRouter(prefix="/v2", tags=["prism-v2"])
 
@@ -258,13 +262,21 @@ def get_skybot(ra: float = _COMMON["ra"], dec: float = _COMMON["dec"],
     return _call("skybot", ra=ra, dec=dec, radius_arcmin=radius_arcmin, mjd=mjd)
 
 
+# Human-readable sentences (check labels/details, summary, caveats, methods) follow ``lang``;
+# responses always also carry *_en and *_es copies (see spherex.science.i18n), so a client
+# can switch language without a new request. Default English; the shape only gains fields.
+_LANG = Query("en", pattern="^(en|es)$", description="language of human-readable sentences: en or es")
+
+
 @router.get("/spectrum")
 async def get_spectrum(request: Request, ra: float = _COMMON["ra"], dec: float = _COMMON["dec"],
-                       aperture_arcsec: float = Query(9.0, gt=0, le=60.0)):
-    return await _call_heavy(request, "spectrum", ra=ra, dec=dec, aperture_arcsec=aperture_arcsec)
+                       aperture_arcsec: float = Query(9.0, gt=0, le=60.0), lang: str = _LANG):
+    result = await _call_heavy(request, "spectrum", ra=ra, dec=dec, aperture_arcsec=aperture_arcsec)
+    return localize_spectrum(result, lang) if isinstance(result, dict) else result
 
 
 @router.get("/verdict")
 async def get_verdict(request: Request, ra: float = _COMMON["ra"], dec: float = _COMMON["dec"],
-                      fov: float = Query(live.FOV_DEFAULT, ge=live.FOV_MIN, le=live.FOV_MAX)):
-    return await _call_heavy(request, "verdict", ra=ra, dec=dec, fov=fov)
+                      fov: float = Query(live.FOV_DEFAULT, ge=live.FOV_MIN, le=live.FOV_MAX), lang: str = _LANG):
+    result = await _call_heavy(request, "verdict", ra=ra, dec=dec, fov=fov)
+    return localize_verdict(result, lang) if isinstance(result, dict) else result

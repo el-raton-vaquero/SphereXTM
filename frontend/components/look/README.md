@@ -48,7 +48,28 @@ under `starchord.look.place`. The time is live, or fixed with a picker. The tab 
 
 Everything here is labelled **computed**.
 
-## SPHEREx HiPS (research, 2026-11-14)
+## SPHEREx HiPS: primary source, IRSA DR1 cube rendered in the browser (2026-11-14)
+
+The official SPHEREx DR1 all-sky HiPS cube is served by IRSA with `Access-Control-Allow-Origin: *`:
+`https://irsa.ipac.caltech.edu/data/hips/SPHEREx/spherex_allsky_cube` (`/properties`:
+`ivo://IPAC/P/SPHEREx/DR1/cube`, 102 frames, order 5, 512 px PNG tiles, asinh stretch cut
+0..40 MJy/sr, MJD 60789.75 to 61174.49, creator SPHEREx Science Data Center, copyright
+Caltech/IPAC, NASA/SPHEREx). Frame f = 17*(band-1)+(channel-1); frames 50 and 51 are blank.
+
+`lib/look/hipsRender.ts` draws it for any TAN WCS (including the rotated phone-camera WCS) with
+no dependencies: HEALPix nested lookup, HiPS tile pixel order (PNG column = face y, row = face x,
+checked against Betelgeuse, Rigel, Bellatrix, Saiph, Alnilam, the Pleiades, Polaris and Crux at
+orders 3 to 5 and in `Allsky.png`; north up puts East on the left), order chosen from the output
+pixel scale (3 to 5, or the 64 px `Allsky` thumbnails for wide fields or when a view needs more
+than 60 tile downloads), LRU cache, 8 parallel fetches, abortable. Layers: colour = 1.00 / 2.19 /
+4.00 µm (blue / green / red), D1 to D6 = the middle channel of each detector. Each channel gets a
+percentile display stretch. Tiles are display-stretched, not calibrated fluxes, and the UI says so.
+`sampleSpectrum(ra, dec)` returns the 102-frame display values at one position (not wired up yet).
+
+CDS hips2fits (below) is kept only as the fallback when the IRSA tiles fail to load; the
+StarChord snapshot / live-search frames remain the last fallback.
+
+## SPHEREx HiPS at CDS (fallback; research, 2026-11-14)
 
 The CDS HiPS registry (MocServer, query `ID=CDS/P/SPHEREx*`) lists real SPHEREx HiPS built by
 CDS from IRSA QR2 spectral images (progenitor `https://irsa.ipac.caltech.edu/ibe/data/spherex/qr2`,

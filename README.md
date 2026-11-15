@@ -59,8 +59,9 @@ The core is in `frontend/lib/symphony/core.ts` (pure, tested by `npm run test:sy
 
 ### Credits
 
-- SPHEREx data: NASA/JPL-Caltech, served by NASA/IPAC IRSA (DR1, QR3). The SPHEREx all-sky HiPS
-  on `/look` is courtesy NASA/JPL-Caltech, with the HiPS built by CDS, Strasbourg.
+- SPHEREx data: NASA/JPL-Caltech, served by NASA/IPAC IRSA (DR1, QR3). The SPHEREx all-sky map
+  on `/look` is the SPHEREx DR1 all-sky HiPS cube from IRSA (Caltech/IPAC, NASA/SPHEREx), drawn in
+  the browser; the fallback HiPS is courtesy NASA/JPL-Caltech, built by CDS, Strasbourg.
 - Earth, Moon and Milky Way textures: NASA Goddard Scientific Visualization Studio (Blue Marble
   NG, Black Marble 2012, CGI Moon Kit/LRO, Deep Star Maps 2020 with Gaia DR2 by ESA/Gaia/DPAC).
   Details are in `frontend/public/cosmos/README.md`.

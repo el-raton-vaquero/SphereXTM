@@ -2,7 +2,7 @@
 
 /* eslint-disable @next/next/no-img-element -- in-memory data: URLs and external cut-outs */
 
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useLocale } from '../../lib/i18n';
 import { formatDec, formatRa } from '../../lib/prism/coords';
 import { PRESETS } from '../../lib/prism/presets';
@@ -11,7 +11,7 @@ import { cameraWcs, northOnScreen, type HipsLayer } from '../../lib/look/hips';
 import type { SavedPlace } from '../../lib/look/places';
 import type { RegionImage } from '../../lib/look/region';
 import { eqjToEnu, type M3 } from '../../lib/look/sky';
-import { HipsControls, HipsImage, RegionCanvas, RegionPanel, type HipsStatus } from './SpherexViews';
+import { HipsControls, HipsImage, RegionCanvas, RegionPanel, type HipsSource, type HipsStatus } from './SpherexViews';
 
 export interface Captured {
   photo: string | null; // JPEG data URL of what the screen showed (never uploaded)
@@ -35,6 +35,8 @@ export default function CaptureResult({ captured, onBack }: { captured: Captured
   const [labels, setLabels] = useState(true);
   const [layer, setLayer] = useState<HipsLayer>('color');
   const [hips, setHips] = useState<HipsStatus>('loading');
+  const [hipsSrc, setHipsSrc] = useState<HipsSource>('irsa');
+  const onHips = useCallback((st: HipsStatus, src: HipsSource) => { setHips(st); setHipsSrc(src); }, []);
   const [region, setRegion] = useState<RegionImage | null>(null);
   const [pick, setPick] = useState<string | undefined>(captured.targetId);
 
@@ -110,7 +112,7 @@ export default function CaptureResult({ captured, onBack }: { captured: Captured
           </figure>
           <figure className="look-fig">
             <div className="look-frame" style={{ aspectRatio: `${aspect}`, ['--ar' as string]: aspect } as React.CSSProperties}>
-              <HipsImage wcs={wcs} layer={layer} className="look-fill" alt={L.hipsTitle} onStatus={setHips} />
+              <HipsImage wcs={wcs} layer={layer} className="look-fill" alt={L.hipsTitle} onStatus={onHips} />
               {hips === 'loading' && <div className="look-frame-msg"><span className="look-spinner" aria-hidden="true" />{L.hipsLoading}</div>}
               {hips === 'failed' && region && (
                 <RegionCanvas region={region} className="look-inset" style={insetStyle()} />
@@ -125,7 +127,7 @@ export default function CaptureResult({ captured, onBack }: { captured: Captured
         <figure className="look-fig look-fig-wide">
           <div className="look-frame" style={{ aspectRatio: `${aspect}`, ['--ar' as string]: aspect } as React.CSSProperties}>
             {left && <img src={left} alt={leftLabel} className="look-fill" />}
-            <HipsImage wcs={wcs} layer={layer} className="look-fill" style={{ opacity }} alt={L.hipsTitle} onStatus={setHips} />
+            <HipsImage wcs={wcs} layer={layer} className="look-fill" style={{ opacity }} alt={L.hipsTitle} onStatus={onHips} />
             {region && (hips === 'failed' || target) && (
               <RegionCanvas region={region} className="look-inset" style={insetStyle({ opacity })} />
             )}
@@ -136,7 +138,7 @@ export default function CaptureResult({ captured, onBack }: { captured: Captured
       )}
       {(hips === 'failed' || target) && region && <p className="look-note">{L.cutoutInset}</p>}
 
-      <HipsControls layer={layer} setLayer={setLayer} status={hips} wcs={wcs} />
+      <HipsControls layer={layer} setLayer={setLayer} status={hips} wcs={wcs} source={hipsSrc} />
 
       <RegionPanel ra={focus.ra} dec={focus.dec} onRegion={setRegion} onPickTarget={setPick} />
     </div>

@@ -1,5 +1,9 @@
 /**
- * Real SPHEREx all-sky imagery as HiPS (Hierarchical Progressive Survey), served by CDS.
+ * Real SPHEREx all-sky imagery as HiPS (Hierarchical Progressive Survey).
+ *
+ * PRIMARY source (since 2026-11-14): the official SPHEREx DR1 all-sky HiPS cube at IRSA, drawn in
+ * the browser by `hipsRender.ts` for the same TanWcs. Everything below about CDS hips2fits is
+ * the FALLBACK used when the IRSA tiles fail to load.
  *
  * Verified 2026-11-14 in the CDS HiPS registry (MocServer, `ID=CDS/P/SPHEREx*`):
  *   CDS/P/SPHEREx/QR2/D1 ... D6  one HiPS per SPHEREx detector (D1 0.75-1.1 um ... D6 4.4-5.0 um)

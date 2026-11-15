@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useLocale, withLang } from '../../lib/i18n';
 import { PRESETS } from '../../lib/prism/presets';
 import type { GeoStatus, StarField } from '../../lib/look/hooks';
@@ -8,7 +8,7 @@ import { useClock } from '../../lib/look/hooks';
 import { CITIES, type SavedPlace } from '../../lib/look/places';
 import { NAMED_STARS } from '../../lib/look/stars';
 import { altAzToEnu, bodyStates, enuToAltAz, enuToRadec, eqjToEnu, eqjToEnuMatrix, nextTransit } from '../../lib/look/sky';
-import { HipsControls, HipsImage, RegionPanel, type HipsStatus } from './SpherexViews';
+import { HipsControls, HipsImage, RegionPanel, type HipsSource, type HipsStatus } from './SpherexViews';
 import { northUpWcs, type HipsLayer } from '../../lib/look/hips';
 import DomeChart from './DomeChart';
 
@@ -31,6 +31,8 @@ export default function AboveMe({ place, geo, locate, setPlace, setCity, field }
   const [pick, setPick] = useState<{ alt: number; az: number } | null>(null);
   const [layer, setLayer] = useState<HipsLayer>('color');
   const [hips, setHips] = useState<HipsStatus>('loading');
+  const [hipsSrc, setHipsSrc] = useState<HipsSource>('irsa');
+  const onHips = useCallback((st: HipsStatus, src: HipsSource) => { setHips(st); setHipsSrc(src); }, []);
 
   const tf = useMemo(() => new Intl.DateTimeFormat(locale === 'es' ? 'es' : 'en', { hour: '2-digit', minute: '2-digit' }), [locale]);
   const fmt = (d: Date | null) => (d ? tf.format(d) : '—');
@@ -178,13 +180,13 @@ export default function AboveMe({ place, geo, locate, setPlace, setCity, field }
           <div className="look-pick-grid">
             <figure className="look-fig">
               <div className="look-frame" style={{ aspectRatio: '1' }}>
-                <HipsImage wcs={pickWcs} layer={layer} className="look-fill" alt={L.hipsTitle} onStatus={setHips} />
+                <HipsImage wcs={pickWcs} layer={layer} className="look-fill" alt={L.hipsTitle} onStatus={onHips} />
                 {hips === 'loading' && <div className="look-frame-msg"><span className="look-spinner" aria-hidden="true" />{L.hipsLoading}</div>}
                 {hips === 'failed' && <div className="look-frame-msg">{L.hipsFailed}</div>}
                 {hips === 'ok' && <span className="look-frame-reticle" aria-hidden="true" />}
               </div>
               <figcaption className="p-label">{L.hipsTitle}</figcaption>
-              <HipsControls layer={layer} setLayer={setLayer} status={hips} wcs={pickWcs} />
+              <HipsControls layer={layer} setLayer={setLayer} status={hips} wcs={pickWcs} source={hipsSrc} />
             </figure>
             <RegionPanel ra={pickRadec.ra} dec={pickRadec.dec} onPickTarget={(id) => { const tg = targets.find((x) => x.id === id); if (tg) setPick({ alt: tg.alt, az: tg.az }); }} />
           </div>

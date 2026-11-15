@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
-import ComingSoon from '../../components/site/ComingSoon';
+import SymphonyApp from '../../components/symphony/SymphonyApp';
 import { en } from '../../lib/i18n/en';
+import '../../components/symphony/symphony.css';
 
 export const metadata: Metadata = {
   title: en.symphony.metaTitle,
@@ -8,5 +9,5 @@ export const metadata: Metadata = {
 };
 
 export default function Page() {
-  return <ComingSoon section="symphony" />;
+  return <SymphonyApp />;
 }

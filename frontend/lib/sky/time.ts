@@ -28,8 +28,58 @@ export const yearsSinceJ2000 = (ms: number) => (ms - J2000_MS) / MS_YEAR;
 /** Decimal Julian year, e.g. 2026.87. */
 export const julianYear = (ms: number) => 2000 + yearsSinceJ2000(ms);
 
-/** Approximate local offset (hours) from longitude. */
+/** Approximate local offset (hours) from longitude. Used for ancient epochs and custom places. */
 export const tzOffsetHours = (lon: number) => Math.max(-12, Math.min(14, Math.round(lon / 15)));
+
+/** Offset (hours, may be fractional) of an IANA time zone at an instant, or null if unknown. */
+export function ianaOffsetHours(zone: string, ms: number): number | null {
+  try {
+    const f = new Intl.DateTimeFormat('en-US', {
+      timeZone: zone,
+      hourCycle: 'h23',
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: 'numeric',
+    });
+    const get = (parts: Intl.DateTimeFormatPart[], k: string) => Number(parts.find((x) => x.type === k)?.value);
+    const parts = f.formatToParts(new Date(ms));
+    const wall = Date.UTC(get(parts, 'year'), get(parts, 'month') - 1, get(parts, 'day'), get(parts, 'hour') % 24, get(parts, 'minute'));
+    const off = (wall - Math.floor(ms / 60_000) * 60_000) / 3_600_000;
+    return Number.isFinite(off) ? Math.round(off * 4) / 4 : null;
+  } catch {
+    return null;
+  }
+}
+
+/** The browser's own IANA zone (for "use my location"), or null. */
+export function browserZone(): string | null {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || null;
+  } catch {
+    return null;
+  }
+}
+
+/** Civil time zones are used from this year on; earlier epochs use the longitude rule. */
+const CIVIL_TZ_FROM = Date.UTC(1970, 0, 1);
+
+/**
+ * Local offset for a place at an instant. Modern dates at a known city (or at the viewer's
+ * own location) use that place's real time zone, so Mexico City shows UTC−6 like a wall
+ * clock. Ancient epochs and custom coordinates use UTC + round(longitude / 15).
+ */
+export function placeOffsetHours(placeId: string, lon: number, ms: number): number {
+  if (ms >= CIVIL_TZ_FROM) {
+    const zone = placeId === 'geo' ? browserZone() : PLACES.find((p) => p.id === placeId)?.zone;
+    if (zone) {
+      const off = ianaOffsetHours(zone, ms);
+      if (off !== null) return off;
+    }
+  }
+  return tzOffsetHours(lon);
+}
 
 export interface LocalParts {
   year: number;
@@ -46,6 +96,13 @@ export function toLocalParts(ms: number, tz: number): LocalParts {
 
 export function fromLocalParts(p: LocalParts, tz: number): number {
   return at(p.year, p.month, p.day, p.hour, p.minute) - tz * 3_600_000;
+}
+
+/** Local wall time at a place → instant, using that place's offset at that date. */
+export function localToMs(p: LocalParts, placeId: string, lon: number): number {
+  const guess = fromLocalParts(p, tzOffsetHours(lon));
+  const first = fromLocalParts(p, placeOffsetHours(placeId, lon, guess));
+  return fromLocalParts(p, placeOffsetHours(placeId, lon, first));
 }
 
 const p2 = (n: number) => String(n).padStart(2, '0');
@@ -67,7 +124,10 @@ export function formatLocalTime(ms: number, tz: number): string {
 
 export function formatTz(tz: number): string {
   if (tz === 0) return 'UTC';
-  return `UTC${tz > 0 ? '+' : '−'}${Math.abs(tz)}`;
+  const a = Math.abs(tz);
+  const h = Math.floor(a);
+  const m = Math.round((a - h) * 60);
+  return `UTC${tz > 0 ? '+' : '−'}${h}${m ? `:${p2(m)}` : ''}`;
 }
 
 /** Short tick label for a trail, by span. */
@@ -93,26 +153,28 @@ export interface SkyPlace {
   id: string;
   lat: number;
   lon: number;
-  /** Proper name, same in every language. */
+  /** English name; the UI shows the translated name from the i18n layer (sky.places). */
   name: string;
+  /** IANA time zone, used for modern dates. */
+  zone?: string;
 }
 
 export const PLACES: SkyPlace[] = [
-  { id: 'cdmx', name: 'Mexico City', lat: 19.4326, lon: -99.1332 },
-  { id: 'guadalajara', name: 'Guadalajara', lat: 20.6597, lon: -103.3496 },
-  { id: 'bogota', name: 'Bogotá', lat: 4.711, lon: -74.0721 },
-  { id: 'buenos-aires', name: 'Buenos Aires', lat: -34.6037, lon: -58.3816 },
-  { id: 'madrid', name: 'Madrid', lat: 40.4168, lon: -3.7038 },
-  { id: 'new-york', name: 'New York', lat: 40.7128, lon: -74.006 },
-  { id: 'pasadena', name: 'Pasadena (IPAC)', lat: 34.1478, lon: -118.1445 },
-  { id: 'london', name: 'London (Greenwich)', lat: 51.4769, lon: -0.0005 },
-  { id: 'giza', name: 'Giza', lat: 29.9792, lon: 31.1342 },
-  { id: 'kaifeng', name: 'Kaifeng', lat: 34.7972, lon: 114.3076 },
-  { id: 'padua', name: 'Padua', lat: 45.4064, lon: 11.8768 },
-  { id: 'tenochtitlan', name: 'Tenochtitlan / Mexico City', lat: 19.4352, lon: -99.1312 },
-  { id: 'chichen-itza', name: 'Chichén Itzá', lat: 20.6843, lon: -88.5678 },
-  { id: 'sydney', name: 'Sydney', lat: -33.8688, lon: 151.2093 },
-  { id: 'tokyo', name: 'Tokyo', lat: 35.6762, lon: 139.6503 },
+  { id: 'cdmx', name: 'Mexico City', lat: 19.4326, lon: -99.1332, zone: 'America/Mexico_City' },
+  { id: 'guadalajara', name: 'Guadalajara', lat: 20.6597, lon: -103.3496, zone: 'America/Mexico_City' },
+  { id: 'bogota', name: 'Bogotá', lat: 4.711, lon: -74.0721, zone: 'America/Bogota' },
+  { id: 'buenos-aires', name: 'Buenos Aires', lat: -34.6037, lon: -58.3816, zone: 'America/Argentina/Buenos_Aires' },
+  { id: 'madrid', name: 'Madrid', lat: 40.4168, lon: -3.7038, zone: 'Europe/Madrid' },
+  { id: 'new-york', name: 'New York', lat: 40.7128, lon: -74.006, zone: 'America/New_York' },
+  { id: 'pasadena', name: 'Pasadena (IPAC)', lat: 34.1478, lon: -118.1445, zone: 'America/Los_Angeles' },
+  { id: 'london', name: 'London (Greenwich)', lat: 51.4769, lon: -0.0005, zone: 'Europe/London' },
+  { id: 'giza', name: 'Giza', lat: 29.9792, lon: 31.1342, zone: 'Africa/Cairo' },
+  { id: 'kaifeng', name: 'Kaifeng', lat: 34.7972, lon: 114.3076, zone: 'Asia/Shanghai' },
+  { id: 'padua', name: 'Padua', lat: 45.4064, lon: 11.8768, zone: 'Europe/Rome' },
+  { id: 'tenochtitlan', name: 'Tenochtitlan / Mexico City', lat: 19.4352, lon: -99.1312, zone: 'America/Mexico_City' },
+  { id: 'chichen-itza', name: 'Chichén Itzá', lat: 20.6843, lon: -88.5678, zone: 'America/Merida' },
+  { id: 'sydney', name: 'Sydney', lat: -33.8688, lon: 151.2093, zone: 'Australia/Sydney' },
+  { id: 'tokyo', name: 'Tokyo', lat: 35.6762, lon: 139.6503, zone: 'Asia/Tokyo' },
 ];
 
 export const DEFAULT_PLACE = PLACES[0];

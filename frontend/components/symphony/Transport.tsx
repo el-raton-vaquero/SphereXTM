@@ -13,6 +13,7 @@ export default function Transport({ s, compact }: { s: SymphonyControls; compact
         type="button"
         className="sym-play"
         aria-pressed={s.playing}
+        aria-label={s.playing ? ts.pauseMusic : ts.playMusic}
         onClick={() => void s.toggle()}
         disabled={!s.supported}
       >

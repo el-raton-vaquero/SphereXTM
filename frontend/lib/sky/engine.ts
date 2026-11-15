@@ -466,6 +466,12 @@ export class SkyEngine {
     this.labelEls.clear();
   }
 
+  /** Local offset (hours) used for trail tick labels; null = longitude rule. */
+  private tzOffset: number | null = null;
+  setTzOffset(hours: number): void {
+    this.tzOffset = hours;
+  }
+
   setLocation(lat: number, lon: number): void {
     this.dirty = true;
     this.lat = lat;
@@ -633,6 +639,8 @@ export class SkyEngine {
       this.setMode('normal');
     }
     this.resize();
+    // Fullscreen and orientation changes settle a few frames later on phones.
+    for (const ms of [120, 400, 900]) setTimeout(() => { if (!this.disposed) this.resize(); }, ms);
   }
 
   /** WebXR immersive-vr session (Quest browser, etc.). Same session flow as three's VRButton. */
@@ -882,7 +890,19 @@ export class SkyEngine {
     if (key.startsWith('body:')) return this.bodyVec[key.slice(5)] ?? null;
     if (key.startsWith('target:')) return this.targetVec[key.slice(7)] ?? null;
     if (key.startsWith('mark:')) return this.markVec[key.slice(5)] ?? null;
+    if (key.startsWith('radec:')) {
+      const [ra, dec] = key.slice(6).split(',').map(Number);
+      if (!Number.isFinite(ra) || !Number.isFinite(dec)) return null;
+      const a = ra * D, d = dec * D;
+      return [Math.cos(d) * Math.cos(a), Math.cos(d) * Math.sin(a), Math.sin(d)];
+    }
     return null;
+  }
+
+  /** Turn the view towards an ICRS position (deg) on the next frame. */
+  lookAtRaDec(ra: number, dec: number): void {
+    this.dirty = true;
+    this.pendingLook = `radec:${ra},${dec}`;
   }
 
   // ------------------------------------------------------------------ trails
@@ -1017,7 +1037,7 @@ export class SkyEngine {
       if (tr) {
         tr.tickVecs.forEach((v, k) => {
           if (k === 2) return; // the middle tick is "now", where the body already is
-          out.push({ key: `k:${k}`, text: formatTick(tr.tickTimes[k], Math.round(this.lon / 15), tr.span), x: v[0] * R * 0.96, y: v[1] * R * 0.96, z: v[2] * R * 0.96, frame: 'sky', cls: 'sky-lbl-tick' });
+          out.push({ key: `k:${k}`, text: formatTick(tr.tickTimes[k], this.tzOffset ?? Math.round(this.lon / 15), tr.span), x: v[0] * R * 0.96, y: v[1] * R * 0.96, z: v[2] * R * 0.96, frame: 'sky', cls: 'sky-lbl-tick' });
         });
       }
     }

@@ -32,9 +32,9 @@ import {
   formatLocalTime,
   formatTz,
   formatYear,
-  fromLocalParts,
   toLocalParts,
-  tzOffsetHours,
+  placeOffsetHours,
+  localToMs,
   type SkyEpoch,
   type SpeedId,
 } from '../../lib/sky/time';
@@ -89,7 +89,7 @@ function sunAltitude(ms: number, lat: number, lon: number): number {
 function readSkyUrl(): {
   t?: number; lat?: number; lon?: number; epoch?: string; epochYear?: number;
   date?: { year: number; month: number; day: number; hour: number; minute: number; hasTime: boolean };
-  speed?: SpeedId; trails?: boolean; select?: string;
+  speed?: SpeedId; trails?: boolean; select?: string; ra?: number; dec?: number;
 } {
   if (typeof window === 'undefined') return {};
   const p = new URLSearchParams(window.location.search);
@@ -101,7 +101,12 @@ function readSkyUrl(): {
   };
   const lat = num('lat');
   const lon = num('lon');
+  const ra = num('ra');
+  const dec = num('dec');
+  const radecOk = ra !== undefined && dec !== undefined && ra >= 0 && ra < 360 && Math.abs(dec) <= 90;
   return {
+    ra: radecOk ? ra : undefined,
+    dec: radecOk ? dec : undefined,
     t: num('t'),
     lat: lat !== undefined && Math.abs(lat) <= 90 ? lat : undefined,
     lon: lon !== undefined && Math.abs(lon) <= 180 ? lon : undefined,
@@ -171,8 +176,8 @@ export default function SkyApp() {
     }
     return { id: DEFAULT_PLACE.id, name: DEFAULT_PLACE.name, lat: DEFAULT_PLACE.lat, lon: DEFAULT_PLACE.lon };
   });
-  const tz = tzOffsetHours(place.lon);
   const [timeMs, setTimeMs] = useState<number>(() => clampTime(initial.t ?? Date.now()));
+  const tz = placeOffsetHours(place.id, place.lon, timeMs);
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState<SpeedId>(() => initial.speed ?? 'hour');
   const [dir, setDir] = useState<1 | -1>(1);
@@ -254,25 +259,25 @@ export default function SkyApp() {
         // ?epoch= (without an explicit ?t=) opens straight on that preset.
         // A numeric ?epoch= equal to "700 years ago" maps onto that preset; other years and
         // ?date= open the same way (night sky at the chosen place).
-        const ago700Year = toLocalParts(Date.now(), tzOffsetHours(pl.lon)).year - 700;
+        const ago700Year = toLocalParts(Date.now(), placeOffsetHours(pl.id, pl.lon, Date.now())).year - 700;
         const ep =
           EPOCHS.find((x) => x.id === initial.epoch) ??
           (initial.epochYear === ago700Year && !initial.date ? EPOCHS.find((x) => x.id === 'ago700') : undefined);
         if (initial.t === undefined) {
           if (ep && ep.id !== 'now') applyEpochRef.current?.(ep);
           else if (initial.date || initial.epochYear !== undefined) {
-            const zone = tzOffsetHours(pl.lon);
             const parts = initial.date
               ? { year: initial.date.year, month: initial.date.month, day: initial.date.day, hour: initial.date.hour, minute: initial.date.minute }
-              : { ...toLocalParts(Date.now(), zone), year: initial.epochYear as number };
-            let ms = fromLocalParts(parts, zone);
-            if (!initial.date?.hasTime && sunAltitude(ms, pl.lat, pl.lon) > -6) ms = fromLocalParts({ ...parts, hour: 22, minute: 0 }, zone);
+              : { ...toLocalParts(Date.now(), placeOffsetHours(pl.id, pl.lon, Date.now())), year: initial.epochYear as number };
+            let ms = localToMs(parts, pl.id, pl.lon);
+            if (!initial.date?.hasTime && sunAltitude(ms, pl.lat, pl.lon) > -6) ms = localToMs({ ...parts, hour: 22, minute: 0 }, pl.id, pl.lon);
             ms = clampTime(ms);
             engine.setTime(ms);
             setTimeMs(ms);
           }
         }
         if (initial.select) engine.select(initial.select, true);
+        else if (initial.ra !== undefined && initial.dec !== undefined) engine.lookAtRaDec(initial.ra, initial.dec);
       } catch (e) {
         if (ac.signal.aborted) return;
         setErrorMsg(e instanceof Error ? e.message : String(e));
@@ -297,6 +302,9 @@ export default function SkyApp() {
   useEffect(() => {
     engineRef.current?.setLocation(place.lat, place.lon);
   }, [place, status]);
+  useEffect(() => {
+    engineRef.current?.setTzOffset(tz);
+  }, [tz, status]);
 
   // Keep the optical centre in the unobstructed part of the canvas.
   const topRef = useRef<HTMLDivElement>(null);
@@ -367,16 +375,15 @@ export default function SkyApp() {
           eng.setLocation(pl.lat, pl.lon);
         }
       }
-      const zone = tzOffsetHours(pl.lon);
       let ms: number;
       if (e.id === 'now') ms = Date.now();
       else if (e.id === 'ago700') {
-        const parts = toLocalParts(Date.now(), zone);
+        const parts = toLocalParts(Date.now(), placeOffsetHours(pl.id, pl.lon, Date.now()));
         parts.year -= 700;
-        ms = fromLocalParts(parts, zone);
+        ms = localToMs(parts, pl.id, pl.lon);
         // Show the night sky: if the Sun is up at this hour, move to 22:00 local that day.
-        if (sunAltitude(ms, pl.lat, pl.lon) > -6) ms = fromLocalParts({ ...parts, hour: 22, minute: 0 }, zone);
-      } else if (e.local) ms = fromLocalParts(e.local, zone);
+        if (sunAltitude(ms, pl.lat, pl.lon) > -6) ms = localToMs({ ...parts, hour: 22, minute: 0 }, pl.id, pl.lon);
+      } else if (e.local) ms = localToMs(e.local, pl.id, pl.lon);
       else ms = Date.now();
       eng.setPlaying(false);
       eng.setTime(ms);
@@ -556,13 +563,13 @@ export default function SkyApp() {
     const d = Math.min(31, Math.max(1, Math.round(Number(dateShown.day))));
     const [hh, mm] = dateShown.time.split(':').map((x) => Number(x));
     if (!Number.isFinite(y)) return;
-    jumpTo(clampTime(fromLocalParts({ year: Math.max(-3000, Math.min(3000, y)), month: mo, day: d, hour: Number.isFinite(hh) ? hh : 0, minute: Number.isFinite(mm) ? mm : 0 }, tz)));
+    jumpTo(clampTime(localToMs({ year: Math.max(-3000, Math.min(3000, y)), month: mo, day: d, hour: Number.isFinite(hh) ? hh : 0, minute: Number.isFinite(mm) ? mm : 0 }, place.id, place.lon)));
     setEpoch(null);
   };
 
-  const placeName = place.id === 'geo' ? t.useMyLocation : place.id === 'custom' ? t.customPlace : place.name;
+  const placeName = place.id === 'geo' ? t.useMyLocation : place.id === 'custom' ? t.customPlace : (t.places[place.id] ?? place.name);
   const compass = t.compass[Math.round(look.az / 45) % 8];
-  const ago700Year = formatYear(toLocalParts(wallNow, tz).year - 700);
+  const ago700Year = formatYear(toLocalParts(wallNow, placeOffsetHours(place.id, place.lon, wallNow)).year - 700);
   const epochNote = epoch ? t.epochNotes[epoch] : null;
 
   const explorerHref = (s: SelectionInfo) => {
@@ -745,7 +752,7 @@ export default function SkyApp() {
             >
               {!PLACES.some((p) => p.id === place.id) && <option value="">{placeName}</option>}
               {PLACES.map((p) => (
-                <option key={p.id} value={p.id}>{p.name}</option>
+                <option key={p.id} value={p.id}>{t.places[p.id] ?? p.name}</option>
               ))}
             </select>
           </label>
@@ -881,7 +888,7 @@ export default function SkyApp() {
           <button type="button" className="sky-icon-btn" onClick={() => setDir((d) => (d === 1 ? -1 : 1))} aria-pressed={dir === -1} aria-label={dir === 1 ? t.reverse : t.forward} title={dir === 1 ? t.reverse : t.forward}>
             <Icon d={dir === 1 ? I_REV : I_FWD} />
           </button>
-          <button type="button" className="sky-play" onClick={togglePlay} aria-label={playing ? t.pause : t.play} title={playing ? t.pause : t.play} disabled={status !== 'ready'}>
+          <button type="button" className="sky-play" onClick={togglePlay} aria-label={playing ? t.pauseTime : t.playTime} title={playing ? t.pauseTime : t.playTime} disabled={status !== 'ready'}>
             <Icon d={playing ? I_PAUSE : I_PLAY} />
           </button>
           <button type="button" className="sky-btn" onClick={() => applyEpoch(EPOCHS[0])} disabled={status !== 'ready'}>{t.now}</button>

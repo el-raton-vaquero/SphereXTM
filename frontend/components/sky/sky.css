@@ -192,10 +192,13 @@
 
 /* ---------- Cardboard ---------- */
 .sky-cardboard-ui {
-  position: absolute; left: 50%; top: 10px; transform: translateX(-50%); z-index: 20;
-  display: flex; gap: 10px; align-items: center;
+  position: absolute; left: 16px; right: 16px; top: 10px; z-index: 20; pointer-events: none;
+  display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: center; justify-content: center;
 }
-.sky-landscape-hint { display: none; margin: 0; font-size: var(--p-fs-small); color: var(--p-ink); background: var(--p-bg); padding: 4px 8px; }
+.sky-cardboard-ui > * { pointer-events: auto; }
+.sky-landscape-hint { display: none; margin: 0; max-width: 46ch; text-align: center; font-size: var(--p-fs-small); color: var(--p-ink); background: var(--p-bg); padding: 4px 8px; }
+/* Cardboard: the stereo canvas always fills the whole screen (fullscreen changes the viewport). */
+.is-cardboard .sky-stage { position: fixed; inset: 0; width: 100vw; height: 100vh; height: 100dvh; }
 @media (orientation: portrait) { .sky-landscape-hint { display: block; } }
 
 /* ---------- narrow screens ---------- */

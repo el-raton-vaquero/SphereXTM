@@ -144,7 +144,7 @@ export default function AboveMe({ place, geo, locate, setPlace, setCity, field }
                   </div>
                   <div className="look-target-links">
                     <a className="look-link" href={withLang(`/explore?target=${tg.id}`, locale)}>{L.explore}</a>
-                    <a className="look-link" href={withLang(`/sky?ra=${tg.ra.toFixed(4)}&dec=${tg.dec.toFixed(4)}`, locale)}>{L.sky}</a>
+                    <a className="look-link" href={withLang(`/sky?ra=${tg.ra.toFixed(4)}&dec=${tg.dec.toFixed(4)}&lat=${place.lat.toFixed(3)}&lon=${place.lon.toFixed(3)}`, locale)}>{L.sky}</a>
                   </div>
                 </li>
               ))}

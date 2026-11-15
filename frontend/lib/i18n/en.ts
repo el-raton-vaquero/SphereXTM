@@ -650,8 +650,6 @@ export const en = {
     dockOpen: 'Full symphony',
     dockEmpty: 'Nothing to listen to here yet.',
     dockAria: 'Star symphony player',
-    // ---- end star symphony ----
-  },
     exportTitle: 'Export',
     exportHint: 'A fixed piece composed from the circle’s spectrum: intro, melody, climax and fade-out.',
     exportMidi: 'Download MIDI',
@@ -661,6 +659,8 @@ export const en = {
     exportBusy: 'Rendering…',
     exportError: 'Export failed in this browser. Try again or use another browser.',
     exportNote: 'Music generated algorithmically from real SPHEREx measurements — not generative AI. Free to use with credit: StarChord / NASA SPHEREx (IRSA)',
+    // ---- end star symphony ----
+  },
   look: {
     metaTitle: 'Look up · StarChord',
     metaDescription: 'Point your phone at the sky and see that region as SPHEREx mapped it, or see which celestial bodies are above you right now.',

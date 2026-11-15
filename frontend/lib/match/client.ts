@@ -82,8 +82,8 @@ export interface DeepProgress {
   current?: { npix: number; ra: number; dec: number; loaded: number };
 }
 
-/** Keep the global best list: top `n`, at least `minSepArcmin` apart. */
-export function mergeBest(list: FineHit[], add: FineHit[], n = 8, minSepArcmin = 2): FineHit[] {
+/** Keep the global best list: top `n`, at least `minSepArcmin` apart (1 deg: distinct spots). */
+export function mergeBest(list: FineHit[], add: FineHit[], n = 8, minSepArcmin = 60): FineHit[] {
   const all = [...list, ...add].sort((a, b) => b.r - a.r);
   const out: FineHit[] = [];
   for (const h of all) {

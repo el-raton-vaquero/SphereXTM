@@ -13,7 +13,7 @@ function standardise(v: number[]): number[] {
   return v.map((x) => (Number.isFinite(x) ? (x - m) / sd : NaN));
 }
 
-const W = 408, H = 176, TOP = 22, BOT = 22, MID = TOP + (H - TOP - BOT) / 2, AMP = (H - TOP - BOT) / 2 / 3;
+const W = 408, H = 200, TOP = 26, BOT = 26, MID = TOP + (H - TOP - BOT) / 2, AMP = (H - TOP - BOT) / 2 / 3;
 const UM_TICKS = [0.75, 1, 2, 3, 4, 5];
 const HZ_TICKS = [7000, 2000, 500, 100];
 const xOfBand = (i: number) => (i + 0.5) * (W / N_BANDS);
@@ -27,6 +27,7 @@ function xOfHz(hz: number) {
   const i = (Math.log(BAND_HZ[0] / hz) / Math.log(BAND_HZ[0] / BAND_HZ[N_BANDS - 1])) * (N_BANDS - 1);
   return xOfBand(i);
 }
+const anchor = (x: number) => (x < 16 ? 'start' : x > W - 16 ? 'end' : 'middle');
 const hzLabel = (hz: number) => (hz >= 1000 ? `${hz / 1000}k` : String(hz));
 
 /** The song's 102-band profile (bars, wavelength-ramp colours) against a sky point's spectrum (line). */
@@ -55,13 +56,13 @@ export default function ProfileChart({ song, sky, valid, title, songLabel, skyLa
         {HZ_TICKS.map((hz) => (
           <g key={hz}>
             <line x1={xOfHz(hz)} x2={xOfHz(hz)} y1={TOP - 5} y2={TOP - 1} stroke="var(--p-tick)" vectorEffect="non-scaling-stroke" />
-            <text x={xOfHz(hz)} y={TOP - 8} className="mt-chart-t" textAnchor="middle">{hzLabel(hz)}</text>
+            <text x={xOfHz(hz)} y={TOP - 9} className="mt-chart-t" textAnchor={anchor(xOfHz(hz))}>{hzLabel(hz)}</text>
           </g>
         ))}
         {UM_TICKS.map((um) => (
           <g key={um}>
             <line x1={xOfUm(um)} x2={xOfUm(um)} y1={H - BOT + 1} y2={H - BOT + 5} stroke="var(--p-tick)" vectorEffect="non-scaling-stroke" />
-            <text x={xOfUm(um)} y={H - 6} className="mt-chart-t" textAnchor="middle">{um}</text>
+            <text x={xOfUm(um)} y={H - 6} className="mt-chart-t" textAnchor={anchor(xOfUm(um))}>{um}</text>
           </g>
         ))}
       </svg>

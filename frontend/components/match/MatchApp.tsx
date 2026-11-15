@@ -309,7 +309,7 @@ function MatchStudio() {
               <span className="mt-count-l">{t.compared}</span>
             </p>
             <p className="mt-count p-data">
-              <span className="mt-count-n mt-count-best">{best.length ? `${pct(best[0].r)}%` : coarse?.hits.length ? `${pct(coarse.hits[0].r)}%` : '—'}</span>
+              <span className="mt-count-n mt-count-best">{best.length ? `${pct(best[0].r)}%` : '—'}</span>
               <span className="mt-count-l">{t.bestSoFar}</span>
             </p>
           </div>

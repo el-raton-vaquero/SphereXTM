@@ -83,11 +83,11 @@ export interface TileInput {
 
 export interface FineHit { r: number; ra: number; dec: number; npix: number; col: number; row: number; z: number[]; grey: number[] }
 
-/** Robust (median, MAD-sigma) of the non-zero values of one frame, from its histogram. */
+/** Robust (median, MAD-sigma) of the non-zero values of one frame, from the histogram of every 5th pixel. */
 function robustStats(t: Uint8Array): { med: number; sig: number; count: number } {
   const h = new Uint32Array(256);
   let n = 0;
-  for (let i = 0; i < t.length; i++) { const v = t[i]; if (v) { h[v]++; n++; } }
+  for (let i = 0; i < t.length; i += 5) { const v = t[i]; if (v) { h[v]++; n++; } }
   if (!n) return { med: NaN, sig: NaN, count: 0 };
   const q = (f: number) => { let acc = 0; for (let v = 1; v < 256; v++) { acc += h[v]; if (acc >= f * n) return v; } return 255; };
   const med = q(0.5);
@@ -124,33 +124,45 @@ export function compareTile(inp: TileInput): { hits: FineHit[]; compared: number
     bands.push(b); luts.push(lut);
   }
   if (bands.length < 20) return { hits: [], compared: 0 };
-  const sx = new Float32Array(N), sxx = new Float32Array(N), sxy = new Float32Array(N), sy = new Float32Array(N), syy = new Float32Array(N);
-  const cnt = new Uint8Array(N), sat = new Uint8Array(N);
-  for (let k = 0; k < bands.length; k++) {
-    const b = bands[k], t = frames[b] as Uint8Array, lut = luts[k], y = song[b], yy = y * y;
-    for (let p = 0; p < N; p++) {
-      const v = t[p];
-      if (!v) continue;
-      if (v === 255) sat[p]++;
-      const x = lut[v];
-      sx[p] += x; sxx[p] += x * x; sxy[p] += x * y; sy[p] += y; syy[p] += yy; cnt[p]++;
-    }
-  }
-  const need = Math.ceil(bands.length * 0.9), satMax = Math.floor(bands.length * 0.1);
+  // Accumulate x sums per pixel; the song sums are known for a complete pixel, so only the bands a
+  // pixel is MISSING are accumulated (rare) and subtracted.
+  let SY = 0, SYY = 0;
+  for (const b of bands) { SY += song[b]; SYY += song[b] * song[b]; }
+  const need = Math.ceil(bands.length * 0.9), satMax = Math.floor(bands.length * 0.1), nb2 = bands.length;
+  const lutXX = luts.map((l) => l.map((x) => x * x));
+  const lutXY = luts.map((l, k) => l.map((x) => x * song[bands[k]]));
   // best pixel per 32 x 32 cell, then greedy selection of separated cells
   const CELL = 32, nc = W / CELL;
   const cellR = new Float32Array(nc * nc).fill(-2), cellP = new Int32Array(nc * nc).fill(-1);
   let compared = 0;
-  for (let p = 0; p < N; p++) {
-    const n = cnt[p];
-    if (n < need || sat[p] > satMax) continue;
-    const vx = sxx[p] - (sx[p] * sx[p]) / n, vy = syy[p] - (sy[p] * sy[p]) / n;
-    if (vx <= 1e-6 || vy <= 1e-6) continue;
-    compared++;
-    const r = (sxy[p] - (sx[p] * sy[p]) / n) / Math.sqrt(vx * vy);
-    const row = (p / W) | 0, col = p - row * W;
-    const c = ((row / CELL) | 0) * nc + ((col / CELL) | 0);
-    if (r > cellR[c]) { cellR[c] = r; cellP[c] = p; }
+  // pixel blocks keep the accumulators in cache (every frame is read sequentially per block)
+  const B = 2048;
+  const sx = new Float64Array(B), sxx = new Float64Array(B), sxy = new Float64Array(B);
+  const my = new Float64Array(B), myy = new Float64Array(B), miss = new Uint8Array(B), sat = new Uint8Array(B);
+  for (let p0 = 0; p0 < N; p0 += B) {
+    const len = Math.min(B, N - p0);
+    sx.fill(0); sxx.fill(0); sxy.fill(0); my.fill(0); myy.fill(0); miss.fill(0); sat.fill(0);
+    for (let k = 0; k < nb2; k++) {
+      const t = frames[bands[k]] as Uint8Array, lx = luts[k], lxx = lutXX[k], lxy = lutXY[k], y = song[bands[k]], yy = y * y;
+      for (let i = 0; i < len; i++) {
+        const v = t[p0 + i];
+        if (v === 0) { miss[i]++; my[i] += y; myy[i] += yy; continue; }
+        if (v === 255) sat[i]++;
+        sx[i] += lx[v]; sxx[i] += lxx[v]; sxy[i] += lxy[v];
+      }
+    }
+    for (let i = 0; i < len; i++) {
+      const n = nb2 - miss[i];
+      if (n < need || sat[i] > satMax) continue;
+      const sy = SY - my[i], syy = SYY - myy[i];
+      const vx = sxx[i] - (sx[i] * sx[i]) / n, vy = syy - (sy * sy) / n;
+      if (vx <= 1e-6 || vy <= 1e-6) continue;
+      compared++;
+      const r = (sxy[i] - (sx[i] * sy) / n) / Math.sqrt(vx * vy);
+      const p = p0 + i, row = (p / W) | 0, col = p - row * W;
+      const c = ((row / CELL) | 0) * nc + ((col / CELL) | 0);
+      if (r > cellR[c]) { cellR[c] = r; cellP[c] = p; }
+    }
   }
   const cells = Array.from({ length: nc * nc }, (_, i) => i).filter((i) => cellP[i] >= 0).sort((a, b) => cellR[b] - cellR[a]);
   const chosen: number[] = [];

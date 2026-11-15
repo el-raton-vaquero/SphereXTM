@@ -308,3 +308,56 @@ científico". This was verified with headless Chrome and showed no exceptions. S
 - The 3D sweep is illustrative.
 - `/classic` "real" mode needs the backend and the M101 dataset.
 - The C: drive has only ~2–3 GB free.
+
+## PRISM review fixes — 2026-11-14
+
+Fixes after the browser-QA, science and design reviews (branch `prism`, not pushed).
+
+**Backend.**
+- `/v2/search/stream` sends a named `progress` event at once and `Cache-Control: no-cache,
+  no-transform` + `Content-Encoding: identity`; through the Next proxy events now arrive
+  incrementally (first at ~1.8 s) instead of all at the end.
+- Identical concurrent searches share one download (`v2.shared_search`), so the plain
+  `/search` fallback never doubles the work.
+- `/v2/spectrum` and `/v2/verdict` run on a 2-slot executor separate from search; a request
+  whose client disconnects while queued is dropped; finished results are memoised.
+- Classifier: no best fit unless >= 6 points at S/N >= 3 on >= 3 detectors
+  (`classification.best = null`, `detected: false`, caveat "not significantly detected").
+  Fits, variability and band depths use one flux scale (EPSF-corrected points when any exist).
+- Verdict: `known_star` / `variable` only when SPHEREx sees the source (clean detections in
+  >= 10% of frames, or a motion consistent with the catalogue) near the propagated position.
+  Otherwise `inconclusive` with the counterpart as context. Confidence drops for artifacts,
+  few detections, few matched pairs and chi2_red > 10; `tentative` marks weak variability.
+  A measured motion consistent with a >= 1 px prediction counts as stellar evidence.
+- Band depths outside [-1, 1] or < 3 sigma are `not_significant`; 3% systematic added.
+
+**Snapshots** recomputed with `precompute_snapshots.py --extras-only` (same frames):
+Eps Indi B `variable` (tentative, 0.5; moved 6.34″ vs 6.31″ predicted); Barnard, WISE 0855,
+RW Aur, R Dra and M101 `inconclusive` 0.3 ("catalogued here, but SPHEREx does not confirm
+it": saturated, or too few clean detections).
+
+**Frontend.**
+- Presets render their real snapshot at once (2.5–12 s in headless Chrome, was 30–96 s);
+  "Consultar en vivo" queries live on demand. Arbitrary positions go live (Orion: 20 s).
+- Matched-λ blink anchored to the chosen λ; 0%-valid frames skipped.
+- Spectrum: "sin detección" state, empty state when < 6 usable points (raw points behind a
+  toggle), template labels in the ranking, uncorrected-aperture points faded, client
+  estimate flags saturation over the whole aperture (OVERFLOW/NONLINEAR/BLOOM).
+- Verdict: Spanish check labels and `summary_es` (details stay English, said so), label
+  "Fuente catalogada / Known catalogued source", elapsed-time loading state.
+- Headline "se movió X″ ± σ · predicho Y″" from browser centroids on co-adds (labelled; orange
+  only when >= 3σ and within 2σ of the prediction). Faint movers open in co-add.
+- Gaia rings default to G < 17 or < 60″ (toggle "todas"); probe requests debounced.
+- Keyboard: sky image focusable (arrows move the probe, Esc resets), scrub pad is a slider.
+- `--p-ink-3` → #8f8a81 (AA); ticks use `--p-tick`. Greek letters keep their case.
+- `/classic` links hidden without the science server; without the proxy `/classic` uses its
+  labelled simulation mode. Landing Sesame queries mirrors in parallel (8 s).
+
+**Checks.** `uv run --locked pytest -q`: 156 passed. `npm run lint`: clean. `npm run build`:
+passed. Headless Chrome (live build and `VERCEL=1` build): no JS exceptions, no horizontal
+scroll at 390 px. Key screenshots in `docs/assets/prism-*.png`.
+
+**Still open.** Cold spectrum/verdict ~45–70 s. The browser headline (WISE 0855: 7.65″ ± 1.56″
+vs 8.07″) and the backend verdict (WISE 0855 inconclusive: backend season centroids usable in
+only 1 season) use different methods and can disagree; both are labelled. Verdict details are
+English only. Static-mode preset blurbs come from `lib/prism/presets.ts`, not `/v2/targets`.

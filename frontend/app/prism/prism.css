@@ -355,7 +355,12 @@
 .hero-ok .hero-num { color: var(--p-signal); }
 .hero-pred { font-family: var(--p-font-display); font-size: clamp(18px, 2.4vw, 24px); color: var(--p-ink-2); }
 .hero-method { flex-basis: 100%; font-size: 11px; color: var(--p-ink-3); }
-.readout-title { font-size: 22px; display: flex; align-items: center; gap: 8px; }
+.panel-h .readout-title { font-size: 19px; display: flex; align-items: center; gap: 8px; white-space: nowrap; }
 .readout-id { font-size: 12px; color: var(--p-ink-2); }
 .notice { border: 1px solid var(--p-rule-2); padding: 6px 10px; font-size: 12px; color: var(--p-ink-2); }
 .chip-mini { font-size: 10.5px; padding: 1px 6px; }
+.readout-id { overflow-wrap: anywhere; min-width: 0; }
+@media (max-width: 560px) {
+  .panel-h .readout-title { white-space: normal; font-size: 17px; flex-wrap: wrap; }
+  .readout .panel-h { flex-wrap: wrap; }
+}

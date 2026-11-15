@@ -642,6 +642,15 @@ export const es: Messages = {
     dockAria: 'Reproductor de la sinfonía estelar',
     // ---- fin sinfonía estelar ----
   },
+    exportTitle: 'Exportar',
+    exportHint: 'Una pieza fija compuesta a partir del espectro del círculo: introducción, melodía, clímax y final.',
+    exportMidi: 'Descargar MIDI',
+    exportWav: (s: number) => `Descargar WAV (${s} s)`,
+    exportStems: 'Descargar pistas como samples',
+    exportStemsHint: 'Un WAV por voz (melodía, pad, hielo, bajo) en un ZIP.',
+    exportBusy: 'Generando…',
+    exportError: 'La exportación falló en este navegador. Inténtalo de nuevo o usa otro navegador.',
+    exportNote: 'Música generada algorítmicamente a partir de mediciones reales de SPHEREx — no es IA generativa. Uso libre citando: StarChord / NASA SPHEREx (IRSA)',
   look: {
     metaTitle: 'Mira arriba · StarChord',
     metaDescription: 'Apunta tu teléfono al cielo y mira esa región tal como la mapeó SPHEREx, o descubre qué cuerpos celestes están sobre ti ahora.',

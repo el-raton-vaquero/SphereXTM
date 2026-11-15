@@ -114,6 +114,10 @@
 .sym-features li.is-na .sym-feat-dot { border-style: dashed; }
 
 .sym-rec { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.sym-export { display: flex; flex-direction: column; gap: 8px; padding-top: 14px; border-top: 1px solid var(--p-rule); }
+.sym-export h2 { margin: 0; }
+.sym-export-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+.sym-export-note { font-size: var(--p-fs-small); line-height: var(--p-lh); color: var(--p-ink-3); margin: 0; }
 
 /* keyboard */
 .sym-kb-section { display: flex; flex-direction: column; gap: 10px; }

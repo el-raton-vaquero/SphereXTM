@@ -10,6 +10,7 @@ import { brightestNearCentre, preparePlate, regionSpectrum, type Plate, type Reg
 import SiteHeader from '../site/SiteHeader';
 
 const noopSubscribe = () => () => {};
+import ExportPanel from './ExportPanel';
 import PlateCanvas from './PlateCanvas';
 import SpectralKeyboard from './SpectralKeyboard';
 import TimbreList, { featureSummary } from './TimbreList';
@@ -246,6 +247,8 @@ export default function SymphonyApp() {
               )}
               <span className="sym-help">{ts.recordHint}</span>
             </div>
+
+            <ExportPanel spectrum={spectrum} slug={loaded ? `${targetId}-${pos.x.toFixed(0)}-${pos.y.toFixed(0)}` : targetId} />
           </section>
         </div>
 

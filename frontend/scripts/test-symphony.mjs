@@ -17,6 +17,7 @@ export async function resolve(spec, ctx, next) {
 }`));
 const song = await import('../lib/symphony/export.ts');
 const { composeSong, scoreToMidi, SONG_VOICES } = song;
+const { crc32, makeZip } = await import('../lib/symphony/zip.ts');
 
 const {
   BANDS, N_BANDS, bandIndexFor, binToBands, robustNormalize, finitePercentile, quantizeToScale, SCALES,
@@ -336,6 +337,24 @@ test('scoreToMidi writes a valid type-1 SMF: header, tempo, one named track per 
   // Silent score still produces a valid file.
   const empty = parseMidi(scoreToMidi(composeSong({ lambda_um: [1, 2], intensity: [null, null] })));
   assert.equal(empty.tracks.length, 5);
+});
+
+test('makeZip: CRC-32 check value and a well-formed STORE archive', () => {
+  assert.equal(crc32(new TextEncoder().encode('123456789')), 0xcbf43926);
+  const a = new Uint8Array([1, 2, 3]), b = new Uint8Array(1000).fill(7);
+  const z = makeZip([{ name: 'a.wav', data: a }, { name: 'b.mid', data: b }]);
+  const v = new DataView(z.buffer);
+  assert.equal(v.getUint32(0, true), 0x04034b50);
+  const eocd = z.length - 22;
+  assert.equal(v.getUint32(eocd, true), 0x06054b50);
+  assert.equal(v.getUint16(eocd + 10, true), 2);
+  const cdOff = v.getUint32(eocd + 16, true);
+  assert.equal(cdOff + v.getUint32(eocd + 12, true), eocd);
+  assert.equal(v.getUint32(cdOff, true), 0x02014b50);
+  // Second entry's local header sits where the central directory says.
+  const cd2 = cdOff + 46 + 5;
+  assert.equal(v.getUint32(v.getUint32(cd2 + 42, true), true), 0x04034b50);
+  assert.equal(v.getUint32(cd2 + 20, true), 1000);
 });
 
 for (const [name, fn] of tests) {

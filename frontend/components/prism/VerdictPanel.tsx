@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { pickLocalized, type ExploreText, type Locale } from '../../lib/i18n';
 import type { VerdictResponse } from '../../lib/prism/types';
+import Term from './Term';
 
 interface Props {
   data: VerdictResponse | null;
@@ -13,7 +14,6 @@ interface Props {
   text: ExploreText;
 }
 
-const STEP_MS = 140;
 // Shown greyed while /v2/verdict runs, so the panel states its method before the answer.
 const PENDING = ['saturation', 'artifacts', 'detection', 'gaia', 'skybot', 'motion', 'variability', 'spectrum'];
 
@@ -26,65 +26,59 @@ function Elapsed({ text }: { text: ExploreText }) {
   }, []);
   return (
     <>
-      <p className="panel-note p-data verdict-wait" role="status">{text.verdictLoading(s)}</p>
+      <p className="xp-small p-data" role="status">{text.verdictLoading(s)}</p>
       <span className="meter" aria-hidden><i style={{ width: `${Math.min(100, (s / 45) * 100)}%` }} /></span>
     </>
   );
 }
 
+/** Data quality tab: the backend's automated checks, one plain row each, then the verdict. */
 export default function VerdictPanel({ data, status, error, sourceLabel, lang, text }: Props) {
-  const key = data ? data.checks.map((c) => c.id + c.status).join('|') + data.verdict : 'none';
   const summary = data ? pickLocalized(data, 'summary', lang) : { text: '', lang: 'en' as Locale };
   // Older cached verdicts carry English-only details; mark those so screen readers switch voice.
   const untranslated = lang !== 'en' && !!data && data.checks.some((c) => pickLocalized(c, 'detail', lang).lang !== lang);
   return (
-    <section className="panel" aria-labelledby="verdict-h">
-      <header className="panel-h">
-        <h2 id="verdict-h" className="p-display">{text.verdict}</h2>
-        <span className="p-data panel-sub">{sourceLabel}</span>
-      </header>
+    <section className="xp-sec" aria-labelledby="verdict-h">
+      <h3 id="verdict-h" className="xp-h3"><Term id="verdict">{text.qualityChecks}</Term></h3>
       {status === 'loading' && (
         <div>
           <Elapsed text={text} />
           <ol className="checks checks-pending">
             {PENDING.map((id) => (
-              <li key={id} className="check check-pending">
-                <span className="check-status p-data">{text.pending}</span>
+              <li key={id} className="check check-na">
+                <span className="check-status">{text.pending}</span>
                 <span className="check-body"><span className="check-label">{text.checkLabels[id] ?? id}</span></span>
               </li>
             ))}
           </ol>
         </div>
       )}
-      {status === 'error' && <p className="panel-note spec-error p-data">{error ?? text.verdictNa}</p>}
-      {status === 'ready' && !data && <p className="panel-note">{text.verdictNa}</p>}
+      {status === 'error' && <p className="xp-small spec-error p-data">{error ?? text.verdictNa}</p>}
+      {status === 'ready' && !data && <p className="xp-small">{text.verdictNa}</p>}
       {data && (
-        <div key={key}>
+        <>
           <ol className="checks">
-            {data.checks.map((c, i) => (
-              <li key={c.id} className={`check check-${c.status}`} style={{ animationDelay: `${i * STEP_MS}ms` }}>
-                <span className="check-status p-data">{text.status[c.status]}</span>
-                <span className="check-body">
-                  <span className="check-label">{text.checkLabels[c.id] ?? pickLocalized(c, 'label', lang).text}</span>
-                  {(() => { const d = pickLocalized(c, 'detail', lang); return <span className="check-detail p-data" lang={d.lang}>{d.text}</span>; })()}
-                  {(() => { const e = pickLocalized(c, 'evidence_source', lang); return <span className="check-src p-data">{text.evidence}: <span lang={e.lang}>{e.text}</span></span>; })()}
-                </span>
-              </li>
-            ))}
+            {data.checks.map((c) => {
+              const d = pickLocalized(c, 'detail', lang);
+              const e = pickLocalized(c, 'evidence_source', lang);
+              return (
+                <li key={c.id} className={`check check-${c.status}`}>
+                  <span className="check-status">{text.status[c.status]}</span>
+                  <span className="check-body">
+                    <span className="check-label">{text.checkLabels[c.id] ?? pickLocalized(c, 'label', lang).text}</span>
+                    <span className="check-detail" lang={d.lang}>{d.text}</span>
+                    <span className="check-src">{text.evidence}: <span lang={e.lang}>{e.text}</span></span>
+                  </span>
+                </li>
+              );
+            })}
           </ol>
-          {untranslated && <p className="panel-note p-data">{text.detailNote}</p>}
-          <div className={`verdict verdict-${data.verdict}`} style={{ animationDelay: `${data.checks.length * STEP_MS + 80}ms` }}>
-            <span className="verdict-name p-display">
-              {text.verdicts[data.verdict] ?? data.verdict}
-              {data.tentative ? <span className="verdict-tent p-data"> ({text.tentative})</span> : null}
-            </span>
-            <span className="verdict-conf p-data">
-              {text.confidence} {(data.confidence * 100).toFixed(0)}%
-              <span className="verdict-bar"><i style={{ width: `${Math.round(data.confidence * 100)}%` }} /></span>
-            </span>
-          </div>
-          <p className="panel-note"><span lang={summary.lang}>{summary.text}</span>{data.method ? ` (${data.method})` : ''}</p>
-        </div>
+          {untranslated && <p className="xp-small">{text.detailNote}</p>}
+          <p className="xp-small">
+            <span lang={summary.lang}>{summary.text}</span>{' '}
+            <span className="p-data">{text.confidence} {(data.confidence * 100).toFixed(0)}%{sourceLabel ? ` · ${sourceLabel}` : ''}</span>
+          </p>
+        </>
       )}
     </section>
   );

@@ -5,6 +5,7 @@ import { formatDec, formatRa } from '../../lib/prism/coords';
 import { LAMBDA_MAX, LAMBDA_MIN, lambdaColor } from '../../lib/prism/ramp';
 import { useLocale, type ExploreText } from '../../lib/i18n';
 import type { SpectrumResponse } from '../../lib/prism/types';
+import Term from './Term';
 
 export type SpectrumSource = 'live' | 'snapshot' | 'client';
 
@@ -107,11 +108,12 @@ export default function SpectrumPanel({ data, source, status, error, probe, curr
   const clsCaveats = !cls && data?.classification?.caveats?.length ? caveatsOf(data.classification).join(' ') : '';
 
   return (
-    <section className="panel" aria-labelledby="spec-h">
-      <header className="panel-h">
-        <h2 id="spec-h" className="p-display">{text.spectrum}</h2>
-        <span className="p-data panel-sub">{text.spectrumAt} {formatRa(probe.ra, 1)} {formatDec(probe.dec, 0)}</span>
-      </header>
+    <section className="xp-sec" aria-labelledby="spec-h">
+      <h3 id="spec-h" className="xp-h3">
+        <Term id="lambda">{text.spectrum}</Term>{' '}
+        <span className="xp-h3-sub p-data">{text.spectrumAt} {formatRa(probe.ra, 1)} {formatDec(probe.dec, 0)}</span>
+      </h3>
+      <p className="xp-small">{text.spectrumHelp}</p>
       <div ref={ref} className="spec-plot">
         {status === 'loading' && <div className="spec-state p-data spec-loading">{text.specLoading}</div>}
         {noFlux && !showRaw && <div className="spec-state p-data">{text.noUsableFlux(pts.length - nUsable, pts.length)}</div>}
@@ -172,11 +174,10 @@ export default function SpectrumPanel({ data, source, status, error, probe, curr
         {anyUncorrected && <span className="spec-hollow"><svg width={10} height={10} aria-hidden><circle cx={5} cy={5} r={3.4} fill="currentColor" fillOpacity={0.35} stroke="currentColor" /></svg> {text.uncorrectedPoint}</span>}
         {noFlux && <button type="button" className="chip" aria-pressed={showRaw} onClick={() => setShowRaw((v) => !v)}>{showRaw ? text.hideSatPoints : text.showSatPoints}</button>}
       </div>
-      <p className="panel-note">{srcLabel}{data?.method ? ` — ${data.method}` : ''}</p>
       {cls && best ? (
         <div className="spec-class">
           <div className="p-data spec-best">
-            <span className="p-label">{text.bestFit}</span>{' '}
+            <span className="xp-k">{text.bestFit}</span>{' '}
             {best.class.replace(/_/g, ' ')} · {best.label ?? best.template}
             {best.teff ? ` · Teff ${Math.round(best.teff)} K` : ''} · χ²ᵣ {best.chi2_red.toFixed(2)}
           </div>
@@ -189,14 +190,18 @@ export default function SpectrumPanel({ data, source, status, error, probe, curr
               </li>
             ))}
           </ul>
-          <p className="panel-note">{methodOf(cls)}. {caveatsOf(cls).join(' ')}</p>
         </div>
       ) : (
-        <p className="panel-note">{notDetected ? <strong className="spec-nodet">{text.noDetection}</strong> : text.noClassification}{clsCaveats ? ` ${clsCaveats}` : ''}</p>
+        <p className="xp-small">{notDetected ? <strong className="spec-nodet">{text.noDetection}</strong> : text.noClassification}</p>
       )}
-      {data?.caveats && data.caveats.length > 0 && (
-        <ul className="caveats">{data.caveats.map((c) => <li key={c}>{c}</li>)}</ul>
-      )}
+      <details className="xp-more-info">
+        <summary>{text.methodNotes}</summary>
+        <p className="xp-small">{srcLabel}{data?.method ? ` — ${data.method}` : ''}</p>
+        {cls && best ? <p className="xp-small">{methodOf(cls)}. {caveatsOf(cls).join(' ')}</p> : clsCaveats ? <p className="xp-small">{clsCaveats}</p> : null}
+        {data?.caveats && data.caveats.length > 0 && (
+          <ul className="caveats">{data.caveats.map((c) => <li key={c}>{c}</li>)}</ul>
+        )}
+      </details>
     </section>
   );
 }

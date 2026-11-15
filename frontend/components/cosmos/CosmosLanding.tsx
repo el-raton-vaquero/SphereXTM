@@ -3,12 +3,13 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLocale, withLang } from '../../lib/i18n';
+import type { Messages } from '../../lib/i18n/en';
 import BrandMark from '../brand/BrandMark';
 import SiteNav from '../site/SiteNav';
-import { formatDec, formatRA, parseRaDec, sunEclipticLongitude } from './astro';
+import { formatDec, formatRA, parseRaDec } from './astro';
 import { COSMOS_PRESETS, findPreset, resolveWithSesame, type CosmosPresetId } from './presets';
 import { loadStarCatalog } from './stars';
-import type { CosmosEngine, CosmosMode, CosmosViewState } from './CosmosEngine';
+import type { CosmosEngine, CosmosLabels, CosmosMode, CosmosViewState } from './CosmosEngine';
 import Reticle from './Reticle';
 import { keepGreek } from '../../lib/prism/greek';
 
@@ -46,6 +47,18 @@ function hasWebGL() {
   }
 }
 
+const engineLabels = (tx: Messages['cosmos']): CosmosLabels => ({
+  ecliptic: tx.ecliptic,
+  galactic: tx.galactic,
+  sun: tx.sun,
+  earth: tx.earth,
+  spacecraft: tx.spacecraft,
+  moon: tx.moon,
+  planets: tx.planets,
+});
+
+const utcStamp = (ms: number) => `${new Date(ms).toISOString().slice(0, 16).replace('T', ' ')} UTC`;
+
 const isoDay = (day: number) => new Date(SURVEY_START_MS + day * 86400000).toISOString().slice(0, 10);
 
 export default function CosmosLanding() {
@@ -63,7 +76,18 @@ export default function CosmosLanding() {
   const engineRef = useRef<CosmosEngine | null>(null);
   const [ready, setReady] = useState(false);
   const [starCount, setStarCount] = useState(0);
-  const [view, setView] = useState<CosmosViewState>({ mode: 'orbit', ra: 0, dec: 0, fov: 38, day: 0, flying: false });
+  const [view, setView] = useState<CosmosViewState>({
+    mode: 'orbit',
+    ra: 0,
+    dec: 0,
+    fov: 38,
+    day: 0,
+    flying: false,
+    date: 0,
+    live: true,
+    subSolar: { lat: 0, lon: 0 },
+    moonPhase: 0,
+  });
   const [day, setDay] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [query, setQuery] = useState('');
@@ -96,7 +120,7 @@ export default function CosmosLanding() {
           reducedMotion: reduced,
           onView: setView,
           onPick: (ra, dec) => pickRef.current?.(ra, dec),
-          labels: { ecliptic: tx.ecliptic, galactic: tx.galactic, sun: tx.sun, earth: tx.earth, spacecraft: tx.spacecraft },
+          labels: engineLabels(tx),
         });
         engine.setStars(stars);
         engineRef.current = engine;
@@ -117,7 +141,7 @@ export default function CosmosLanding() {
 
   // Relabel engine-side labels on locale change.
   useEffect(() => {
-    engineRef.current?.setLabels({ ecliptic: t.ecliptic, galactic: t.galactic, sun: t.sun, earth: t.earth, spacecraft: t.spacecraft });
+    engineRef.current?.setLabels(engineLabels(t));
   }, [t, ready]);
 
   // Pause rendering when the tab is hidden or the stage is off-screen.
@@ -242,6 +266,14 @@ export default function CosmosLanding() {
       fn();
     }
   };
+
+  const backToNow = () => {
+    setPlaying(false);
+    engineRef.current?.setLive();
+  };
+
+  const fmtLat = (v: number) => `${Math.abs(v).toFixed(1)}°${v >= 0 ? t.compass.n : t.compass.s}`;
+  const fmtLon = (v: number) => `${Math.abs(v).toFixed(1)}°${v >= 0 ? t.compass.e : t.compass.w}`;
 
   const mode = view.mode;
   const showReticle = !!locked && !view.flying;
@@ -396,6 +428,14 @@ export default function CosmosLanding() {
         <div className="cz-readout p-data" aria-live="off">
           {use3d && ready ? (
             <>
+              <span className="cz-clock">
+                <b>{view.live ? t.clockNow : t.clockSurvey}</b> {view.date ? utcStamp(view.date) : ''}
+                {!view.live && (
+                  <button type="button" className="cz-ghost cz-now" onClick={backToNow}>
+                    {t.clockBack}
+                  </button>
+                )}
+              </span>
               {mode === 'sky' ? (
                 <>
                   <span>
@@ -408,7 +448,7 @@ export default function CosmosLanding() {
               ) : (
                 <>
                   <span>
-                    <b>λ☉</b> {sunEclipticLongitude(new Date(SURVEY_START_MS + day * 86400000)).toFixed(1)}° · {t.sunLon}
+                    <b>☉</b> {t.subSolar(fmtLat(view.subSolar.lat), fmtLon(view.subSolar.lon))} · {t.moonLit(Math.round(view.moonPhase * 100))}
                   </span>
                   <span>
                     <b>{t.orbitLbl}</b> {t.orbitDesc}
@@ -491,8 +531,20 @@ export default function CosmosLanding() {
           <li><i className="lg-gal" />{t.legendGal}</li>
           {use3d && <li><i className="lg-cov" />{t.legendCov}</li>}
           {use3d && <li><i className="lg-now" />{t.legendNow}</li>}
+          {use3d && <li><i className="lg-body" />{t.legendBodies}</li>}
           {use3d && mode === 'orbit' && <li className="cz-dim">{t.scaleNote}</li>}
+          {use3d && mode === 'orbit' && <li className="cz-dim">{t.cloudNote}</li>}
           {starCount > 0 && <li className="cz-dim">{t.stars(starCount)}</li>}
+          <li className="cz-credits-li">
+            <details className="cz-credits">
+              <summary>{t.creditsTitle}</summary>
+              <ul>
+                {t.credits.map((c) => (
+                  <li key={c}>{c}</li>
+                ))}
+              </ul>
+            </details>
+          </li>
         </ul>
       </footer>
     </div>

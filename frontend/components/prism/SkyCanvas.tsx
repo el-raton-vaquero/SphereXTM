@@ -34,6 +34,8 @@ interface Props {
   text: ExploreText;
   onProbe: (x: number, y: number) => void;
   onProbeReset?: () => void;
+  /** Upper bound for the image side in CSS px (the player passes a viewport-based limit). */
+  maxSize?: number;
 }
 
 const WIDE = { top: 26, right: 16, bottom: 30, left: 56 };
@@ -107,11 +109,11 @@ export default function SkyCanvas(props: Props) {
       const isNarrow = el.clientWidth < 520;
       const m = isNarrow ? NARROW : WIDE;
       setNarrow(isNarrow);
-      setSize(Math.max(200, Math.min(el.clientWidth - m.left - m.right, 720)));
+      setSize(Math.max(200, Math.min(el.clientWidth - m.left - m.right, props.maxSize ?? 720, 720)));
     });
     ro.observe(el);
     return () => ro.disconnect();
-  }, []);
+  }, [props.maxSize]);
 
   // Offscreen n×n rasters.
   const raster = useMemo(() => {
@@ -356,7 +358,8 @@ export default function SkyCanvas(props: Props) {
                     <circle cx={s.sx} cy={s.sy} r={psfR + 4} className="pv-target" />
                     {(() => {
                       // Flip the label left of the reticle when it would run past the plate (phones).
-                      const label = narrow ? props.target.label.replace(/\s*\(.*\)\s*$/, '') : props.target.label;
+                      // The catalogue source "(PM …)" lives in the Motion tab; the plate keeps "name · predicted".
+                      const label = props.target.label.replace(/\s*\(.*\)\s*$/, '');
                       const estW = label.length * 6.4;
                       const flip = s.sx + psfR + 8 + estW > size;
                       return <text x={flip ? s.sx - psfR - 8 : s.sx + psfR + 8} y={s.sy - psfR - 4} textAnchor={flip ? 'end' : 'start'} className="pv-label pv-label-signal">{label}</text>;

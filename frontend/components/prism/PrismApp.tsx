@@ -4,11 +4,11 @@ import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ApiError, LIVE_ENABLED, fetchGaia, fetchSkybot, fetchSpectrum, fetchTargets, fetchVerdict, searchLive } from '../../lib/prism/api';
 import { angularSepArcsec, formatDec, formatMjdDate, formatRa, makeProjector } from '../../lib/prism/coords';
+import { publishProbeSpectrum } from '../../lib/prism/probeSpectrum';
 import {
   DEFAULT_FLAG_BITS, GOGGLES, computeLevels, goggleMap, gridAperture, matchedFrames, measureCentroid, medianStack,
   percentile, type GoggleId, type Stretch,
 } from '../../lib/prism/imaging';
-import { keepGreek } from '../../lib/prism/greek';
 import { useLocale, withLang } from '../../lib/i18n';
 import { PRESETS } from '../../lib/prism/presets';
 import { lambdaColor } from '../../lib/prism/ramp';
@@ -18,12 +18,18 @@ import type {
   SpectrumResponse, V2Target, VerdictResponse, ViewMode,
 } from '../../lib/prism/types';
 import { readUrl, writeUrl, type UrlState } from '../../lib/prism/url';
-import BrandMark from '../brand/BrandMark';
-import SiteNav from '../site/SiteNav';
+import SiteHeader from '../site/SiteHeader';
+import CoachMarks, { tourDone } from './CoachMarks';
+import DetailsDrawer from './DetailsDrawer';
+import ListenTab from './ListenTab';
+import PresetSuggestions from './PresetSuggestions';
 import ScrubPad from './ScrubPad';
 import SkyCanvas, { type Ring } from './SkyCanvas';
 import SpectrumPanel, { type SpectrumSource } from './SpectrumPanel';
 import TargetBar from './TargetBar';
+import SummaryCard from './SummaryCard';
+import Term from './Term';
+import Transport from './Transport';
 import VerdictPanel from './VerdictPanel';
 
 type Loaded = {
@@ -42,9 +48,12 @@ const LIVE_OFF = '__live_off__';
 type Aux<T> = { key: string; status: 'loading' | 'ready' | 'error'; data: T | null; error?: string };
 
 const MODES: ViewMode[] = ['frame', 'coadd', 'diff', 'goggles', 'raw', 'cube'];
+/** The three views a first-time visitor needs; the rest live under "More views". */
+const PRIMARY_MODES: ViewMode[] = ['frame', 'coadd', 'diff'];
+const MORE_MODES: ViewMode[] = ['goggles', 'raw', 'cube'];
+const MODE_TERM: Partial<Record<ViewMode, string>> = { frame: 'lambda', coadd: 'coadd', diff: 'difference', raw: 'lambda' };
 // three.js is large: the cube loads only when its mode is opened.
 const SpectralCube3D = dynamic(() => import('../cosmos/SpectralCube3D'), { ssr: false });
-const SPEEDS = [1, 2, 4, 8];
 const APERTURE_ARCSEC = 9;
 
 function keyOf(ra?: number, dec?: number, fov?: number) {
@@ -493,19 +502,27 @@ export default function PrismApp({ initialQuery }: { initialQuery: string }) {
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(2);
   const [axis, setAxis] = useState<'time' | 'lambda'>('time');
+  // Raw: every frame in time order. Otherwise the anchored matched-λ set (blink), skipping frames
+  // with no valid pixels. The colour pool sweeps λ within the current season.
+  const timePool = useMemo(() => {
+    if (!current) return [];
+    const pool = mode === 'raw' ? [...frames] : matched.filter((f) => f.valid_fraction > 0 || f.index === current.index);
+    return pool.sort((a, b) => a.mjd - b.mjd);
+  }, [current, frames, matched, mode]);
+  const lambdaPool = useMemo(
+    () => (current ? frames.filter((f) => f.season === current.season).sort((a, b) => a.lambda_um - b.lambda_um) : []),
+    [current, frames],
+  );
   const stepTime = useCallback((dir: 1 | -1) => {
     if (!current) return;
-    // Raw: every frame. Otherwise the anchored matched set, skipping frames with no valid pixels.
-    const pool = mode === 'raw' ? frames : matched.filter((f) => f.valid_fraction > 0 || f.index === current.index).sort((a, b) => a.mjd - b.mjd);
-    const i = pool.findIndex((f) => f.index === current.index);
-    if (pool.length) select(pool[(i + dir + pool.length) % pool.length].index, mode !== 'raw');
-  }, [current, frames, matched, mode, select]);
+    const i = timePool.findIndex((f) => f.index === current.index);
+    if (timePool.length) select(timePool[(i + dir + timePool.length) % timePool.length].index, mode !== 'raw');
+  }, [current, timePool, mode, select]);
   const stepLambda = useCallback((dir: 1 | -1) => {
     if (!current) return;
-    const pool = frames.filter((f) => f.season === current.season).sort((a, b) => a.lambda_um - b.lambda_um);
-    const i = pool.findIndex((f) => f.index === current.index);
-    if (pool.length) select(pool[(i + dir + pool.length) % pool.length].index);
-  }, [current, frames, select]);
+    const i = lambdaPool.findIndex((f) => f.index === current.index);
+    if (lambdaPool.length) select(lambdaPool[(i + dir + lambdaPool.length) % lambdaPool.length].index);
+  }, [current, lambdaPool, select]);
   useEffect(() => {
     if (!playing) return;
     const id = setInterval(() => (axis === 'lambda' && mode !== 'raw' ? stepLambda(1) : stepTime(1)), 1000 / speed);
@@ -539,19 +556,25 @@ export default function PrismApp({ initialQuery }: { initialQuery: string }) {
     return () => window.removeEventListener('keydown', onKey);
   }, [stepTime, stepLambda, setMode]);
 
-  const point = useCallback((p: { ra: number; dec: number; target?: string }) => {
+  // Display name for positions that are not presets (Sesame-resolved names).
+  const [label, setLabel] = useState<{ ra: number; dec: number; name: string } | null>(null);
+  const point = useCallback((p: { ra: number; dec: number; target?: string; label?: string }) => {
     setPlaying(false);
     setZoom(1);
+    setLabel(p.label ? { ra: p.ra, dec: p.dec, name: p.label } : null);
     setUrl((u) => ({ ...u, ra: p.ra, dec: p.dec, target: p.target, t: undefined, lam: undefined }));
   }, []);
 
+  const [copied, setCopied] = useState(false);
+
   // ---- Derived labels ----
   const satCount = frames.filter((f) => f.saturated_at_center).length;
-  const originLabel = data ? (data.origin.kind === 'live' ? text.originLive : text.originSnapshot(data.origin.generated.slice(0, 10))) : '';
+  const originLabel = data ? (data.origin.kind === 'live' ? text.originLiveShort : text.originSnapshotShort(data.origin.generated.slice(0, 10))) : '';
   const embedUrl = typeof window === 'undefined' ? '' : `${window.location.origin}${withLang(`/explore?${writeUrl({ ...url, embed: true })}`, locale)}`;
   const progressP = progress && progress.key === reqKey ? progress.p : null;
   const pct = progressP?.total ? Math.min(100, ((progressP.done ?? 0) / progressP.total) * 100) : null;
   const yrSpan = seasons.length ? (seasons[seasons.length - 1].end_mjd - seasons[0].start_mjd) / 365.25 : 0;
+  const targetName = preset?.name ?? (label && url.ra !== undefined && url.dec !== undefined && Math.abs(label.ra - url.ra) < 1e-6 && Math.abs(label.dec - url.dec) < 1e-6 ? label.name : text.customTarget);
 
   const caption = current
     ? mode === 'frame' || mode === 'raw'
@@ -559,289 +582,363 @@ export default function PrismApp({ initialQuery }: { initialQuery: string }) {
       : view?.note ?? ''
     : '';
 
-  return (
-    <div className={`prism ${url.embed ? 'prism-embed' : ''}`}>
+  // ---- Probe spectrum bridge for the star symphony (lib/prism/probeSpectrum) ----
+  useEffect(() => {
+    if (!specData || !probe) { publishProbeSpectrum(null); return; }
+    const pts = specData.points
+      .filter((p) => p.flux != null && p.err != null && Number.isFinite(p.flux) && Number.isFinite(p.lambda_um))
+      .sort((a, b) => a.lambda_um - b.lambda_um);
+    if (!pts.length) { publishProbeSpectrum(null); return; }
+    publishProbeSpectrum({
+      lambda_um: pts.map((p) => p.lambda_um),
+      intensity: pts.map((p) => p.flux),
+      err: pts.map((p) => p.err),
+      saturated: pts.map((p) => !!p.saturated),
+      unit: pts[0].unit || 'mJy',
+      label: `${targetName} · ${formatRa(probe.ra, 1)} ${formatDec(probe.dec, 0)}`,
+      provenance: 'spherex',
+      source: specSource,
+      ra: probe.ra,
+      dec: probe.dec,
+      key: `${reqKey}|${probeKey}|${specSource}|${pts.length}|${locale}`,
+    });
+  }, [specData, specSource, probe, probeKey, reqKey, targetName, locale]);
+  useEffect(() => () => publishProbeSpectrum(null), []);
+
+  // ---- Player size: keep the image and its transport above the fold on laptops ----
+  const [maxSize, setMaxSize] = useState(720);
+  useEffect(() => {
+    const f = () => setMaxSize(Math.max(300, Math.min(720, window.innerHeight - 410)));
+    f();
+    window.addEventListener('resize', f);
+    return () => window.removeEventListener('resize', f);
+  }, []);
+
+  // ---- First-visit tour ----
+  const [coachOpen, setCoachOpen] = useState(false);
+  const coachChecked = useRef(false);
+  const hasView = !!(data && current);
+  useEffect(() => {
+    if (!hasView || coachChecked.current || url.embed) return;
+    coachChecked.current = true;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (!tourDone()) setCoachOpen(true);
+  }, [hasView, url.embed]);
+
+  const transportPool = axis === 'lambda' && mode !== 'raw' ? lambdaPool : timePool;
+  const advancedMode = MORE_MODES.includes(mode);
+  const modeTerm = MODE_TERM[mode];
+
+  const liveAction = data?.origin.kind === 'snapshot' && LIVE_ENABLED ? (
+    <button type="button" className="xp-textbtn" onClick={() => { setSel(null); setLiveFor(reqKey); }} disabled={liveFor === reqKey}>
+      {liveFor === reqKey ? text.liveRefreshing : text.liveRefresh}
+    </button>
+  ) : null;
+
+  const notices = (
+    <>
+      {urlInvalid && <p className="xp-notice" role="status">{text.urlInvalid(preset?.name ?? '')}</p>}
+      {data?.liveError && <p className="xp-notice">{data.liveError === LIVE_OFF ? text.liveOffSnapshot : text.liveDown(data.liveError.replace(/^\/search(\/stream)?: /, ''))}</p>}
+    </>
+  );
+
+  // ---- Details drawer panels ----
+  const spectrumPanel = probe && current ? (
+    <SpectrumPanel data={specData} source={specSource} status={specStatus} error={specError} probe={probe} currentFrameId={current.id} text={text} />
+  ) : null;
+
+  const motionPanel = current ? (
+    <>
+      <section className="xp-sec">
+        <h3 className="xp-h3"><Term id="properMotion">{text.motion}</Term></h3>
+        <dl className="xp-kv">
+          {preset?.expected?.pm_arcsec_yr ? (
+            <>
+              <dt>{text.motionExpected}</dt>
+              <dd className="p-data">{text.pmLine(preset.expected.pm_arcsec_yr, yrSpan, (preset.expected.pm_arcsec_yr * yrSpan) / pixscale)}</dd>
+            </>
+          ) : null}
+          {motion ? (
+            <>
+              <dt>{text.motionPredicted}</dt>
+              <dd className="p-data">{motion.predArcsec.toFixed(2)}″ = {(motion.predArcsec / pixscale).toFixed(2)} px · D{motion.det} S{motion.sA}→S{motion.sB} · {motion.dtYr.toFixed(2)} {text.yr}</dd>
+              <dt>{text.motionMeasured}</dt>
+              <dd className="p-data">
+                {motion.measured ? `${motion.measured.arcsec.toFixed(2)}″ ± ${motion.measured.err.toFixed(2)}″ · ${text.coadds} ${motion.nA}+${motion.nB}` : text.noCentroid}
+                {motion.sat ? ` · ${motion.sat} ${text.satAbbr}` : ''}
+              </dd>
+            </>
+          ) : (
+            <>
+              <dt>{text.motionMeasured}</dt>
+              <dd>{text.motionNone}</dd>
+            </>
+          )}
+          <dt>{text.motionCentroid}</dt>
+          <dd className="p-data">{centroid ? `S/N ${centroid.snr.toFixed(1)} · σ ${(centroid.sx * pixscale).toFixed(2)}″ × ${(centroid.sy * pixscale).toFixed(2)}″` : text.noCentroid}</dd>
+        </dl>
+        <p className="xp-small"><Term id="arcsec">{text.predictedLegend}</Term></p>
+      </section>
+      <section className="xp-sec">
+        <h3 className="xp-h3">{text.scrubTitle}</h3>
+        <p className="xp-small">{mode === 'raw' ? text.modesPlain.raw : text.scrubHelp}</p>
+        <ScrubPad frames={frames} seasons={seasons} current={current} matched={matchedSet} raw={mode === 'raw'} refSeason={mode === 'diff' ? refSeason : null} text={text} onSelect={select} />
+        <p className="xp-small p-data">{text.keyboard}</p>
+      </section>
+    </>
+  ) : null;
+
+  const qualityPanel = current ? (
+    <>
+      <section className="xp-sec">
+        <h3 className="xp-h3"><Term id="saturation">{text.glossary.saturation.term}</Term></h3>
+        <p className={satCount ? 'xp-body xp-warn' : 'xp-body'}>{satCount ? text.saturated(satCount, frames.length) : text.qualitySatNone}</p>
+      </section>
+      <section className="xp-sec">
+        <h3 className="xp-h3">{text.qualityFrame}</h3>
+        <dl className="xp-kv">
+          <dt>{text.date}</dt><dd className="p-data">{current.date.replace('T', ' ').slice(0, 19)} · MJD {current.mjd.toFixed(5)}</dd>
+          <dt><Term id="lambda">{text.lambda}</Term></dt><dd className="p-data"><i className="sw" style={{ background: lambdaColor(current.lambda_um) }} />{current.lambda_um.toFixed(4)} µm · {text.band} {current.bandwidth_um.toFixed(4)} µm</dd>
+          <dt><Term id="season">{text.detector}</Term></dt><dd className="p-data">D{current.detector} · {text.seasonN(current.season)} ({formatMjdDate(seasons.find((s) => s.index === current.season)?.start_mjd ?? current.mjd)})</dd>
+          <dt>{text.valid}</dt><dd className="p-data">{(current.valid_fraction * 100).toFixed(1)}%{current.saturated_at_center ? text.satNearCentre : ''}</dd>
+          <dt>{text.matched}</dt><dd className="p-data">{matched.length} {text.frames} · {new Set(matched.map((f) => f.season)).size} {text.seasons}</dd>
+          <dt>{text.fits}</dt><dd><a href={current.provenance.url} target="_blank" rel="noreferrer">{text.irsaCutout}</a> <span className="p-data xp-faint">{current.provenance.obs_id}</span></dd>
+        </dl>
+        <div className="xp-controls">
+          {view?.kind === 'gray' && (
+            <label className="xp-field">
+              <span>{text.qualityStretch}</span>
+              <select value={stretch} onChange={(e) => setStretch(e.target.value as Stretch)}>
+                {(['asinh', 'zscale', 'linear'] as const).map((k) => <option key={k} value={k}>{text.stretches[k]}</option>)}
+              </select>
+            </label>
+          )}
+          <label className="xp-check">
+            <input type="checkbox" checked={ov.flags} onChange={() => setOv((o) => ({ ...o, flags: !o.flags }))} />
+            <span>{text.qualityFlags}</span>
+          </label>
+        </div>
+      </section>
+      <VerdictPanel data={verdict} status={verdictStatus} error={verdictLive?.error} lang={locale} sourceLabel={isLive ? '/v2/verdict' : verdict?.method ?? ''} text={text} />
+    </>
+  ) : null;
+
+  const embedSnippet = `<iframe src="${embedUrl}" width="960" height="720" style="border:0" title="${text.embedTitle}"></iframe>`;
+  const sourcesPanel = search ? (
+    <>
+      <section className="xp-sec">
+        <h3 className="xp-h3"><Term id="predicted">{text.sourcesLayers}</Term></h3>
+        <div className="xp-layers">
+          {(['target', 'gaia', 'skybot', 'centroid'] as const).map((k) => (
+            <label key={k} className={`xp-check xp-check-${k}`}>
+              <input type="checkbox" checked={ov[k]} onChange={() => setOv((o) => ({ ...o, [k]: !o[k] }))} />
+              <span>{text.ov[k]}</span>
+              {k === 'gaia' && gaia && <span className="p-data xp-faint">{gaiaRings.length}{gaiaAll ? '' : `/${gaiaInField}`}</span>}
+            </label>
+          ))}
+        </div>
+        {ov.gaia && gaia && gaiaInField > gaiaRings.length && !gaiaAll && (
+          <p className="xp-small">{text.gaiaSubset(gaiaRings.length, gaiaInField)} <button type="button" className="xp-textbtn" onClick={() => setGaiaAll(true)}>{text.gaiaAll}</button></p>
+        )}
+        <p className="xp-small">{text.predictedLegend}{ov.gaia ? text.pmVector : ''}</p>
+        {!isLive && ov.skybot && <p className="xp-small">{text.skybotNeedsLive}</p>}
+        {isLive && skybot?.status === 'error' && <p className="xp-small">SkyBoT: {skybot.error}</p>}
+      </section>
+      <section className="xp-sec">
+        <h3 className="xp-h3">{text.sourcesData}</h3>
+        {data && <p className="xp-body">{originLabel}</p>}
+        <p className="xp-small">{search.provenance.citation}</p>
+        <p className="xp-small p-data">{search.provenance.collections.join(' · ')} · {frames.length} {text.frames} · {seasons.length} {text.seasons} · {formatRa(search.query.ra)} {formatDec(search.query.dec)} · {search.query.fov}′ · {search.grid.n}×{search.grid.n} px @ {search.grid.pixscale_arcsec}″</p>
+        {search.provenance.processing && <p className="xp-small"><span className="xp-k">{text.processing}</span> {String(search.provenance.processing)}</p>}
+        <p className="xp-k">{text.queries}</p>
+        <ul className="xp-urls p-data">{search.provenance.query_urls.map((q) => <li key={q}><a href={q} target="_blank" rel="noreferrer">{q.replace('https://', '')}</a></li>)}</ul>
+        <p className="xp-small p-data">{text.generated} {search.provenance.generated_utc}</p>
+      </section>
       {!url.embed && (
-        <header className="masthead">
-          <div className="masthead-id">
-            <BrandMark size="lg" className="wordmark" />
-            <span className="masthead-sub p-label">{t.common.subline}</span>
+        <section className="xp-sec">
+          <h3 className="xp-h3">{text.sourcesEmbed}</h3>
+          <p className="xp-small">{text.embedHelp}</p>
+          <code className="xp-code p-data">{embedSnippet}</code>
+          <div className="xp-row">
+            <button type="button" className="xp-btn" onClick={() => { navigator.clipboard?.writeText(embedSnippet).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500); }).catch(() => {}); }}>
+              {copied ? text.copied : text.copy}
+            </button>
+            <button type="button" className="xp-textbtn" onClick={() => setCoachOpen(true)}>{text.coach.restart}</button>
           </div>
-          <p className="masthead-tag">{text.tagline}</p>
-          <SiteNav current="explore" className="masthead-nav" />
-        </header>
+        </section>
       )}
+    </>
+  ) : null;
 
+  return (
+    <div className={`xp ${url.embed ? 'xp-embed' : ''}`}>
+      {!url.embed && <SiteHeader current="explore" />}
       {!url.embed && (
-        <TargetBar
-          targets={targets}
-          activeId={url.target}
-          ra={url.ra}
-          dec={url.dec}
-          fov={url.fov}
-          text={text}
-          embedUrl={embedUrl}
-          onPoint={point}
-          onFov={(fov) => setUrl((u) => ({ ...u, fov }))}
-        />
-      )}
-
-      <div className="origin-row">
-        {data && (
-          <span className={`origin origin-${data.origin.kind}`} role="status">
-            <i aria-hidden /> {originLabel}
-          </span>
-        )}
-        {data?.origin.kind === 'snapshot' && LIVE_ENABLED && (
-          <button type="button" className="btn chip-mini" onClick={() => { setSel(null); setLiveFor(reqKey); }} disabled={liveFor === reqKey}>
-            {liveFor === reqKey ? text.liveRefreshing : text.liveRefresh}
-          </button>
-        )}
-        {urlInvalid && <span className="notice" role="status">{text.urlInvalid(preset?.name ?? '')}</span>}
-        {data?.liveError && <span className="origin-note p-data">{data.liveError === LIVE_OFF ? text.liveOffSnapshot : text.liveDown(data.liveError.replace(/^\/search(\/stream)?: /, ''))}</span>}
-        {preset && (
-          <span className="origin-note">
-            <span className="p-display preset-title">{preset.name}</span>{' '}
-            {t.targets[preset.id]?.blurb ?? preset.blurb}
-          </span>
-        )}
-      </div>
-
-      {data && satCount > 0 && satCount / Math.max(1, frames.length) >= 0.3 && (
-        <div className="banner banner-bad" role="alert">
-          <span className="p-label">{text.satTag}</span> {text.saturated(satCount, frames.length)}
+        <div className="xp-top">
+          <TargetBar targets={targets} activeId={url.target} fov={url.fov} onPoint={point} onFov={(fov) => setUrl((u) => ({ ...u, fov }))} />
         </div>
       )}
 
-      {loading && (
-        <div className="state state-loading" role="status" aria-live="polite">
-          <span className="p-label">{text.loading}</span>
-          <span className="p-data">{progressP ? `${text.stage[progressP.stage] ?? progressP.stage}${progressP.message ? ` · ${progressP.message}` : ''}` : text.loadingDefault}</span>
-          <span className="meter" aria-hidden><i className={pct === null ? 'meter-indet' : ''} style={pct === null ? undefined : { width: `${pct}%` }} /></span>
+      <main className="xp-grid" id="main">
+        <div className="xp-card-area">
+          <SummaryCard
+            name={targetName}
+            kind={preset ? t.targets[preset.id]?.kind : undefined}
+            blurb={preset ? t.targets[preset.id]?.blurb : undefined}
+            ra={url.ra}
+            dec={url.dec}
+            category={preset?.category}
+            hero={hero}
+            satCount={satCount}
+            nFrames={frames.length}
+            verdict={verdict}
+            verdictStatus={verdictStatus}
+            originLabel={originLabel}
+            originKind={data?.origin.kind ?? null}
+            liveAction={liveAction}
+            notices={notices}
+            loading={loading}
+            unavailable={!!fail || (!!data && !frames.length)}
+          />
         </div>
-      )}
 
-      {fail && (
-        <div className="state state-error" role="alert">
-          <h2 className="p-display">{fail.noCoverage ? text.emptyTitle : fail.liveError === LIVE_OFF ? text.liveOffTitle : text.errorTitle}</h2>
-          <p>{fail.noCoverage ? text.emptyBody : fail.liveError === LIVE_OFF ? text.liveOffBody : text.errorBody}</p>
-          <p className="p-data state-detail">{fail.liveError === LIVE_OFF ? `${text.detailSnapshot}: ${fail.message}` : `${text.detailLive}: ${fail.liveError ?? fail.message}${fail.liveError ? ` · ${text.detailSnapshot}: ${fail.message}` : ''}`}</p>
-          {fail.liveError !== LIVE_OFF && <button type="button" className="btn" onClick={() => setAttempt((a) => a + 1)}>{text.retry}</button>}
-        </div>
-      )}
+        <section className="xp-stage" aria-label={text.viewLabel}>
+          {loading && (
+            <div className="xp-state" role="status" aria-live="polite">
+              <p className="xp-h3">{text.loadingTitle}</p>
+              <p className="xp-small p-data">{progressP ? `${text.stage[progressP.stage] ?? progressP.stage}${progressP.message ? ` · ${progressP.message}` : ''}` : text.loadingDefault}</p>
+              <span className="meter" aria-hidden><i className={pct === null ? 'meter-indet' : ''} style={pct === null ? undefined : { width: `${pct}%` }} /></span>
+            </div>
+          )}
 
-      {data && !frames.length && (
-        <div className="state state-empty" role="status">
-          <h2 className="p-display">{text.emptyTitle}</h2>
-          <p>{text.emptyBody}</p>
-          <ul className="p-data state-detail">{search?.provenance.query_urls.map((q) => <li key={q}><a href={q} rel="noreferrer" target="_blank">{q}</a></li>)}</ul>
-        </div>
-      )}
+          {fail && (
+            <div className="xp-state" role="alert">
+              <h2 className="xp-state-t p-display">{fail.noCoverage ? text.emptyTitle : fail.liveError === LIVE_OFF ? text.liveOffTitle : text.errorTitle}</h2>
+              <p className="xp-body">{fail.noCoverage ? text.emptyBody : fail.liveError === LIVE_OFF ? text.liveOffBody : text.errorBody}</p>
+              <p className="xp-small p-data xp-break">{fail.liveError === LIVE_OFF ? `${text.detailSnapshot}: ${fail.message}` : `${text.detailLive}: ${fail.liveError ?? fail.message}${fail.liveError ? ` · ${text.detailSnapshot}: ${fail.message}` : ''}`}</p>
+              {fail.liveError !== LIVE_OFF && <button type="button" className="xp-btn" onClick={() => setAttempt((a) => a + 1)}>{text.retry}</button>}
+              <PresetSuggestions targets={targets} onPick={(p) => point({ ra: p.ra, dec: p.dec, target: p.id })} />
+            </div>
+          )}
 
-      {data && current && search && view && (
-        <main className="deck">
-          <section className="deck-main">
-            <div className="toolbar" role="toolbar" aria-label={text.modeAria}>
-              <div className="seg" role="radiogroup" aria-label={text.modeAria}>
-                {MODES.map((m, i) => (
-                  <button key={m} type="button" role="radio" aria-checked={mode === m} className="seg-b" onClick={() => setMode(m)}>
-                    <span className="seg-k p-data">{i + 1}</span>{text.modes[m]}
-                  </button>
-                ))}
+          {data && !frames.length && (
+            <div className="xp-state" role="status">
+              <h2 className="xp-state-t p-display">{text.emptyTitle}</h2>
+              <p className="xp-body">{text.emptyBody}</p>
+              <ul className="xp-urls p-data">{search?.provenance.query_urls.map((q) => <li key={q}><a href={q} rel="noreferrer" target="_blank">{q}</a></li>)}</ul>
+              <PresetSuggestions targets={targets} onPick={(p) => point({ ra: p.ra, dec: p.dec, target: p.id })} />
+            </div>
+          )}
+
+          {data && current && search && view && (
+            <>
+              <div className="xp-toolbar">
+                <div className="xp-seg" role="radiogroup" aria-label={text.viewLabel}>
+                  {PRIMARY_MODES.map((m) => (
+                    <button key={m} type="button" role="radio" aria-checked={mode === m} onClick={() => setMode(m)} title={`${MODES.indexOf(m) + 1}`}>
+                      {text.modesShort[m]}
+                    </button>
+                  ))}
+                </div>
+                <label className={`xp-more${advancedMode ? ' on' : ''}`}>
+                  <span className="sr-only">{text.moreViews}</span>
+                  <select value={advancedMode ? mode : ''} onChange={(e) => e.target.value && setMode(e.target.value as ViewMode)} aria-label={text.moreViews}>
+                    <option value="" disabled>{text.moreViews}</option>
+                    {MORE_MODES.map((m) => <option key={m} value={m}>{text.modesShort[m]}</option>)}
+                  </select>
+                </label>
+                <div className="xp-seg xp-zoom" role="group" aria-label={text.zoomLabel}>
+                  {[1, 2, 4].map((z) => (
+                    <button key={z} type="button" aria-pressed={zoom === z} onClick={() => setZoom(z)} disabled={mode === 'cube'}>{z}×</button>
+                  ))}
+                </div>
               </div>
-              <div className="toolbar-r">
-                {view.kind === 'gray' && (
-                  <label className="mini">
-                    <span className="p-label">{text.stretch}</span>
-                    <select className="select p-data" value={stretch} onChange={(e) => setStretch(e.target.value as Stretch)}>
-                      {(['asinh', 'zscale', 'linear'] as const).map((k) => <option key={k} value={k}>{text.stretches[k]}</option>)}
-                    </select>
-                  </label>
-                )}
-                {mode === 'diff' && (
-                  <label className="mini">
-                    <span className="p-label">{text.refSeason}</span>
-                    <select className="select p-data" value={refSeason ?? ''} onChange={(e) => setRefPick(Number(e.target.value))}>
-                      {[...new Set(matched.filter((f) => f.season !== current.season).map((f) => f.season))].sort().map((s) => <option key={s} value={s}>S{s}</option>)}
+
+              <div className="xp-modehelp">
+                <p>{modeTerm ? <Term id={modeTerm}>{text.modesPlain[mode]}</Term> : text.modesPlain[mode]}</p>
+                {mode === 'diff' && refSeason !== null && (
+                  <label className="xp-field">
+                    <span>{text.refLabel}</span>
+                    <select value={refSeason} onChange={(e) => setRefPick(Number(e.target.value))}>
+                      {[...new Set(matched.filter((f) => f.season !== current.season).map((f) => f.season))].sort((a, b) => a - b).map((s) => <option key={s} value={s}>{text.seasonN(s)}</option>)}
                     </select>
                   </label>
                 )}
                 {mode === 'goggles' && (
-                  <div className="seg seg-small" role="radiogroup" aria-label={text.gogglesAria}>
+                  <div className="xp-seg" role="radiogroup" aria-label={text.moleculeLabel}>
                     {(Object.keys(GOGGLES) as GoggleId[]).map((g) => (
-                      <button key={g} type="button" role="radio" aria-checked={goggle === g} className="seg-b" onClick={() => setGoggle(g)}>{g.replace('4', '₄').replace('2', '₂')}</button>
+                      <button key={g} type="button" role="radio" aria-checked={goggle === g} onClick={() => setGoggle(g)}>{g.replace('4', '₄').replace('2', '₂')}</button>
                     ))}
                   </div>
                 )}
-                <div className="seg seg-small" role="group" aria-label={text.zoom}>
-                  {[1, 2, 4].map((z) => (
-                    <button key={z} type="button" aria-pressed={zoom === z} className="seg-b" onClick={() => setZoom(z)}>{z}×</button>
-                  ))}
-                </div>
               </div>
-            </div>
-            <p className="mode-help">{text.modeHelp[mode]}</p>
-            {hero && (
-              <div className={`hero ${hero.ok ? 'hero-ok' : ''}`} role="status">
-                <span className="p-label">{text.heroMoved}</span>
-                <span className="hero-num">{hero.meas.toFixed(2)}″ ± {hero.err.toFixed(2)}″</span>
-                <span className="hero-pred">· {text.heroPred} {hero.pred.toFixed(2)}″</span>
-                <span className="hero-method p-data">{text.heroMethod(hero.det, hero.sA, hero.sB)}</span>
-              </div>
-            )}
 
-            {mode === 'cube' ? (
-              <div className="cube-wrap" data-cube>
-                <SpectralCube3D frames={cubeFrames} current={currentIndex} onSelect={select} height="min(70vh, 640px)" />
-              </div>
-            ) : (
-            <SkyCanvas
-              grid={search.grid}
-              image={view.image}
-              kind={view.kind}
-              stretch={stretch}
-              levels={levels}
-              divScale={divScale}
-              unit={view.unit || '—'}
-              flags={mode === 'frame' || mode === 'raw' ? current.flags : null}
-              flagBits={flagBits}
-              showFlags={ov.flags}
-              gaia={gaiaRings}
-              skybot={skybotRings}
-              target={targetMark}
-              centroid={centroid ? { x: centroid.x, y: centroid.y, sx: centroid.sx, sy: centroid.sy } : null}
-              probe={probePix}
-              zoom={zoom}
-              caption={caption}
-              captionColor={mode === 'goggles' || mode === 'coadd' ? 'transparent' : lambdaColor(current.lambda_um)}
-              text={text}
-              onProbe={onProbe}
-              onProbeReset={onProbeReset}
-            />
-            )}
-
-            <div className="layers" role="group" aria-label={text.overlays}>
-              <span className="p-label">{text.overlays}</span>
-              {(['target', 'gaia', 'skybot', 'centroid', 'flags'] as const).map((k) => (
-                <button key={k} type="button" className={`chip chip-${k}`} aria-pressed={ov[k]} onClick={() => setOv((o) => ({ ...o, [k]: !o[k] }))}>
-                  <i aria-hidden />{text.ov[k]}
-                  {k === 'gaia' && gaia && <span className="p-data chip-n">{gaiaRings.length}{gaiaAll ? '' : `/${gaiaInField}`}</span>}
-                  {k === 'skybot' && !isLive && <span className="p-data chip-n">—</span>}
-                </button>
-              ))}
-              {ov.gaia && gaia && gaiaInField > gaiaRings.length && !gaiaAll && (
-                <span className="layers-note">{text.gaiaSubset(gaiaRings.length, gaiaInField)}{' '}
-                  <button type="button" className="chip chip-mini" aria-pressed={false} onClick={() => setGaiaAll(true)}>{text.gaiaAll}</button>
-                </span>
-              )}
-              <span className="layers-note">{text.predictedLegend}{ov.gaia ? text.pmVector : ''}</span>
-              {!isLive && ov.skybot && <span className="layers-note">{text.skybotNeedsLive}</span>}
-              {isLive && skybot?.status === 'error' && <span className="layers-note">SkyBoT: {skybot.error}</span>}
-            </div>
-
-            <section className="padwrap" aria-labelledby="pad-h">
-              <header className="padwrap-h">
-                <h2 id="pad-h" className="p-label">{text.pad}</h2>
-                <div className="transport">
-                  <button type="button" className="btn btn-primary" onClick={() => setPlaying((p) => !p)} aria-pressed={playing}>{playing ? text.pause : text.play}</button>
-                  {mode !== 'raw' && (
-                    <div className="seg seg-small" role="radiogroup" aria-label={text.axis}>
-                      <button type="button" role="radio" aria-checked={axis === 'time'} className="seg-b" onClick={() => setAxis('time')}>{text.axisTime}</button>
-                      <button type="button" role="radio" aria-checked={axis === 'lambda'} className="seg-b" onClick={() => setAxis('lambda')}>{text.axisLambda}</button>
-                    </div>
-                  )}
-                  <div className="seg seg-small" role="radiogroup" aria-label={text.speed}>
-                    {SPEEDS.map((s) => (
-                      <button key={s} type="button" role="radio" aria-checked={speed === s} className="seg-b" onClick={() => setSpeed(s)}>{s} fps</button>
-                    ))}
+              <div className="xp-player" data-coach="player">
+                {mode === 'cube' ? (
+                  <div className="cube-wrap" data-cube>
+                    <SpectralCube3D frames={cubeFrames} current={currentIndex} onSelect={select} height="min(64vh, 600px)" />
                   </div>
-                </div>
-              </header>
-              <ScrubPad frames={frames} seasons={seasons} current={current} matched={matchedSet} raw={mode === 'raw'} refSeason={mode === 'diff' ? refSeason : null} text={text} onSelect={select} />
-              <p className="panel-note">{mode === 'raw' ? text.modeHelp.raw : text.padHelp} <span className="p-data">{text.keyboard}</span></p>
-            </section>
-          </section>
-
-          <aside className="deck-side">
-            <section className="panel readout" aria-labelledby="ro-h">
-              <header className="panel-h">
-                <h2 id="ro-h" className="p-display readout-title">
-                  <i className="sw" style={{ background: lambdaColor(current.lambda_um) }} aria-hidden />
-                  {keepGreek('λ')} {current.lambda_um.toFixed(3)} µm · D{current.detector} · {current.date.slice(0, 10)}
-                </h2>
-                <span className="p-data panel-sub readout-id">{current.provenance.obs_id} · {current.collection}</span>
-              </header>
-              <dl className="kv p-data">
-                <dt>{text.date}</dt><dd>{current.date.replace('T', ' ').slice(0, 19)} · MJD {current.mjd.toFixed(5)}</dd>
-                <dt>{keepGreek(text.lambda)}</dt><dd><i className="sw" style={{ background: lambdaColor(current.lambda_um) }} />{current.lambda_um.toFixed(4)} µm · {text.band} {current.bandwidth_um.toFixed(4)} µm</dd>
-                <dt>{text.detector}</dt><dd>D{current.detector} · {text.season} S{current.season} ({formatMjdDate(seasons.find((s) => s.index === current.season)?.start_mjd ?? current.mjd)})</dd>
-                <dt>{text.valid}</dt><dd>{(current.valid_fraction * 100).toFixed(1)}%{current.saturated_at_center ? text.satNearCentre : ''}</dd>
-                <dt>{text.matched}</dt><dd>{matched.length} {text.frames} · {new Set(matched.map((f) => f.season)).size} {text.seasons}</dd>
-                <dt>{text.fits}</dt><dd><a href={current.provenance.url} target="_blank" rel="noreferrer">{text.irsaCutout}</a></dd>
-              </dl>
-              <div className="motion">
-                <span className="p-label">{text.motion}</span>
-                {preset?.expected?.pm_arcsec_yr ? (
-                  <p className="p-data">{text.expected}: {text.pmLine(preset.expected.pm_arcsec_yr, yrSpan, (preset.expected.pm_arcsec_yr * yrSpan) / pixscale)} · PSF ≈ 1.3 px</p>
-                ) : null}
-                {motion ? (
-                  <>
-                    <p className="p-data">{text.predictedShift} D{motion.det} S{motion.sA}→S{motion.sB} ({motion.dtYr.toFixed(2)} {text.yr}): {motion.predArcsec.toFixed(2)}″ = {(motion.predArcsec / pixscale).toFixed(2)} px</p>
-                    <p className="p-data">
-                      {text.measuredShift}: {motion.measured ? `${motion.measured.arcsec.toFixed(2)}″ ± ${motion.measured.err.toFixed(2)}″ (${text.coadds} ${motion.nA}+${motion.nB})` : text.noCentroid}
-                      {motion.sat ? ` · ${motion.sat} ${text.satAbbr}` : ''}
-                    </p>
-                  </>
                 ) : (
-                  <p className="p-data">{centroid ? `${text.measured} (${text.modes[mode]}): S/N ${centroid.snr.toFixed(1)} · σ ${(centroid.sx * pixscale).toFixed(2)}″ × ${(centroid.sy * pixscale).toFixed(2)}″` : text.noCentroid}</p>
+                  <SkyCanvas
+                    grid={search.grid}
+                    image={view.image}
+                    kind={view.kind}
+                    stretch={stretch}
+                    levels={levels}
+                    divScale={divScale}
+                    unit={view.unit || '—'}
+                    flags={mode === 'frame' || mode === 'raw' ? current.flags : null}
+                    flagBits={flagBits}
+                    showFlags={ov.flags}
+                    gaia={gaiaRings}
+                    skybot={skybotRings}
+                    target={targetMark}
+                    centroid={centroid ? { x: centroid.x, y: centroid.y, sx: centroid.sx, sy: centroid.sy } : null}
+                    probe={probePix}
+                    zoom={zoom}
+                    caption={caption}
+                    captionColor={mode === 'goggles' || mode === 'coadd' ? 'transparent' : lambdaColor(current.lambda_um)}
+                    text={text}
+                    onProbe={onProbe}
+                    onProbeReset={onProbeReset}
+                    maxSize={maxSize}
+                  />
                 )}
               </div>
-            </section>
 
-            <VerdictPanel
-              data={verdict}
-              status={verdictStatus}
-              error={verdictLive?.error}
-              lang={locale}
-              sourceLabel={isLive ? '/v2/verdict' : verdict?.method ?? ''}
-              text={text}
-            />
-
-            {probe && (
-              <SpectrumPanel
-                data={specData}
-                source={specSource}
-                status={specStatus}
-                error={specError}
-                probe={probe}
-                currentFrameId={current.id}
-                text={text}
+              <Transport
+                pool={transportPool}
+                current={current}
+                playing={playing}
+                speed={speed}
+                axis={axis}
+                axisLocked={mode === 'raw'}
+                onPlay={() => setPlaying((p) => !p)}
+                onSpeed={setSpeed}
+                onAxis={setAxis}
+                onSelect={(i) => { setPlaying(false); select(i, !(axis === 'lambda' && mode !== 'raw') && mode !== 'raw'); }}
               />
-            )}
-          </aside>
-        </main>
-      )}
-
-      {data && search && (
-        <footer className="colophon">
-          <div>
-            <span className="p-label">{text.provenance}</span>
-            <p>{search.provenance.citation}</p>
-            <p className="p-data">{search.provenance.collections.join(' · ')} · {frames.length} {text.frames} · {seasons.length} {text.seasons} · {formatRa(search.query.ra)} {formatDec(search.query.dec)} · {search.query.fov}′ · {search.grid.n}×{search.grid.n} px @ {search.grid.pixscale_arcsec}″</p>
-          </div>
-          {search.provenance.processing && (
-            <div>
-              <span className="p-label">{text.processing}</span>
-              <p>{String(search.provenance.processing)}</p>
-            </div>
+            </>
           )}
-          <div>
-            <span className="p-label">{text.queries}</span>
-            <ul className="p-data">{search.provenance.query_urls.map((q) => <li key={q}><a href={q} target="_blank" rel="noreferrer">{q.replace('https://', '')}</a></li>)}</ul>
-            <p className="p-data">{text.generated} {search.provenance.generated_utc}</p>
+        </section>
+
+        {data && current && search && (
+          <div className="xp-details-area">
+            <DetailsDrawer
+              panels={{
+                spectrum: spectrumPanel,
+                motion: motionPanel,
+                quality: qualityPanel,
+                sources: sourcesPanel,
+                listen: <ListenTab />,
+              }}
+            />
           </div>
-        </footer>
-      )}
+        )}
+      </main>
+
+      {!url.embed && <footer className="xp-foot">{t.common.credit}</footer>}
+      <CoachMarks open={coachOpen && hasView} onClose={() => setCoachOpen(false)} />
     </div>
   );
 }

@@ -7,12 +7,13 @@
  */
 import { BLANK_FRAMES, CUBE_DEPTH, isAbort, loadTile } from '../look/hipsRender';
 import { analyseSamples, type SongAnalysis } from './bands';
+import { analyseMusic, type MusicAnalysis } from './musicAnalysis';
 import { sepDeg } from './healpix';
 import { coarseSearch, compareTile, type CoarseHit, type CoarseInput, type FineHit, type TileInput } from './search';
 import type { SkyIndex } from './skyIndex';
 
 export { isAbort };
-export type { CoarseHit, FineHit, SongAnalysis };
+export type { CoarseHit, FineHit, MusicAnalysis, SongAnalysis };
 
 type Kind = 'analyse' | 'coarse' | 'tile';
 let worker: Worker | null | undefined;
@@ -61,6 +62,45 @@ function call<T>(kind: Kind, payload: unknown, transfer: Transferable[] = []): P
 
 export function analyseInWorker(samples: Float32Array, sampleRate: number): Promise<SongAnalysis> {
   return call<SongAnalysis>('analyse', { samples, sampleRate }, [samples.buffer]);
+}
+
+// Music analysis (key / tempo / chords) in a second worker, so it runs alongside the sky search.
+let musicWorker: Worker | null | undefined;
+let musicSeq = 0;
+const musicPending = new Map<number, { resolve: (v: MusicAnalysis) => void; reject: (e: Error) => void }>();
+
+/** Key, tempo, beat grid and chords of mono samples (transferred). Inline if workers fail. */
+export function musicInWorker(samples: Float32Array, sampleRate: number): Promise<MusicAnalysis> {
+  if (musicWorker === undefined) {
+    try {
+      musicWorker = new Worker(new URL('./music.worker.ts', import.meta.url), { type: 'module' });
+      musicWorker.onmessage = (e: MessageEvent<{ id: number; ok: boolean; result?: MusicAnalysis; error?: string }>) => {
+        const p = musicPending.get(e.data.id);
+        if (!p) return;
+        musicPending.delete(e.data.id);
+        if (e.data.ok && e.data.result) p.resolve(e.data.result); else p.reject(new Error(e.data.error));
+      };
+      musicWorker.onerror = () => {
+        for (const p of musicPending.values()) p.reject(new Error('worker failed'));
+        musicPending.clear();
+        musicWorker?.terminate();
+        musicWorker = null;
+      };
+    } catch {
+      musicWorker = null;
+    }
+  }
+  const w = musicWorker;
+  if (!w) {
+    return new Promise((resolve, reject) => setTimeout(() => {
+      try { resolve(analyseMusic(samples, sampleRate)); } catch (e) { reject(e instanceof Error ? e : new Error(String(e))); }
+    }, 0));
+  }
+  const id = ++musicSeq;
+  return new Promise((resolve, reject) => {
+    musicPending.set(id, { resolve, reject });
+    w.postMessage({ id, samples, sampleRate }, [samples.buffer]);
+  });
 }
 
 export function coarseInWorker(song: number[], idx: SkyIndex, top = 50): Promise<{ hits: CoarseHit[]; compared: number }> {

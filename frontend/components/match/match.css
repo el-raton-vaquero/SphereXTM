@@ -145,3 +145,11 @@
   .mt-grid { grid-template-columns: minmax(320px, 400px) minmax(0, 1fr); gap: 32px; align-items: start; }
   .mt-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
+
+/* ---------- play along ---------- */
+.mt-music { display: flex; flex-direction: column; gap: 4px; max-width: 72ch; }
+.mt-music-key { font-size: var(--p-fs-lead); color: var(--p-ink); }
+.mt-mix { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 8px; }
+.mt-mix-row { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--p-ink-2); }
+.mt-mix-row input { flex: 1; min-width: 0; accent-color: var(--p-signal); min-height: 32px; }
+.mt-actions .mt-span { grid-column: 1 / -1; }

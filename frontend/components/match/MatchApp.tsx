@@ -5,13 +5,14 @@ import { useLocale, withLang, type Messages } from '../../lib/i18n';
 import { useMounted } from '../../lib/look/hooks';
 import { FRAME_UM } from '../../lib/look/hipsRender';
 import { analysisWindow, BAND_HZ, N_BANDS, type SongAnalysis } from '../../lib/match/bands';
-import { analyseInWorker, coarseInWorker, deepSearch, isAbort, type CoarseHit, type DeepProgress, type FineHit } from '../../lib/match/client';
+import { analyseInWorker, coarseInWorker, deepSearch, isAbort, musicInWorker, type CoarseHit, type DeepProgress, type FineHit } from '../../lib/match/client';
 import { nearestConstellation } from '../../lib/match/constellation';
 import { exploreHref, songHref } from '../../lib/match/links';
 import { startListening, type ListenHandle } from '../../lib/match/mic';
+import { chordName, noteName, type MusicAnalysis } from '../../lib/match/musicAnalysis';
 import { IndexMissingError, loadSkyIndex, type SkyIndex } from '../../lib/match/skyIndex';
 import { formatDecDms, formatRaHms } from '../../lib/song/sky';
-import { composeSong, playScore } from '../../lib/symphony/export';
+import { composeSong, playScore, type ComposeOptions, type SongChord } from '../../lib/symphony/export';
 import SiteHeader from '../site/SiteHeader';
 import ProfileChart from './ProfileChart';
 import SkyMap from './SkyMap';
@@ -20,11 +21,14 @@ import Visualiser from './Visualiser';
 
 type MatchText = Messages['match'];
 type Phase = 'idle' | 'listening' | 'analysing' | 'coarse' | 'deep' | 'done' | 'error';
+type MusicState = { status: 'idle' | 'pending' | 'failed' } | { status: 'ready'; m: MusicAnalysis };
 type IndexState = { status: 'loading' } | { status: 'ready'; idx: SkyIndex } | { status: 'missing' } | { status: 'error'; message: string };
 
 const LISTEN_SECONDS = 12;
 const MAX_FILE_SECONDS = 60;
 const MAX_REGIONS = 30;
+/** Longest stretch of the song played with the star (s). */
+const MAX_TOGETHER = 30;
 
 interface Song {
   title: string;
@@ -33,6 +37,8 @@ interface Song {
   buffer: AudioBuffer | null;
   recording: Blob | null;
   snippetStart: number;
+  /** Start (s, in `buffer`) of the analysed segment: the music analysis' time 0. */
+  segStart: number;
 }
 
 function useReducedMotion() {
@@ -68,6 +74,16 @@ function monoSlice(buf: AudioBuffer, start: number, length: number): Float32Arra
   return out;
 }
 
+/** Play-along options from the song's music analysis, re-timed so that score time 0 = `from` s
+ * after the analysed segment's start (chords before it dropped; composeSong loops the rest). */
+function alongOptions(m: MusicAnalysis, from: number, accompaniment: boolean): ComposeOptions {
+  let chords: SongChord[] = m.chords
+    .filter((c) => c.t + c.dur > from + 0.05)
+    .map((c) => ({ t: Math.max(0, c.t - from), dur: c.t + c.dur - Math.max(from, c.t), root: c.root, quality: c.quality }));
+  if (!chords.length) chords = m.chords;
+  return { tonic: m.tonic, mode: m.mode, scale: 'diatonic', bpm: m.bpm, beatOffset: m.beatOffset - from, chords, accompaniment };
+}
+
 const pct = (r: number) => Math.round(Math.max(0, Math.min(1, r)) * 100);
 
 export default function MatchApp() {
@@ -96,6 +112,8 @@ function MatchStudio() {
   const [coarse, setCoarse] = useState<{ hits: CoarseHit[]; compared: number } | null>(null);
   const [deep, setDeep] = useState<DeepProgress | null>(null);
   const [stopped, setStopped] = useState(false);
+  const [music, setMusic] = useState<MusicState>({ status: 'idle' });
+  const musicFor = useRef<Song | null>(null);
 
   const liveLevels = useRef<Float32Array | null>(null);
   const listenRef = useRef<ListenHandle | null>(null);
@@ -162,6 +180,17 @@ function MatchStudio() {
     if (phase === 'done' && song) requestAnimationFrame(() => resultsRef.current?.focus({ preventScroll: false }));
   }, [phase, song]);
 
+  /** Key / tempo / chords, in parallel with the sky search (never blocks it). */
+  const startMusic = useCallback((s: Song, mono: Float32Array | null, sampleRate: number) => {
+    musicFor.current = s;
+    if (!mono || mono.length < sampleRate * 3) { setMusic({ status: 'failed' }); return; }
+    setMusic({ status: 'pending' });
+    musicInWorker(mono, sampleRate).then(
+      (m) => { if (musicFor.current === s) setMusic({ status: 'ready', m }); },
+      () => { if (musicFor.current === s) setMusic({ status: 'failed' }); },
+    );
+  }, []);
+
   const accept = useCallback((s: Song) => {
     setSong(s);
     setCoarse(null);
@@ -181,12 +210,14 @@ function MatchStudio() {
       if (recording) {
         try { buffer = await audioCtx().decodeAudioData(await recording.arrayBuffer()); } catch { buffer = null; }
       }
-      accept({ title: t.micTitle, source: 'mic', analysis, buffer, recording, snippetStart: 0 });
+      const s: Song = { title: t.micTitle, source: 'mic', analysis, buffer, recording, snippetStart: 0, segStart: 0 };
+      accept(s);
+      startMusic(s, buffer ? monoSlice(buffer, 0, Math.min(60, buffer.duration)) : null, buffer?.sampleRate ?? 44100);
     } catch (e) {
       setError((e as Error)?.message === 'silent' ? t.errSilent : t.errMic);
       setPhase('error');
     }
-  }, [accept, t]);
+  }, [accept, startMusic, t]);
 
   const listen = useCallback(async () => {
     if (phase === 'listening') { finishListening(); return; }
@@ -219,16 +250,19 @@ function MatchStudio() {
       const buf = await audioCtx().decodeAudioData(await file.arrayBuffer());
       const win = analysisWindow(buf.duration, MAX_FILE_SECONDS);
       const mono = monoSlice(buf, win.start, win.length);
+      const musicMono = mono.slice(); // the analysis worker takes ownership of `mono`
       const analysis = await analyseInWorker(mono, buf.sampleRate);
       const title = file.name.replace(/\.[a-z0-9]{1,5}$/i, '').replace(/[_]+/g, ' ').trim().slice(0, 80) || t.fileTitle;
-      accept({ title, source: 'file', analysis, buffer: buf, recording: null, snippetStart: win.start + Math.min(10, win.length / 3) });
+      const s: Song = { title, source: 'file', analysis, buffer: buf, recording: null, snippetStart: win.start + Math.min(10, win.length / 3), segStart: win.start };
+      accept(s);
+      startMusic(s, musicMono, buf.sampleRate);
     } catch (e) {
       setError((e as Error)?.message === 'silent' ? t.errSilent : t.errDecode);
       setPhase('error');
     } finally {
       if (fileRef.current) fileRef.current.value = '';
     }
-  }, [accept, t]);
+  }, [accept, startMusic, t]);
 
   const stop = useCallback(() => { setStopped(true); searchCtrl.current?.abort(); }, []);
 
@@ -336,9 +370,10 @@ function MatchStudio() {
       {song && best.length > 0 && (
         <section className="mt-results" aria-labelledby="mt-r-h">
           <h2 id="mt-r-h" ref={resultsRef} tabIndex={-1} className="mt-h2 p-display">{phase === 'done' ? t.resultsHeading : t.resultsLive}</h2>
+          <MusicReadout music={music} t={t} locale={locale} />
           <ol className="mt-cards">
             {best.slice(0, 3).map((h, i) => (
-              <ResultCard key={`${h.npix}-${h.col}-${h.row}`} hit={h} rank={i + 1} song={song} valid={valid} t={t} locale={locale} final={phase === 'done'} />
+              <ResultCard key={`${h.npix}-${h.col}-${h.row}`} hit={h} rank={i + 1} song={song} music={music.status === 'ready' ? music.m : null} valid={valid} t={t} locale={locale} final={phase === 'done'} />
             ))}
           </ol>
         </section>
@@ -370,11 +405,37 @@ function MappingStrip({ t }: { t: MatchText }) {
   );
 }
 
-function ResultCard({ hit, rank, song, valid, t, locale, final }: {
-  hit: FineHit; rank: number; song: Song; valid: boolean[]; t: MatchText; locale: 'en' | 'es'; final: boolean;
+function MusicReadout({ music, t, locale }: { music: MusicState; t: MatchText; locale: 'en' | 'es' }) {
+  if (music.status === 'idle') return null;
+  if (music.status === 'pending') return <p className="mt-music mt-micro" role="status">{t.musicDetecting}</p>;
+  if (music.status !== 'ready') return <p className="mt-music mt-micro" role="status">{t.musicFailed}</p>;
+  const m = music.m;
+  const key = { tonic: m.tonic, mode: m.mode };
+  const seq: string[] = [];
+  for (const c of m.chords) {
+    const n = chordName(c, locale, key);
+    if (seq[seq.length - 1] !== n) seq.push(n);
+    if (seq.length >= 8) break;
+  }
+  return (
+    <div className="mt-music" role="status">
+      <p className="mt-music-key p-data">{t.musicReadout(t.keyLabel(noteName(m.tonic, locale, key), m.mode), Math.round(m.bpm))}</p>
+      <p className="mt-micro">
+        {t.musicConfidence(pct(m.keyConfidence), pct(m.tempoConfidence))}
+        {seq.length > 0 && <> · {t.musicChords(seq.join(' → '))}</>}
+      </p>
+      <p className="mt-micro">{t.alongNote}</p>
+    </div>
+  );
+}
+
+function ResultCard({ hit, rank, song, music, valid, t, locale, final }: {
+  hit: FineHit; rank: number; song: Song; music: MusicAnalysis | null; valid: boolean[]; t: MatchText; locale: 'en' | 'es'; final: boolean;
 }) {
   const [constellation, setConstellation] = useState<string | null>(null);
-  const [playing, setPlaying] = useState<'' | 'song' | 'sky'>('');
+  const [playing, setPlaying] = useState<'' | 'together' | 'song' | 'sky'>('');
+  const [mix, setMix] = useState(0.5);
+  const mixRef = useRef<{ song: GainNode; star: GainNode } | null>(null);
   const [toast, setToast] = useState('');
   const stopRef = useRef<(() => void) | null>(null);
 
@@ -385,19 +446,36 @@ function ResultCard({ hit, rank, song, valid, t, locale, final }: {
   }, [hit.ra, hit.dec]);
   useEffect(() => () => stopRef.current?.(), []);
 
-  const play = () => {
-    if (playing) { stopRef.current?.(); stopRef.current = null; setPlaying(''); return; }
+  const stopPlayback = () => { stopRef.current?.(); stopRef.current = null; mixRef.current = null; setPlaying(''); };
+  const skyInput = () => ({
+    lambda_um: FRAME_UM.slice(),
+    intensity: hit.grey.map((g, i) => (g && valid[i] !== false ? g / 254 : null)),
+    seed: `starmatch:${hit.ra.toFixed(4)},${hit.dec.toFixed(4)}`,
+    label: 'Star Match',
+  });
+
+  /** Equal-ish power mix: 0 = song only, 0.5 = both full, 1 = star only. */
+  const applyMix = (v: number) => {
+    const g = mixRef.current;
+    if (!g) return;
+    const now = g.song.context.currentTime;
+    g.song.gain.setTargetAtTime(0.8 * Math.min(1, 2 * (1 - v)), now, 0.03);
+    g.star.gain.setTargetAtTime(Math.min(1, 2 * v), now, 0.03);
+  };
+
+  /** 8 s of the song, then the star picks up in the song's key, tempo and chords for 16 s. */
+  const playAfter = () => {
+    if (playing) { stopPlayback(); return; }
     const ctx = audioCtx();
     const timers: ReturnType<typeof setTimeout>[] = [];
     let src: AudioBufferSourceNode | null = null;
     let sky: { stop(): void } | null = null;
     const SNIP = 8, SKY = 16;
-    const startSky = (at: number) => {
-      const intensity = hit.grey.map((g, i) => (g && valid[i] !== false ? g / 254 : null));
-      const score = composeSong({ lambda_um: FRAME_UM.slice(), intensity, seed: `starmatch:${hit.ra.toFixed(4)},${hit.dec.toFixed(4)}`, label: 'Star Match' }, 20);
+    const startSky = (at: number, from: number) => {
+      const score = composeSong(skyInput(), SKY, music ? alongOptions(music, from, false) : undefined);
       sky = playScore(score, ctx, undefined, { startAt: at });
       timers.push(setTimeout(() => setPlaying('sky'), Math.max(0, (at - ctx.currentTime) * 1000)));
-      timers.push(setTimeout(() => { sky?.stop(); setPlaying(''); }, Math.max(0, (at - ctx.currentTime + SKY) * 1000)));
+      timers.push(setTimeout(() => { sky?.stop(); stopRef.current = null; setPlaying(''); }, Math.max(0, (at - ctx.currentTime + SKY) * 1000)));
     };
     const t0 = ctx.currentTime + 0.05;
     if (song.buffer) {
@@ -409,17 +487,58 @@ function ResultCard({ hit, rank, song, valid, t, locale, final }: {
       g.gain.setValueAtTime(0.9, t0 + SNIP - 0.6);
       g.gain.linearRampToValueAtTime(0, t0 + SNIP);
       src.connect(g).connect(ctx.destination);
-      const off = Math.min(song.snippetStart, Math.max(0, song.buffer.duration - SNIP));
+      const off = Math.max(0, Math.min(song.snippetStart, song.buffer.duration - SNIP));
       src.start(t0, off, SNIP);
       setPlaying('song');
-      startSky(t0 + SNIP + 0.4);
+      // the star carries on the song's timeline: its beat grid and chords continue from the snippet
+      startSky(t0 + SNIP, off - song.segStart + SNIP);
     } else {
-      startSky(t0);
+      startSky(t0, 0);
     }
     stopRef.current = () => {
       timers.forEach(clearTimeout);
       try { src?.stop(); } catch { /* */ }
       sky?.stop();
+    };
+  };
+
+  /** Song and star at the same time on one AudioContext clock, the star on the song's beat grid. */
+  const playTogether = () => {
+    if (playing) { stopPlayback(); return; }
+    const buf = song.buffer;
+    if (!buf) { playAfter(); return; }
+    const ctx = audioCtx(); // created / resumed inside the click (iOS)
+    const len = Math.min(MAX_TOGETHER, buf.duration - song.segStart);
+    if (len < 2) { playAfter(); return; }
+    const opts: ComposeOptions = music ? alongOptions(music, 0, true) : { accompaniment: true };
+    const score = composeSong(skyInput(), len, { ...opts, seconds: len });
+    const t0 = ctx.currentTime + 0.15;
+    // song gain + star gain -> safety limiter -> speakers (the star's own chain has a limiter too)
+    const limiter = ctx.createDynamicsCompressor();
+    limiter.threshold.value = -3; limiter.knee.value = 0; limiter.ratio.value = 20; limiter.attack.value = 0.003; limiter.release.value = 0.15;
+    limiter.connect(ctx.destination);
+    const songGain = ctx.createGain(), starGain = ctx.createGain();
+    songGain.connect(limiter); starGain.connect(limiter);
+    mixRef.current = { song: songGain, star: starGain };
+    songGain.gain.value = 0.8 * Math.min(1, 2 * (1 - mix));
+    starGain.gain.value = Math.min(1, 2 * mix);
+    const fade = ctx.createGain();
+    fade.gain.setValueAtTime(0, t0);
+    fade.gain.linearRampToValueAtTime(1, t0 + 0.03);
+    fade.gain.setValueAtTime(1, t0 + len - 0.5);
+    fade.gain.linearRampToValueAtTime(0, t0 + len);
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.connect(fade).connect(songGain);
+    src.start(t0, song.segStart, len);
+    const sky = playScore(score, ctx, starGain, { startAt: t0 });
+    const end = setTimeout(() => stopPlayback(), (t0 - ctx.currentTime + len + 0.3) * 1000);
+    setPlaying('together');
+    stopRef.current = () => {
+      clearTimeout(end);
+      try { src.stop(); } catch { /* */ }
+      sky.stop();
+      setTimeout(() => { try { limiter.disconnect(); } catch { /* */ } }, 400);
     };
   };
 
@@ -460,9 +579,28 @@ function ResultCard({ hit, rank, song, valid, t, locale, final }: {
         songLabel={t.legendSong} skyLabel={t.legendSky} hzAxis={t.axisHz} umAxis={t.axisUm}
       />
       <div className="mt-actions">
-        <button type="button" className="mt-btn mt-btn-primary" onClick={play} aria-pressed={!!playing}>
-          {playing === 'song' ? t.playingSong : playing === 'sky' ? t.playingSky : t.playBoth}
-        </button>
+        {playing === 'together' ? (
+          <div className="mt-mix">
+            <button type="button" className="mt-btn mt-btn-primary" onClick={stopPlayback} aria-pressed="true">{t.playingTogether} {t.stopPlay}</button>
+            <label className="mt-mix-row p-data">
+              <span>{t.mixSong}</span>
+              <input
+                type="range" min={0} max={1} step={0.01} value={mix} aria-label={t.mixLabel}
+                onChange={(e) => { const v = Number(e.target.value); setMix(v); applyMix(v); }}
+              />
+              <span>{t.mixStar}</span>
+            </label>
+          </div>
+        ) : playing ? (
+          <button type="button" className="mt-btn mt-btn-primary" onClick={stopPlayback} aria-pressed="true">
+            {playing === 'song' ? t.playingSong : t.playingSky}
+          </button>
+        ) : (
+          <>
+            <button type="button" className="mt-btn mt-btn-primary" onClick={playTogether} disabled={!song.buffer}>{t.playTogether}</button>
+            <button type="button" className="mt-btn mt-span" onClick={playAfter}>{t.playAfter}</button>
+          </>
+        )}
         <a className="mt-btn" href={withLang(exploreHref(hit.ra, hit.dec), locale)}>{t.openExplorer}</a>
         {poster && <a className="mt-btn" href={withLang(poster, locale)}>{t.poster}</a>}
         <button type="button" className="mt-btn" onClick={share}>{t.share}</button>

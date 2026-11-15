@@ -159,7 +159,7 @@ export default function CosmosLanding() {
       const p = new URLSearchParams({ ra: tg.ra.toFixed(6), dec: tg.dec.toFixed(6) });
       if (tg.id) p.set('target', tg.id);
       if (locale === 'en') p.set('lang', 'en');
-      return `/prism?${p.toString()}`;
+      return `/explore?${p.toString()}`;
     },
     [locale],
   );

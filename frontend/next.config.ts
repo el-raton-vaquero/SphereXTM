@@ -1,6 +1,6 @@
 import type { NextConfig } from "next";
 
-// Live PRISM data comes from the FastAPI science server (server/). Two ways to reach it:
+// Live StarChord data comes from the FastAPI science server (server/). Two ways to reach it:
 //  - NEXT_PUBLIC_PRISM_API_BASE: the browser calls that URL directly (CORS must allow the site);
 //  - SPHEREX_API_INTERNAL_URL: Next proxies /api/* to it (default http://127.0.0.1:8000 locally).
 // On Vercel with neither set, the build is static: no /api proxy, the explorer serves the
@@ -21,9 +21,18 @@ const nextConfig: NextConfig = {
     proxyTimeout: 180_000,
   },
   env: {
-    // /classic calls /api/frames through the proxy; without it, its labelled synthetic demo mode.
-    NEXT_PUBLIC_USE_REAL_API: process.env.NEXT_PUBLIC_USE_REAL_API || (proxyEnabled ? 'true' : 'false'),
     NEXT_PUBLIC_PRISM_LIVE: process.env.NEXT_PUBLIC_PRISM_LIVE || (liveEnabled ? '1' : '0'),
+  },
+  // Old routes. Redirects keep the query string (target, ra, dec, lang...) and run on Vercel
+  // (static or not) and in the standalone Docker server alike.
+  async redirects() {
+    return [
+      { source: '/prism', destination: '/explore', permanent: false },
+      { source: '/prism/:path*', destination: '/explore', permanent: false },
+      { source: '/classic', destination: '/explore', permanent: false },
+      { source: '/classic/:path*', destination: '/explore', permanent: false },
+      { source: '/cosmos', destination: '/', permanent: false },
+    ];
   },
   async rewrites() {
     if (!proxyEnabled) return [];

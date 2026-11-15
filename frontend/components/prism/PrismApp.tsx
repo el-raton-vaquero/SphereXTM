@@ -542,7 +542,7 @@ export default function PrismApp({ initialQuery }: { initialQuery: string }) {
   // ---- Derived labels ----
   const satCount = frames.filter((f) => f.saturated_at_center).length;
   const originLabel = data ? (data.origin.kind === 'live' ? text.originLive : text.originSnapshot(data.origin.generated.slice(0, 10))) : '';
-  const embedUrl = typeof window === 'undefined' ? '' : `${window.location.origin}/prism?${writeUrl({ ...url, embed: true })}`;
+  const embedUrl = typeof window === 'undefined' ? '' : `${window.location.origin}/explore?${writeUrl({ ...url, embed: true })}`;
   const progressP = progress && progress.key === reqKey ? progress.p : null;
   const pct = progressP?.total ? Math.min(100, ((progressP.done ?? 0) / progressP.total) * 100) : null;
   const yrSpan = seasons.length ? (seasons[seasons.length - 1].end_mjd - seasons[0].start_mjd) / 365.25 : 0;

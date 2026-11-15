@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import '../prism-tokens.css';
-import './prism.css';
+import './explore.css';
 
 export const metadata: Metadata = {
   title: 'PRISM · SPHEREx',

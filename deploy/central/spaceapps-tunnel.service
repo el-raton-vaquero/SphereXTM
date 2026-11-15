@@ -1,0 +1,10 @@
+[Unit]
+Description=Cloudflare tunnel for spaceapps.candymart.store (NASA Space Apps PRISM)
+After=network-online.target
+Wants=network-online.target
+[Service]
+ExecStart=/usr/local/bin/cloudflared --no-autoupdate tunnel --config /opt/spaceapps/tunnel/config.yml run
+Restart=always
+RestartSec=5
+[Install]
+WantedBy=multi-user.target

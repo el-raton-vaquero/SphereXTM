@@ -1,0 +1,8 @@
+[Unit]
+Description=PRISM frontend pull-based deploy to Vercel (SphereXTM prism branch)
+After=network-online.target
+[Service]
+Type=oneshot
+Environment=BRANCH=prism
+ExecStart=/opt/spaceapps/deploy-frontend.sh
+TimeoutStartSec=1800

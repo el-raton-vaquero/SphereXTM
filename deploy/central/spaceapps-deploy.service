@@ -1,0 +1,8 @@
+[Unit]
+Description=PRISM backend pull-based deploy (SphereXTM prism branch)
+After=docker.service network-online.target
+[Service]
+Type=oneshot
+Environment=BRANCH=prism
+ExecStart=/opt/spaceapps/deploy.sh
+TimeoutStartSec=1800

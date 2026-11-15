@@ -1,0 +1,7 @@
+tunnel: e0b05f67-5167-4d2c-8ed5-79a9030aa3ca
+credentials-file: /opt/spaceapps/tunnel/creds.json
+metrics: 127.0.0.1:20299
+ingress:
+  - hostname: spaceapps.candymart.store
+    service: http://127.0.0.1:8710
+  - service: http_status:404

@@ -1,0 +1,7 @@
+[Unit]
+Description=Poll GitHub every minute for PRISM frontend deploys
+[Timer]
+OnBootSec=1min
+OnUnitInactiveSec=60s
+[Install]
+WantedBy=timers.target

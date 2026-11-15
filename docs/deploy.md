@@ -101,3 +101,10 @@ This fetches live data from IRSA, Gaia and SkyBoT, writes
 `frontend/public/snapshots/<id>.json` and `index.json`, and keeps each file under 4 MB
 by reducing the frame count if needed. Commit the new files and push, and Vercel
 redeploys.
+
+## Current production
+
+The live demo runs on the tailnet server `central` (Docker backend behind a
+Cloudflare tunnel at https://spaceapps.candymart.store) with the frontend on
+Vercel (https://spherex-prism.vercel.app). Both auto-deploy from branch `prism`
+through pull-based systemd timers; see [`deploy/central/README.md`](../deploy/central/README.md).

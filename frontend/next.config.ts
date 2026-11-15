@@ -32,6 +32,10 @@ const nextConfig: NextConfig = {
       { source: '/classic', destination: '/explore', permanent: false },
       { source: '/classic/:path*', destination: '/explore', permanent: false },
       { source: '/cosmos', destination: '/', permanent: false },
+      // The old standalone cube demo; the 3D cube lives in the explorer's "3D cube" view.
+      // Only this route: public/cosmos/* (textures, star catalogue) must stay reachable.
+      { source: '/cosmos/cube', destination: '/explore', permanent: false },
+      { source: '/cosmos/cube/:path*', destination: '/explore', permanent: false },
     ];
   },
   async rewrites() {

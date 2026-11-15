@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import ComingSoon from '../../components/site/ComingSoon';
+import LookApp from '../../components/look/LookApp';
 import { en } from '../../lib/i18n/en';
 
 export const metadata: Metadata = {
@@ -8,5 +8,5 @@ export const metadata: Metadata = {
 };
 
 export default function Page() {
-  return <ComingSoon section="look" />;
+  return <LookApp />;
 }

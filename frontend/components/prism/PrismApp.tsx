@@ -103,9 +103,12 @@ export default function PrismApp({ initialQuery }: { initialQuery: string }) {
 
   // ---- URL sync (replaceState; the URL is the shareable state) ----
   useEffect(() => {
-    // The language lives in the shared i18n module; keep it in the shareable URL too.
+    // The language lives in the shared i18n module (which owns ?lang=); keep whatever it has
+    // put in the URL. Reading the URL, not `locale`, avoids dropping ?lang=es on the first
+    // (hydration) render, when `locale` is still the server default.
     const params = new URLSearchParams(writeUrl(url));
-    if (locale !== 'en') params.set('lang', locale);
+    const lang = new URLSearchParams(window.location.search).get('lang');
+    if (lang) params.set('lang', lang);
     const qs = params.toString();
     const next = `${window.location.pathname}${qs ? `?${qs}` : ''}`;
     if (next !== window.location.pathname + window.location.search) window.history.replaceState(null, '', next);

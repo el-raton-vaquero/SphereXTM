@@ -204,8 +204,9 @@
   .cz-pkind { display: none; }
   .cz-top { height: auto; flex-wrap: wrap; padding: 8px 16px 4px; gap: 4px 12px; }
   .cz-top-r { display: contents; }
-  .cz-top .cz-nav { order: 3; width: 100%; justify-content: space-between; }
-  .cz-panel { top: 96px; }
+  .cz-top .cz-nav { order: 3; width: 100%; justify-content: space-between; align-items: center; }
+  .cz-top .cz-nav ul { flex-wrap: nowrap; overflow-x: auto; }
+  .cz-panel { top: 100px; }
   .cz-bottom { grid-template-columns: 1fr; gap: 10px; padding: 10px 16px 12px; }
   .cz-legend, .cz-hint { display: none; }
   .cz-note { font-size: 11.5px; }

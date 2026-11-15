@@ -419,3 +419,45 @@ Merged (no conflicts) the five feature branches on top of the foundation: real-E
   Vercel build (`VERCEL=1`, `NEXT_PUBLIC_PRISM_API_BASE` set): `/prism?…` → 307 `/explore?…`
   keeping the query, `/classic` → `/explore`, snapshots served; /sky dock shows "Visible sky ·
   1326-11-15 UTC · 556 stars" as computed; /explore Listen dock shows M101 as real SPHEREx.
+
+## StarChord QA fixes — 2026-11-15 (branch `prism`)
+
+Fixes for the QA report on 2ca1063 (no blockers; 3 major, 13 minor):
+- **/sky local time** (major): `lib/sky/time.ts` gives every preset city an IANA zone. From 1970
+  on, `placeOffsetHours()` uses that zone (or the browser's zone for "use my location"), so
+  Mexico City is UTC−6. Earlier epochs and custom coordinates keep UTC + round(lon/15).
+  `localToMs()` converts local wall time at a place. Epoch presets, `?date=`/`?epoch=<year>`,
+  the date form and the trail tick labels (`SkyEngine.setTzOffset`) all use it. Fractional offsets
+  print as `UTC+5:30`.
+- **/cosmos/cube** (major): the unlinked demo route (hard-coded `/api/v2/search`, synthetic test
+  button, internal component name) is deleted together with `components/cosmos/CubeDemo.tsx`.
+  `/cosmos/cube` now redirects to `/explore`. The redirect covers only that path, because
+  `public/cosmos/*` (star catalogue, Earth textures) must stay reachable: a `/cosmos/:path*`
+  rule broke the landing and /sky. The 3D cube is still in the explorer's "3D cube" view.
+- **Tab titles in ES** (major): `components/site/HtmlLang.tsx` sets `document.title` from the
+  i18n `metaTitle` of the current route and re-applies it if Next writes the static English title.
+- Minor fixes:
+  - /sky place names come from `sky.places` (Ciudad de México, Nueva York, Londres…).
+  - ES "hora local aproximada" (no double period).
+  - "M101 (Galaxia del Molinete)" in ES (`targets[id].name`).
+  - ES decimal commas in target kinds.
+  - Distinct accessible names "Play music" / "Play time" on /sky.
+  - Cardboard: the stage is fixed to the full screen, the canvas re-measures after the fullscreen
+    or orientation change, and the "turn your phone" hint spans the width.
+  - /look: the HUD badge wraps, and the status list does not wrap.
+  - /look: a "pointing below the horizon" note on captures with altitude < 0.
+  - /look: side-by-side panels on phones are capped at ~44vh, keeping the aspect ratio.
+  - /look: the hips2fits timeout per host is 8 s, down from 15 s.
+  - /sky reads `?ra=&dec=` and turns towards that position. "Above me" links also pass the viewer's `lat`/`lon`.
+  - Landing: the target panel scrolls above the bottom bar, which is measured live
+    (`--cz-bottom-h`, `--cz-top-h`), so no target hides behind it on desktop or phones. The phone
+    nav wraps instead of clipping.
+  - Explorer: on phones the coach card is never placed above its target. The target label stays
+    inside the plate when neither side fits. A note explains a browser "matches the prediction"
+    next to an "Inconclusive" archive verdict.
+  - The static-mode notice no longer names the env var.
+  - /symphony computes "700 years ago" from today's year and links to `/sky?epoch=ago700`.
+  - The unused `explore.listenSlot` string is removed.
+- Still open: overlapping Sun/Moon/planet labels; real-hardware checks (WebXR, Cardboard, compass,
+  iOS audio, camera); the CDS hips2fits path; official logos (BrandMark placeholder); approximate
+  102-band grid.

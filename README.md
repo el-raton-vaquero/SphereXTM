@@ -10,14 +10,67 @@ a Spanish toggle is on every page.
 
 | Route | What it is |
 |---|---|
-| `/` | 3D celestial sphere: real stars (BSC5), the SPHEREx orbit and an illustrative sweep. Pick a target and fly to it. |
-| `/explore` | Explorer (formerly `/prism`, which redirects here with its query string): north-up reprojected frame sequence, time × λ pad, co-add, matched-λ difference, molecular goggles, 3D cube, forced-photometry spectrum and an evidence-based verdict. |
-| `/sky` | Sky time machine: date + speed, trajectories, the sky of 700 years ago, VR (in progress; positions are computed). |
-| `/symphony` | Star symphony: the 102 SPHEREx bands as music (in progress; an artistic mapping of real data). |
-| `/look` | Look up: phone camera + orientation to find the SPHEREx view of where you point; on desktop, what is above you (in progress). |
-| `/cosmos/cube` | Stand-alone spectral cube of real frames. |
+| `/` | Landing: a real Earth (NASA Blue Marble day map, city lights at night, an archival cloud layer, lit by the real Sun), the Moon, the SPHEREx orbit, 9 096 real bright stars (BSC5) and an illustrative survey sweep. Type a target or pick one and fly to it; "Four ways in" links to the four sections. |
+| `/explore` | Explorer (formerly `/prism`, which redirects here keeping its query string): the series of real SPHEREx frames of any RA/Dec or named target played like a short film, co-add, matched-λ difference, molecule goggles, 3D cube, the real spectrum under a probe, the motion measured in your browser and the backend's evidence-based archive checks. A **Listen** tab plays that real spectrum. |
+| `/sky` | Sky time machine (computed): choose a date (−3000 to 3000) and a speed (real time to 100 years/s), trajectories of the Sun, Moon and planets, epoch presets (700 years ago, the pyramids, SN 1054, Galileo, year 1, year 3000), phone motion, Cardboard stereo and WebXR headsets. Plays the colours of the visible stars as music. Links: `?epoch=ago700`, `?epoch=<year>`, `?date=YYYY-MM-DD[THH:MM]`, `?ra=&dec=` (turn towards a position), `?lat=&lon=`. |
+| `/symphony` | Star symphony: pick a real SPHEREx field and move a circle over it; the spectrum inside the circle (102 bands, 0.75–5 µm) is played live. |
+| `/look` | Look up: on a phone, the camera plus GPS and orientation sensors work out where you are pointing and show the real SPHEREx all-sky view of that patch (pointing labelled approximate); on a desktop, what is above you now (computed). |
 
-`/classic` was removed; old `/classic` and `/cosmos` links redirect.
+`/classic` and the stand-alone `/cosmos/cube` demo were removed; `/classic`, `/cosmos` and
+`/cosmos/cube` redirect.
+
+### How the star symphony maps data to sound
+
+The input is real: SPHEREx surface brightness measured in real frames (one wavelength per frame),
+or, on `/sky`, a computed colour spectrum of the visible stars that is labelled "computed".
+Everything after that is an **artistic mapping**, and the UI says so:
+
+- The samples are grouped into **102 bands**: the six SPHEREx detectors (D1 0.75–1.09 µm …
+  D6 4.42–5.00 µm), each split into 17 log-spaced steps. This is an approximation of the
+  SPHEREx channels, used only to group samples into notes and never as calibration.
+- Each band's wavelength sets its **pitch** (short → high, about four octaves), snapped to a
+  **pentatonic scale**. A pentatonic scale has no semitone steps, so any combination of notes
+  sounds consonant.
+- Each band's normalised brightness sets its **volume** and **note length**. Bright bands ring
+  longer and hold the beat; very faint bands become rests.
+- The **colour** of the spectrum (D1–D2 against D5–D6) picks the key and the drone: blue and hot
+  plays E major pentatonic, neutral plays D suspended, red and cold or dusty plays A minor pentatonic.
+- Absorption features inside the range (H₂O ice ~3.0 µm, CO₂ 4.27 µm, CO 4.67 µm, CH₄ 3.3 µm,
+  PAH 3.3 µm emission) change the timbre, so an icy region's spectrum makes its own melody.
+- Moving the circle (or the probe in `/explore`, or the sky in `/sky`) changes the spectrum, and
+  the music follows in real time. Saturated points are dropped.
+
+The core is in `frontend/lib/symphony/core.ts` (pure, tested by `npm run test:symphony`).
+
+### Scientific integrity
+
+- SPHEREx pixels come only from IRSA (live, through the backend) or from the saved real
+  snapshots in `frontend/public/snapshots/`. Nothing synthetic is ever shown as SPHEREx.
+- Catalogue predictions (Gaia DR3, SIMBAD, SkyBoT) are labelled as predictions.
+- Computed or modelled content is labelled in the UI. This covers the `/sky` positions
+  (astronomy-engine ephemerides plus linear proper motion, approximate far from today), the
+  `/look` pointing (from phone sensors, approximate), the "above me" chart, the landing sweep
+  (illustrative) and the clouds (one archival field, not live weather). Every sonification is
+  labelled "artistic mapping".
+- Local time on `/sky` uses each city's real time zone from 1970 on (Mexico City is UTC−6). For
+  earlier dates and custom coordinates it uses UTC + round(longitude / 15 h), because civil time
+  zones did not exist then.
+- See [docs/scientific-integrity.md](docs/scientific-integrity.md).
+
+### Credits
+
+- SPHEREx data: NASA/JPL-Caltech, served by NASA/IPAC IRSA (DR1, QR3). The SPHEREx all-sky HiPS
+  on `/look` is courtesy NASA/JPL-Caltech, with the HiPS built by CDS, Strasbourg.
+- Earth, Moon and Milky Way textures: NASA Goddard Scientific Visualization Studio (Blue Marble
+  NG, Black Marble 2012, CGI Moon Kit/LRO, Deep Star Maps 2020 with Gaia DR2 by ESA/Gaia/DPAC).
+  Details are in `frontend/public/cosmos/README.md`.
+- Stars: Yale Bright Star Catalogue 5th ed. (Hoffleit & Warren 1991, CDS V/50), with proper
+  motions from the CfA TDC copy. Constellation figures are from d3-celestial (Olaf Frohn,
+  BSD-3). See `frontend/public/sky/README.md`.
+- Ephemerides: astronomy-engine (Don Cross, MIT). Name resolution: CDS Sesame. Catalogues: Gaia
+  DR3 (ESA), SIMBAD (CDS), SkyBoT (IMCCE).
+- Fonts: Fraunces, Figtree and JetBrains Mono (SIL Open Font License), from Google Fonts.
+- Logos: `frontend/public/brand/` is the slot for the official StarChord logos (see its README).
 
 API v2 (FastAPI, `server/`): `/v2/targets`, `/v2/search` (+ `/v2/search/stream` SSE),
 `/v2/gaia`, `/v2/skybot`, `/v2/spectrum` and `/v2/verdict` (both take `lang=en|es`).

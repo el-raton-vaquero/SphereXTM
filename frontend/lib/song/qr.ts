@@ -5,8 +5,8 @@
  * Follows the structure of Project Nayuki's reference QR generator (MIT): build the data bit
  * stream, split into Reed-Solomon blocks over GF(256) (poly 0x11D), interleave, draw function
  * patterns, zig-zag the codewords, try the 8 masks and keep the one with the lowest penalty.
- * Verified by decoding generated symbols with OpenCV's QRCodeDetector (see scripts/test-qr.mjs
- * notes in the commit) for every version 1..10.
+ * Verified by decoding generated symbols with OpenCV's QRCodeDetector for every version 1..10
+ * at full byte capacity, and the QR on rendered posters/stories.
  *
  * encodeQr(text) -> { size, modules } where modules[y][x] === true is a dark module.
  * Throws when the UTF-8 text does not fit version 10-M (213 bytes).

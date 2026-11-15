@@ -10,6 +10,7 @@ Usage (from ``server/``)::
     uv run --locked python scripts/precompute_snapshots.py                 # all six presets
     uv run --locked python scripts/precompute_snapshots.py wise-0855 barnard
     uv run --locked python scripts/precompute_snapshots.py --max-frames 120 --fov 4
+    uv run --locked python scripts/precompute_snapshots.py --extras-only   # keep frames, redo spectrum/verdict
 
 A failed target is reported and left out (never replaced by synthetic data); the
 index records the failure. Exit code 0 only if every requested target succeeded.
@@ -143,6 +144,28 @@ def build_snapshot(target: dict, fov: float, max_frames: int, deadline: float,
     return blob, summary
 
 
+def refresh_extras(path: Path, target: dict, fov: float) -> tuple[bytes, dict]:
+    """Recompute spectrum + verdict for an existing snapshot (same frames/search, same providers)."""
+    snapshot = json.loads(path.read_text(encoding="utf-8"))
+    absent = dict(snapshot.get("extras_absent") or {})
+    for name, kwargs in (("spectrum", dict(ra=target["ra"], dec=target["dec"], aperture_arcsec=9.0)),
+                         ("verdict", dict(ra=target["ra"], dec=target["dec"], fov=fov))):
+        t0 = time.monotonic()
+        try:
+            out = v2.PROVIDERS[name](**kwargs)
+        except Exception as exc:  # noqa: BLE001 - recorded, not faked
+            absent[name] = f"{type(exc).__name__}: {exc}"
+            snapshot.pop(name, None)
+            print(f"    {name}: FAILED {absent[name]}", flush=True)
+            continue
+        snapshot[name] = out
+        absent.pop(name, None)
+        print(f"    {name}: ok in {time.monotonic() - t0:.1f} s", flush=True)
+    snapshot["extras_absent"] = absent
+    snapshot["extras_generated_utc"] = datetime.now(timezone.utc).isoformat()
+    return _dump(snapshot), snapshot
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("targets", nargs="*", help="preset ids (default: all)")
@@ -151,6 +174,8 @@ def main(argv=None) -> int:
     parser.add_argument("--deadline", type=float, default=600.0)
     parser.add_argument("--workers", type=int, default=10)
     parser.add_argument("--out", type=Path, default=DEFAULT_OUT)
+    parser.add_argument("--extras-only", action="store_true",
+                        help="keep each snapshot's frames; recompute spectrum and verdict only")
     args = parser.parse_args(argv)
     registry = {t["id"]: t for t in targets_v2.load_registry()["targets"]}
     wanted = args.targets or list(registry)
@@ -171,6 +196,21 @@ def main(argv=None) -> int:
     for tid in wanted:
         target = registry[tid]
         print(f"[{tid}] {target['name']} ra={target['ra']:.6f} dec={target['dec']:+.6f}", flush=True)
+        if args.extras_only:
+            path = args.out / f"{tid}.json"
+            if not path.exists() or tid not in entries:
+                print(f"[{tid}] no existing snapshot; skipped", flush=True)
+                ok = False
+                continue
+            blob, snap = refresh_extras(path, target, args.fov)
+            path.write_bytes(blob)
+            verdict = snap.get("verdict") or {}
+            entries[tid].update(bytes=len(blob), verdict=verdict.get("verdict"),
+                                confidence=verdict.get("confidence"),
+                                extras=sorted(k for k in ("gaia", "spectrum", "verdict") if k in snap),
+                                extras_absent=snap["extras_absent"])
+            print(f"[{tid}] verdict {verdict.get('verdict')} ({verdict.get('confidence')})", flush=True)
+            continue
         try:
             blob, summary = build_snapshot(target, args.fov, args.max_frames, args.deadline, args.workers)
         except live.LiveError as exc:

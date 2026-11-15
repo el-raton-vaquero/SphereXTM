@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { useLocale, withLang, type Messages } from '../../lib/i18n';
+import SkyImageNote from '../site/SkyImageNote';
 import { useMounted } from '../../lib/look/hooks';
 import { loadPlace } from '../../lib/look/places';
 import type { StarCatalog } from '../../components/cosmos/stars';
@@ -541,6 +542,7 @@ function SongStudio() {
               <figcaption className="p-label">{t.spherexTitle}</figcaption>
               {result.image ? <SpxImage key={specToQuery(result.spec)} canvas={result.image} /> : <div className="sg-spx-missing">{t.imageMissing}</div>}
               <p className="sg-micro">{t.spherexCaption}</p>
+              <SkyImageNote />
             </figure>
           </div>
         </section>

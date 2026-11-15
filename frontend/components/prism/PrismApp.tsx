@@ -28,6 +28,7 @@ import SkyCanvas, { type Ring } from './SkyCanvas';
 import SpectrumPanel, { type SpectrumSource } from './SpectrumPanel';
 import TargetBar from './TargetBar';
 import SummaryCard from './SummaryCard';
+import { readImage } from '../../lib/prism/reading';
 import Term from './Term';
 import Transport from './Transport';
 import VerdictPanel from './VerdictPanel';
@@ -371,6 +372,15 @@ export default function PrismApp({ initialQuery }: { initialQuery: string }) {
     const trail = [sorted[0], sorted[sorted.length - 1]].map((q) => proj.skyToPix(q.ra, q.dec));
     return { x: px.x, y: px.y, trail, label: track.label };
   }, [ov.target, track, proj, current]);
+
+  // Plain-language reading of the image on screen ("mostly noise, because...").
+  const reading = useMemo(() => {
+    if (!view || !current || !search) return null;
+    return readImage({
+      mode, image: view.image, n: search.grid.n, at: targetMark ? { x: targetMark.x, y: targetMark.y } : null,
+      current, nFrames: view.frames.length, locale: locale === 'es' ? 'es' : 'en',
+    });
+  }, [view, current, search, mode, targetMark, locale]);
 
   const skybotRings: Ring[] = useMemo(() => {
     if (!ov.skybot || !skybot?.data || !proj || !current || skybot.key !== `${reqKey}@${current.mjd.toFixed(3)}`) return [];
@@ -903,6 +913,13 @@ export default function PrismApp({ initialQuery }: { initialQuery: string }) {
                     onProbeReset={onProbeReset}
                     maxSize={maxSize}
                   />
+                )}
+                {reading && (
+                  <aside className={`xp-reading xp-reading-${reading.kind}`} aria-live="polite">
+                    <p className="xp-reading-k">{locale === 'es' ? 'Qué estás viendo' : 'What you are seeing'}</p>
+                    <p className="xp-reading-t">{reading.title}</p>
+                    <ul>{reading.lines.map((l) => <li key={l}>{l}</li>)}</ul>
+                  </aside>
                 )}
               </div>
 

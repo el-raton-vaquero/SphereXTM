@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { useLocale, withLang, type Messages } from '../../lib/i18n';
+import SkyImageNote from '../site/SkyImageNote';
 import { useMounted } from '../../lib/look/hooks';
 import { FRAME_UM } from '../../lib/look/hipsRender';
 import { analysisWindow, BAND_HZ, N_BANDS, type SongAnalysis } from '../../lib/match/bands';
@@ -570,6 +571,7 @@ function ResultCard({ hit, rank, song, music, valid, t, locale, final }: {
         <div className="mt-thumbs">
           <SkyThumb ra={hit.ra} dec={hit.dec} fovDeg={1} label={t.imgLabel(1)} caption={t.imgWide} loadingText={t.imgLoading} failText={t.imgFail} />
           <SkyThumb ra={hit.ra} dec={hit.dec} fovDeg={10 / 60} label={t.imgLabel(10 / 60)} caption={t.imgZoom} loadingText={t.imgLoading} failText={t.imgFail} />
+          <SkyImageNote className="mt-thumbs-note" />
         </div>
       ) : (
         <p className="mt-micro">{t.imgAfter}</p>

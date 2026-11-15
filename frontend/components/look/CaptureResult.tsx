@@ -4,6 +4,7 @@
 
 import { useCallback, useMemo, useState } from 'react';
 import { useLocale } from '../../lib/i18n';
+import SkyImageNote from '../site/SkyImageNote';
 import { formatDec, formatRa } from '../../lib/prism/coords';
 import { PRESETS } from '../../lib/prism/presets';
 import { project, type CamBasis, type View } from '../../lib/look/camera';
@@ -137,6 +138,7 @@ export default function CaptureResult({ captured, onBack }: { captured: Captured
         </figure>
       )}
       {(hips === 'failed' || target) && region && <p className="look-note">{L.cutoutInset}</p>}
+      <SkyImageNote />
 
       <HipsControls layer={layer} setLayer={setLayer} status={hips} wcs={wcs} source={hipsSrc} />
 

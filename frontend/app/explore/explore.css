@@ -429,3 +429,17 @@
 .xp-more-info summary { cursor: pointer; color: var(--p-ink-2); font-size: 13px; padding: 4px 0; }
 .xp-more-info summary:hover { color: var(--p-ink); }
 .xp-more-info[open] { display: flex; flex-direction: column; gap: 8px; }
+
+/* ---------- "What you are seeing": plain-language reading next to the image ---------- */
+.xp-reading { margin-top: 10px; padding: 10px 12px; border: 1px solid var(--p-rule); border-left: 3px solid var(--p-ink-2); border-radius: var(--p-r); background: rgba(255, 255, 255, 0.02); font-size: var(--p-fs-small); line-height: 1.45; color: var(--p-ink-2); }
+.xp-reading-k { font-family: var(--p-font-data); font-size: var(--p-fs-label); letter-spacing: 0.08em; text-transform: uppercase; color: var(--p-tick); margin: 0 0 2px; }
+.xp-reading-t { font-weight: 600; color: var(--p-ink); font-size: var(--p-fs-body); margin: 0 0 4px; }
+.xp-reading ul { margin: 0; padding-left: 16px; display: grid; gap: 4px; }
+.xp-reading-source { border-left-color: var(--p-ok); }
+.xp-reading-faint, .xp-reading-partial, .xp-reading-diff-moving { border-left-color: var(--p-warn); }
+.xp-reading-saturated, .xp-reading-artifact { border-left-color: var(--p-bad); }
+.xp-reading-noise, .xp-reading-empty { border-left-color: var(--p-tick); }
+@media (min-width: 1180px) {
+  .xp-player:has(> .xp-reading) { display: grid; grid-template-columns: minmax(0, 1fr) 240px; gap: 16px; align-items: start; }
+  .xp-player:has(> .xp-reading) > .xp-reading { margin-top: 0; }
+}

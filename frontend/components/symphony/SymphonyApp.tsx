@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { useLocale, withLang } from '../../lib/i18n';
+import SkyImageNote from '../site/SkyImageNote';
 import { PRESETS } from '../../lib/prism/presets';
 import { loadSnapshot } from '../../lib/prism/snapshot';
 import { analyseSpectrum, binToBands } from '../../lib/symphony/core';
@@ -200,6 +201,7 @@ export default function SymphonyApp() {
                   {ts.plateCaption(loaded.plate.frames.length, ((loaded.plate.n * loaded.plate.pixscale_arcsec) / 60).toFixed(1))}
                 </p>
                 <p className="sym-caption p-data">{ts.snapshotNote(snapDate)}</p>
+                <SkyImageNote variant="plate" />
               </>
             ) : (
               <div className="sym-plate sym-plate-empty" role="status">

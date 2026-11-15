@@ -6,7 +6,7 @@ What runs the public demo:
 |---|---|
 | Science API (FastAPI, Docker `spaceapps_backend`) | `central`, `127.0.0.1:8710` |
 | Public URL | https://spaceapps.candymart.store via Cloudflare named tunnel (`spaceapps-tunnel.service`) |
-| Frontend | Vercel project `spherex-prism` → https://spherex-prism.vercel.app |
+| Frontend | Vercel project `listar` → https://listar-spherex.vercel.app (also listar-sky / listar-app / listar-xi .vercel.app); legacy project `spherex-prism` → https://spherex-prism.vercel.app, deployed on every push too |
 
 ## How a push becomes a deploy
 

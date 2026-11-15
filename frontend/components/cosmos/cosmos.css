@@ -35,6 +35,8 @@
 .cz-lbl-sun { color: var(--p-warn); }
 .cz-lbl-sun::before { content: "○ "; }
 .cz-lbl-craft { color: var(--p-ink-2); font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.1em; }
+.cz-lbl-body { color: var(--p-ink-2); font-family: var(--p-font-body); font-size: 12.5px; letter-spacing: 0.02em; margin: -8px 0 0 9px; }
+.cz-lbl-body::before { content: ""; position: absolute; left: -9px; top: 50%; width: 5px; border-top: 1px solid var(--p-ink-3); }
 
 /* ---------- top bar ---------- */
 .cz-top {
@@ -155,6 +157,8 @@
 .cz-readout b { font-weight: 400; color: var(--p-ink-3); text-transform: uppercase; letter-spacing: 0.08em; font-size: 11.5px; margin-right: 6px; }
 .cz-readout .cz-ghost { align-self: flex-start; margin-top: 6px; }
 .cz-hint { font-size: 11.5px; }
+.cz-clock { color: var(--p-ink); }
+.cz-root .cz-now { margin-left: 10px; padding: 0 2px; color: var(--p-signal); border-bottom-color: var(--p-signal); }
 
 .cz-survey-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
 .cz-date { font-size: 12px; color: var(--p-ink); }
@@ -192,6 +196,14 @@
 .cz-legend .lg-gal { border-color: #8a857c; border-top-style: dashed; }
 .cz-legend .lg-cov { height: 8px; border: 0; background: rgba(236, 232, 225, 0.12); }
 .cz-legend .lg-now { height: 8px; border: 0; background: rgba(255, 90, 31, 0.45); }
+.cz-legend .lg-body { width: 7px; height: 7px; margin: 0 19px 0 6px; border: 0; border-radius: 50%; background: #f3e6cf; }
+.cz-credits { margin-top: 4px; max-width: 46ch; }
+.cz-credits summary { cursor: pointer; color: var(--p-ink-2); list-style: none; }
+.cz-credits summary::-webkit-details-marker { display: none; }
+.cz-credits summary::before { content: "+ "; color: var(--p-ink-3); }
+.cz-credits[open] summary::before { content: "− "; }
+.cz-credits summary:hover { color: var(--p-ink); }
+.cz-credits ul { list-style: none; margin: 6px 0 0; padding: 8px 0 0; border-top: 1px solid var(--p-rule); display: flex; flex-direction: column; gap: 5px; max-height: 38vh; overflow-y: auto; font-family: var(--p-font-body); font-size: 12px; line-height: 1.45; color: var(--p-ink-3); }
 
 /* ---------- small screens ---------- */
 @media (max-width: 900px) {
@@ -208,7 +220,10 @@
   .cz-top .cz-nav ul { flex-wrap: nowrap; overflow-x: auto; }
   .cz-panel { top: 100px; }
   .cz-bottom { grid-template-columns: 1fr; gap: 10px; padding: 10px 16px 12px; }
-  .cz-legend, .cz-hint { display: none; }
+  .cz-hint { display: none; }
+  .cz-legend > li:not(.cz-credits-li) { display: none; }
+  .cz-legend { justify-self: start; }
+  .cz-credits { max-width: none; }
   .cz-note { font-size: 11.5px; }
   .cz-lock { left: 16px; right: 16px; top: auto; bottom: 12px; width: auto; }
   .cz-root[data-locked] .cz-bottom { visibility: hidden; }

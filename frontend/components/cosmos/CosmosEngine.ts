@@ -7,6 +7,7 @@ import {
   sceneToRadec,
   sunEclipticLongitude,
 } from './astro';
+import { allBodies, PLANET_IDS, siderealDeg, subSolarPoint, type BodyId, type BodyState, type PlanetId } from './bodies';
 import { buildSpacecraft, disposeObject } from './spacecraft';
 import type { StarCatalog } from './stars';
 
@@ -25,14 +26,39 @@ export interface CosmosViewState {
   fov: number; // vertical field of view, deg
   day: number;
   flying: boolean;
+  /** Instant the Sun, Moon, planets and Earth's rotation are computed for (ms). */
+  date: number;
+  /** true: following the wall clock; false: following the survey timeline. */
+  live: boolean;
+  subSolar: { lat: number; lon: number };
+  moonPhase: number; // illuminated fraction
+}
+
+export interface CosmosLabels {
+  ecliptic: string;
+  galactic: string;
+  sun: string;
+  earth: string;
+  spacecraft: string;
+  moon: string;
+  planets: Record<PlanetId, string>;
 }
 
 export interface CosmosEngineOptions {
   reducedMotion: boolean;
   onView?: (s: CosmosViewState) => void;
   onPick?: (ra: number, dec: number) => void;
-  labels: { ecliptic: string; galactic: string; sun: string; earth: string; spacecraft: string };
+  labels: CosmosLabels;
 }
+
+/** Texture paths (public/cosmos, provenance in its README). */
+export const COSMOS_TEXTURES = {
+  day: '/cosmos/earth-day.jpg',
+  night: '/cosmos/earth-night.jpg',
+  clouds: '/cosmos/earth-clouds.jpg',
+  moon: '/cosmos/moon.jpg',
+  milkyway: '/cosmos/milkyway.jpg',
+};
 
 /** Survey timeline origin: SPHEREx began its all-sky survey on 2025-05-01. */
 export const SURVEY_START = new Date(Date.UTC(2025, 4, 1));
@@ -41,6 +67,8 @@ export const SURVEY_DAYS = 184; // 2025-05-01 → 2025-11-01
 const SKY_R = 480;
 const STAR_R = 490;
 const GRID_R = 470;
+const MW_R = 496; // Milky Way backdrop, behind the stars
+const BODY_R = 440; // Sun, Moon and planets: in front of the grid and stars
 const ORBIT_R = 1 + 650 / 6371; // mean altitude ~650 km over a 6371 km Earth: to scale
 const SC_SCALE = 0.05; // spacecraft magnified ~10^5× — labelled in the HUD
 const HALF_WIDTH = 5.6; // illustrative scan-strip half width, deg
@@ -54,7 +82,7 @@ const smooth = (a: number, b: number, x: number) => {
 interface Label {
   el: HTMLDivElement;
   pos: THREE.Vector3;
-  kind: 'sky' | 'earth';
+  kind: 'sky' | 'earth' | 'body';
 }
 
 interface Flight {
@@ -105,6 +133,24 @@ export class CosmosEngine {
   private coverageMat: THREE.ShaderMaterial;
   private earthGroup = new THREE.Group();
   private earthMats: THREE.Material[] = [];
+  private earthSpin = new THREE.Group(); // rotates with sidereal time
+  private earthMat: THREE.ShaderMaterial;
+  private atmoMat: THREE.ShaderMaterial;
+  private mwMat: THREE.ShaderMaterial;
+  private moon: THREE.Mesh;
+  private moonMat: THREE.ShaderMaterial;
+  private bodyPoints: THREE.Points;
+  private bodyMat: THREE.ShaderMaterial;
+  private bodyLabels: Partial<Record<BodyId, Label>> = {};
+  private bodies: BodyState[] = [];
+  private textures: THREE.Texture[] = [];
+  private live = true;
+  private date = new Date();
+  private readonly todMs: number; // UTC time of day used for survey-timeline dates
+  private lastClock = 0;
+  private subSolar = { lat: 0, lon: 0 };
+  private moonPhase = 0;
+  private moonRadiusDeg = 0.26;
   private spacecraft: THREE.Group;
   private boresight: THREE.Line;
   private orbitLine: THREE.Line;
@@ -215,11 +261,13 @@ export class CosmosEngine {
         uniform float uPx, uZoom;
         varying vec3 vColor;
         varying float vAlpha;
+        varying float vHalo;
         void main() {
-          float s = sqrt(pow(10.0, -0.4 * (aMag - 1.0)));
-          float size = clamp(2.2 + 4.2 * s, 2.2, 12.0);
-          vAlpha = clamp(0.3 + 1.4 * s, 0.3, 1.0);
-          vColor = mix(vec3(1.0), aColor, 0.7);
+          float s = sqrt(pow(10.0, -0.4 * (aMag - 1.0)));   // ~ sqrt(flux), 1 at V = 1
+          float size = clamp(3.0 + 7.5 * s, 3.0, 22.0);      // bright stars get room for a halo
+          vAlpha = clamp(0.28 + 1.3 * s, 0.28, 1.0);
+          vHalo = clamp(s * 0.9, 0.0, 1.0);
+          vColor = mix(vec3(1.0), aColor, 0.8);
           gl_PointSize = size * uPx * uZoom;
           gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
         }`,
@@ -227,25 +275,247 @@ export class CosmosEngine {
         precision mediump float;
         varying vec3 vColor;
         varying float vAlpha;
+        varying float vHalo;
         void main() {
-          vec2 c = gl_PointCoord - 0.5;
-          float r = length(c) * 2.0;
-          float a = exp(-r * r * 5.0) * smoothstep(1.0, 0.7, r);
+          // Soft PSF: tight Gaussian core plus a faint exponential wing for bright stars.
+          float r = length(gl_PointCoord - 0.5) * 2.0;
+          float core = exp(-r * r * 14.0);
+          float wing = exp(-r * 5.0) * 0.28 * vHalo;
+          float a = (core + wing) * smoothstep(1.0, 0.75, r);
           gl_FragColor = vec4(vColor * a * vAlpha, 1.0);
         }`,
     });
+
+    // ---------- Milky Way backdrop (NASA SVS Deep Star Maps 2020, ICRS equirectangular) ----------
+    this.mwMat = new THREE.ShaderMaterial({
+      side: THREE.BackSide,
+      depthWrite: false,
+      uniforms: { uMap: { value: null }, uGain: { value: 0 } },
+      vertexShader: /* glsl */ `
+        varying vec2 vUv;
+        void main() {
+          vUv = uv;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }`,
+      fragmentShader: /* glsl */ `
+        precision mediump float;
+        uniform sampler2D uMap;
+        uniform float uGain;
+        varying vec2 vUv;
+        void main() {
+          // Map centred on RA 0h with RA increasing to the left; sphere u=0.5 is RA 0h, u grows with RA.
+          vec3 c = texture2D(uMap, vec2(1.0 - vUv.x, vUv.y)).rgb;
+          gl_FragColor = vec4(c * uGain, 1.0);
+          #include <colorspace_fragment>
+        }`,
+    });
+    const mw = new THREE.Mesh(new THREE.SphereGeometry(MW_R, 64, 32), this.mwMat);
+    mw.renderOrder = -3;
+    this.scene.add(mw);
 
     // ---------- Earth system ----------
     this.sunLight = new THREE.DirectionalLight(0xfff4e6, 3.0);
     this.scene.add(this.sunLight);
     this.scene.add(new THREE.AmbientLight(0x8a857c, 0.22));
 
-    const earthMat = new THREE.MeshLambertMaterial({ color: 0x4a4740, transparent: true });
-    const earth = new THREE.Mesh(new THREE.SphereGeometry(1, 64, 32), earthMat);
-    this.earthGroup.add(earth);
+    // Real Earth: Blue Marble day + Black Marble night, blended at the real terminator.
+    this.earthMat = new THREE.ShaderMaterial({
+      transparent: true,
+      uniforms: {
+        uDay: { value: null },
+        uNight: { value: null },
+        uClouds: { value: null },
+        uSun: { value: new THREE.Vector3(1, 0, 0) },
+        uAlpha: { value: 1 },
+        uReady: { value: 0 },
+        uHasClouds: { value: 0 },
+      },
+      vertexShader: /* glsl */ `
+        varying vec2 vUv;
+        varying vec3 vN;
+        varying vec3 vP;
+        void main() {
+          vUv = uv;
+          vN = normalize(mat3(modelMatrix) * normal);
+          vec4 wp = modelMatrix * vec4(position, 1.0);
+          vP = wp.xyz;
+          gl_Position = projectionMatrix * viewMatrix * wp;
+        }`,
+      fragmentShader: /* glsl */ `
+        precision highp float;
+        uniform sampler2D uDay, uNight, uClouds;
+        uniform vec3 uSun;
+        uniform float uAlpha, uReady, uHasClouds;
+        varying vec2 vUv;
+        varying vec3 vN;
+        varying vec3 vP;
+        void main() {
+          vec3 N = normalize(vN);
+          vec3 V = normalize(cameraPosition - vP);
+          vec3 L = normalize(uSun);
+          float ndl = dot(N, L);
+          float diff = max(ndl, 0.0);
+          vec3 day = texture2D(uDay, vUv).rgb;
+          vec3 night = texture2D(uNight, vUv).rgb;
+          float cloud = uHasClouds * texture2D(uClouds, vUv).r;
+          // Soft terminator: civil-twilight-wide blend around the real day/night line.
+          float dayK = smoothstep(-0.10, 0.20, ndl);
+          // Ocean mask from the day map itself (blue-dominant pixels).
+          float ocean = smoothstep(0.04, 0.16, day.b - max(day.r, day.g));
+          vec3 H = normalize(L + V);
+          float glint = pow(max(dot(N, H), 0.0), 80.0) * ocean * (1.0 - cloud) * smoothstep(0.0, 0.2, ndl);
+          vec3 col = day * (diff * 1.3 + 0.012);
+          col = mix(col, vec3(0.92, 0.93, 0.95) * (diff * 1.2 + 0.01), cloud * 0.92);
+          col += vec3(1.0, 0.93, 0.82) * glint * 0.9;
+          // City lights where it is dark; the blue land base kept faint.
+          float city = smoothstep(0.03, 0.30, night.r);
+          vec3 lights = night * (0.18 + 1.9 * city) * (1.0 - cloud * 0.75);
+          col += lights * (1.0 - dayK);
+          // Warm twilight band and thin Fresnel atmosphere rim on the lit limb.
+          col += vec3(0.30, 0.10, 0.03) * exp(-pow(ndl / 0.05, 2.0)) * 0.012; // tiny: sRGB output lifts small values a lot
+          float fres = pow(1.0 - max(dot(N, V), 0.0), 2.5);
+          col = mix(col, vec3(0.32, 0.56, 1.0) * (smoothstep(-0.25, 0.5, ndl) * 0.7 + 0.02), fres * 0.7);
+          // Until the textures arrive: the old graphite globe.
+          vec3 fallback = vec3(0.07, 0.068, 0.062) * (diff * 2.5 + 0.12);
+          col = mix(fallback, col, uReady);
+          col = vec3(1.0) - exp(-col * 1.4); // soft filmic shoulder
+          gl_FragColor = vec4(col, uAlpha);
+          #include <colorspace_fragment>
+        }`,
+    });
+    const earth = new THREE.Mesh(new THREE.SphereGeometry(1, 128, 64), this.earthMat);
+    this.earthSpin.add(earth);
     const eg = this.buildEarthGraticule();
-    this.earthGroup.add(eg);
-    this.earthMats.push(earthMat, eg.material as THREE.Material);
+    this.earthSpin.add(eg);
+    this.earthGroup.add(this.earthSpin);
+    this.earthMats.push(eg.material as THREE.Material);
+
+    // Atmosphere halo just outside the limb: analytic ray–sphere impact parameter, additive.
+    this.atmoMat = new THREE.ShaderMaterial({
+      side: THREE.BackSide,
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      uniforms: { uSun: { value: new THREE.Vector3(1, 0, 0) }, uAlpha: { value: 1 } },
+      vertexShader: /* glsl */ `
+        varying vec3 vP;
+        void main() {
+          vec4 wp = modelMatrix * vec4(position, 1.0);
+          vP = wp.xyz;
+          gl_Position = projectionMatrix * viewMatrix * wp;
+        }`,
+      fragmentShader: /* glsl */ `
+        precision highp float;
+        uniform vec3 uSun;
+        uniform float uAlpha;
+        varying vec3 vP;
+        void main() {
+          vec3 rd = normalize(vP - cameraPosition);
+          float tc = dot(-cameraPosition, rd);
+          vec3 closest = cameraPosition + rd * tc;
+          float b = length(closest);
+          float h = max(b - 1.0, 0.0);
+          float k = exp(-h / 0.016) * (1.0 - smoothstep(1.03, 1.06, b));
+          float lit = smoothstep(-0.35, 0.45, dot(normalize(closest), normalize(uSun)));
+          vec3 c = vec3(0.30, 0.55, 1.0) * k * (0.02 + 0.42 * lit) * uAlpha; // matched to the globe rim: no bright ring at the limb
+          gl_FragColor = vec4(c, 1.0);
+          #include <colorspace_fragment>
+        }`,
+    });
+    const atmo = new THREE.Mesh(new THREE.SphereGeometry(1.06, 96, 48), this.atmoMat);
+    atmo.renderOrder = 1; // after the Earth, so its depth hides the halo behind the globe
+    this.earthGroup.add(atmo);
+
+    // ---------- Moon (NASA SVS CGI Moon Kit), true angular size, phase from the real Sun ----------
+    this.moonMat = new THREE.ShaderMaterial({
+      uniforms: { uMap: { value: null }, uSun: { value: new THREE.Vector3(1, 0, 0) }, uReady: { value: 0 } },
+      vertexShader: /* glsl */ `
+        varying vec2 vUv;
+        varying vec3 vN;
+        void main() {
+          vUv = uv;
+          vN = normalize(mat3(modelMatrix) * normal);
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }`,
+      fragmentShader: /* glsl */ `
+        precision mediump float;
+        uniform sampler2D uMap;
+        uniform vec3 uSun;
+        uniform float uReady;
+        varying vec2 vUv;
+        varying vec3 vN;
+        void main() {
+          vec3 a = mix(vec3(0.16), texture2D(uMap, vUv).rgb, uReady);
+          float d = max(dot(normalize(vN), normalize(uSun)), 0.0);
+          vec3 col = a * (d * 1.9 + 0.006);
+          col = vec3(1.0) - exp(-col * 1.5);
+          gl_FragColor = vec4(col, 1.0);
+          #include <colorspace_fragment>
+        }`,
+    });
+    this.moon = new THREE.Mesh(new THREE.SphereGeometry(1, 48, 24), this.moonMat);
+    this.scene.add(this.moon);
+
+    // ---------- Sun and naked-eye planets: soft discs/PSFs sized by magnitude ----------
+    this.bodyMat = new THREE.ShaderMaterial({
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      uniforms: { uPxPerDeg: { value: 10 }, uPx: { value: this.renderer.getPixelRatio() } },
+      vertexShader: /* glsl */ `
+        attribute float aMag;
+        attribute float aDiam;
+        attribute vec3 aColor;
+        uniform float uPxPerDeg, uPx;
+        varying vec3 vColor;
+        varying float vDisc;
+        varying float vGlow;
+        void main() {
+          float disc = aDiam * uPxPerDeg;              // true disc, px
+          float s = sqrt(pow(10.0, -0.4 * (max(aMag, -6.0) + 1.0)));
+          float glow = clamp(5.0 + 7.0 * s, 5.0, 26.0) * uPx;
+          float size = max(disc * 2.6, glow);
+          size = aMag < -20.0 ? max(size, 46.0 * uPx) : size;
+          gl_PointSize = min(size, 512.0);
+          vDisc = disc / max(gl_PointSize, 1.0);
+          vGlow = aMag < -20.0 ? 1.0 : clamp(0.55 + 0.25 * s, 0.55, 1.0);
+          vColor = aColor;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }`,
+      fragmentShader: /* glsl */ `
+        precision mediump float;
+        varying vec3 vColor;
+        varying float vDisc;
+        varying float vGlow;
+        void main() {
+          float r = length(gl_PointCoord - 0.5);       // 0..0.5 across the sprite
+          float core = exp(-r * r * 90.0);
+          float halo = exp(-r * 9.0) * 0.35;
+          float disc = vDisc > 0.02 ? 1.0 - smoothstep(vDisc - 0.01, vDisc + 0.01, r) : 0.0;
+          float a = max(disc, (core + halo) * vGlow) * smoothstep(0.5, 0.42, r);
+          gl_FragColor = vec4(vColor * a, 1.0);
+        }`,
+    });
+    const nB = 1 + PLANET_IDS.length;
+    const bGeo = new THREE.BufferGeometry();
+    bGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(nB * 3), 3));
+    bGeo.setAttribute('aMag', new THREE.BufferAttribute(new Float32Array(nB), 1));
+    bGeo.setAttribute('aDiam', new THREE.BufferAttribute(new Float32Array(nB), 1));
+    const tint: Record<string, [number, number, number]> = {
+      sun: [1.0, 0.93, 0.8],
+      mercury: [0.85, 0.82, 0.78],
+      venus: [1.0, 0.97, 0.88],
+      mars: [1.0, 0.62, 0.42],
+      jupiter: [1.0, 0.92, 0.8],
+      saturn: [1.0, 0.88, 0.66],
+    };
+    const cols = new Float32Array(nB * 3);
+    ['sun', ...PLANET_IDS].forEach((id, i) => cols.set(tint[id], i * 3));
+    bGeo.setAttribute('aColor', new THREE.BufferAttribute(cols, 3));
+    this.bodyPoints = new THREE.Points(bGeo, this.bodyMat);
+    this.bodyPoints.frustumCulled = false;
+    this.bodyPoints.renderOrder = 1;
+    this.scene.add(this.bodyPoints);
 
     const orbitPts: THREE.Vector3[] = [];
     for (let i = 0; i <= 160; i++) {
@@ -275,11 +545,18 @@ export class CosmosEngine {
     this.earthMats.push(boreMat);
     this.scene.add(this.earthGroup);
 
-    this.sunLabel = this.addLabel(opts.labels.sun, new THREE.Vector3(), 'sky', 'sun');
+    this.sunLabel = this.addLabel(opts.labels.sun, new THREE.Vector3(), 'body', 'sun');
+    this.bodyLabels.sun = this.sunLabel;
+    this.bodyLabels.moon = this.addLabel(opts.labels.moon, new THREE.Vector3(), 'body', 'body');
+    for (const id of PLANET_IDS) this.bodyLabels[id] = this.addLabel(opts.labels.planets[id], new THREE.Vector3(), 'body', 'body');
     this.scLabel = this.addLabel(opts.labels.spacecraft, new THREE.Vector3(), 'earth', 'craft');
     this.earthLabel = this.addLabel(opts.labels.earth, new THREE.Vector3(0, -1.18, 0), 'earth', 'craft');
 
-    this.setDay(0);
+    const now = new Date();
+    this.todMs = now.getTime() % 86400000;
+    this.updateCoverage(0);
+    this.applyDate(now);
+    this.loadTextures();
 
     // ---------- Input ----------
     canvas.addEventListener('pointerdown', this.onDown);
@@ -369,10 +646,10 @@ export class CosmosEngine {
     for (let lat = -60; lat <= 60; lat += 30) for (let lon = 0; lon < 360; lon += 4) pts.push(...v(lon, lat), ...v(lon + 4, lat));
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
-    return new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color: 0x6d6961, transparent: true, opacity: 0.45 }));
+    return new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color: 0x9a958c, transparent: true, opacity: 0.1 }));
   }
 
-  private addLabel(text: string, pos: THREE.Vector3, kind: 'sky' | 'earth', cls: string): Label {
+  private addLabel(text: string, pos: THREE.Vector3, kind: Label['kind'], cls: string): Label {
     const el = document.createElement('div');
     el.className = `cz-lbl cz-lbl-${cls}`;
     el.textContent = text;
@@ -410,9 +687,62 @@ export class CosmosEngine {
 
   // ------------------------------------------------------------------ state
 
-  setLabels(labels: CosmosEngineOptions['labels']) {
+  /** Loads the Earth, Moon and Milky Way textures; the scene renders without them until they land. */
+  private loadTextures() {
+    const loader = new THREE.TextureLoader();
+    const aniso = Math.min(8, this.renderer.capabilities.getMaxAnisotropy());
+    const load = (url: string, srgb: boolean, done: (t: THREE.Texture) => void) =>
+      loader.load(
+        url,
+        (tex) => {
+          if (this.disposed) return tex.dispose();
+          tex.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+          tex.anisotropy = aniso;
+          this.textures.push(tex);
+          done(tex);
+          if (!this.active) this.render(performance.now());
+        },
+        undefined,
+        () => {
+          /* missing texture: keep the procedural fallback */
+        },
+      );
+    const u = this.earthMat.uniforms;
+    let pending = 2;
+    const earthPart = () => {
+      pending -= 1;
+      if (pending === 0) u.uReady.value = 1;
+    };
+    load(COSMOS_TEXTURES.day, true, (t) => {
+      u.uDay.value = t;
+      earthPart();
+    });
+    load(COSMOS_TEXTURES.night, true, (t) => {
+      u.uNight.value = t;
+      earthPart();
+    });
+    load(COSMOS_TEXTURES.clouds, false, (t) => {
+      u.uClouds.value = t;
+      u.uHasClouds.value = 1;
+    });
+    load(COSMOS_TEXTURES.moon, true, (t) => {
+      this.moonMat.uniforms.uMap.value = t;
+      this.moonMat.uniforms.uReady.value = 1;
+    });
+    load(COSMOS_TEXTURES.milkyway, true, (t) => {
+      this.mwMat.uniforms.uMap.value = t;
+      this.mwMat.uniforms.uGain.value = 1;
+    });
+  }
+
+  setLabels(labels: CosmosLabels) {
     this.opts.labels = labels;
     this.sunLabel.el.textContent = labels.sun;
+    if (this.bodyLabels.moon) this.bodyLabels.moon.el.textContent = labels.moon;
+    for (const id of PLANET_IDS) {
+      const l = this.bodyLabels[id];
+      if (l) l.el.textContent = labels.planets[id];
+    }
     this.scLabel.el.textContent = labels.spacecraft;
     this.earthLabel.el.textContent = labels.earth;
     for (const l of this.labels) {
@@ -421,21 +751,82 @@ export class CosmosEngine {
     }
   }
 
-  setDay(day: number) {
-    this.day = Math.max(0, Math.min(SURVEY_DAYS, day));
+  /** Illustrative sweep pattern for a survey day (low-precision solar longitude). */
+  private updateCoverage(day: number) {
     const lam0 = sunEclipticLongitude(SURVEY_START);
-    const date = new Date(SURVEY_START.getTime() + this.day * 86400000);
-    const lam = sunEclipticLongitude(date);
+    const lam = sunEclipticLongitude(new Date(SURVEY_START.getTime() + day * 86400000));
     let sweep = lam - lam0;
     if (sweep < 0) sweep += 360;
     this.coverageMat.uniforms.uL0.value = (lam0 + 90) * DEG;
     this.coverageMat.uniforms.uSweep.value = Math.min(sweep, 180) * DEG;
-    const s = eclipticToRadec(lam, 0);
-    this.sunDir.set(...radecToScene(s.ra, s.dec, 1));
+  }
+
+  /** Moves the scene to a survey day; the clock leaves "live" and follows the timeline. */
+  setDay(day: number) {
+    this.day = Math.max(0, Math.min(SURVEY_DAYS, day));
+    this.updateCoverage(this.day);
+    this.live = false;
+    // Whole days at a fixed UTC time of day: the globe does not strobe while the timeline plays.
+    const t = SURVEY_START.getTime() + Math.floor(this.day) * 86400000 + this.todMs;
+    if (t !== this.date.getTime()) this.applyDate(new Date(t));
+  }
+
+  /** Back to the wall clock. */
+  setLive() {
+    this.live = true;
+    this.applyDate(new Date());
+  }
+
+  /**
+   * Places the Sun, Moon and planets (astronomy-engine, computed) and spins the Earth
+   * by sidereal time, so the day side faces the real Sun for this instant.
+   */
+  private applyDate(date: Date) {
+    this.date = date;
+    this.bodies = allBodies(date);
+    const byId = Object.fromEntries(this.bodies.map((b) => [b.id, b])) as Record<BodyId, BodyState>;
+    const sun = byId.sun;
+    this.sunDir.set(...radecToScene(sun.ra, sun.dec, 1));
     this.sunLight.position.copy(this.sunDir).multiplyScalar(10);
-    this.sunLabel.pos.copy(this.sunDir).multiplyScalar(GRID_R);
+    (this.earthMat.uniforms.uSun.value as THREE.Vector3).copy(this.sunDir);
+    (this.atmoMat.uniforms.uSun.value as THREE.Vector3).copy(this.sunDir);
+    (this.moonMat.uniforms.uSun.value as THREE.Vector3).copy(this.sunDir);
     // Dawn–dusk orbit: plane perpendicular to the Sun line.
     this.orbitLine.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), this.sunDir);
+    // Greenwich (texture longitude 0, +X in mesh space) faces RA = sidereal time.
+    this.earthSpin.rotation.y = siderealDeg(date) * DEG;
+    this.subSolar = subSolarPoint(sun, date);
+
+    // Sun + planets as points.
+    const g = this.bodyPoints.geometry;
+    const pos = g.attributes.position as THREE.BufferAttribute;
+    const mag = g.attributes.aMag as THREE.BufferAttribute;
+    const diam = g.attributes.aDiam as THREE.BufferAttribute;
+    (['sun', ...PLANET_IDS] as BodyId[]).forEach((id, i) => {
+      const b = byId[id];
+      const p = radecToScene(b.ra, b.dec, BODY_R);
+      pos.setXYZ(i, p[0], p[1], p[2]);
+      mag.setX(i, b.mag);
+      diam.setX(i, b.diamDeg);
+      this.bodyLabels[id]?.pos.set(p[0], p[1], p[2]);
+    });
+    pos.needsUpdate = true;
+    mag.needsUpdate = true;
+    diam.needsUpdate = true;
+
+    // Moon: textured sphere at its true angular size, near side towards the Earth.
+    const m = byId.moon;
+    this.moonPhase = m.phase;
+    this.moonRadiusDeg = m.diamDeg / 2;
+    const md = new THREE.Vector3(...radecToScene(m.ra, m.dec, 1));
+    this.moon.position.copy(md).multiplyScalar(BODY_R);
+    this.moon.scale.setScalar(BODY_R * Math.tan((m.diamDeg / 2) * DEG));
+    const xAxis = md.clone().negate();
+    const eclN = new THREE.Vector3(...radecToScene(270, 90 - 23.4393, 1));
+    const zAxis = new THREE.Vector3().crossVectors(xAxis, eclN).normalize();
+    const yAxis = new THREE.Vector3().crossVectors(zAxis, xAxis).normalize();
+    this.moon.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(xAxis, yAxis, zAxis));
+    this.bodyLabels.moon?.pos.copy(md).multiplyScalar(BODY_R);
   }
 
   getDay() {
@@ -623,6 +1014,10 @@ export class CosmosEngine {
     if (this.playing) {
       this.setDay(this.day + dt * (SURVEY_DAYS / 36));
       if (this.day >= SURVEY_DAYS) this.playing = false;
+    } else if (this.live && t - this.lastClock > 1000) {
+      // Live clock: the Earth turns and the Moon creeps in real time.
+      this.lastClock = t;
+      this.applyDate(new Date());
     }
 
     // Spacecraft along its orbit (time compressed; one orbit ≈ 9 s on screen).
@@ -688,6 +1083,13 @@ export class CosmosEngine {
       const base = (m.userData.baseOpacity ??= m.opacity);
       m.opacity = base * earthAlpha;
     }
+    this.earthMat.uniforms.uAlpha.value = earthAlpha;
+    this.atmoMat.uniforms.uAlpha.value = earthAlpha;
+    this.earthMat.depthWrite = earthAlpha > 0.98;
+    const hPx = (this.canvas.clientHeight || 1) * this.renderer.getPixelRatio();
+    this.bodyMat.uniforms.uPxPerDeg.value = hPx / this.camera.fov;
+    // Milky Way: a quiet backdrop, dimmer when zoomed (the 2048 px map is ~0.18 deg/px).
+    this.mwMat.uniforms.uGain.value = this.mwMat.uniforms.uMap.value ? 0.42 * (0.1 + 0.9 * smooth(6, 35, this.camera.fov)) : 0;
     const fine = 1 - smooth(8, 20, this.camera.fov);
     this.fineGrid.visible = fine > 0.01;
     (this.fineGrid.material as THREE.LineBasicMaterial).opacity = fine;
@@ -699,7 +1101,18 @@ export class CosmosEngine {
     if (this.opts.onView && t - this.lastViewEmit > 90) {
       this.lastViewEmit = t;
       const c = this.viewCenter();
-      this.opts.onView({ mode: this.mode, ra: c.ra, dec: c.dec, fov: this.camera.fov, day: this.day, flying: !!this.flight });
+      this.opts.onView({
+        mode: this.mode,
+        ra: c.ra,
+        dec: c.dec,
+        fov: this.camera.fov,
+        day: this.day,
+        flying: !!this.flight,
+        date: this.date.getTime(),
+        live: this.live,
+        subSolar: this.subSolar,
+        moonPhase: this.moonPhase,
+      });
     }
   }
 
@@ -709,21 +1122,23 @@ export class CosmosEngine {
     const camDir = this.camera.getWorldDirection(new THREE.Vector3());
     const showSky = this.camera.fov > 14;
     for (const l of this.labels) {
-      let visible = l.kind === 'earth' ? earthAlpha > 0.5 : showSky || l === this.sunLabel;
+      let visible = l.kind === 'earth' ? earthAlpha > 0.5 : l.kind === 'body' || showSky;
       if (visible) {
         this.tmp.copy(l.pos);
         const toP = this.tmp.clone().sub(this.camera.position).normalize();
         if (toP.dot(camDir) < 0.05) visible = false;
         else {
           this.tmp.project(this.camera);
-          const x = (this.tmp.x * 0.5 + 0.5) * w;
+          // The Moon's label sits beside its disc, which is large when zoomed in.
+          const dx = l === this.bodyLabels.moon ? (this.moonRadiusDeg / this.camera.fov) * h : 0;
+          const x = (this.tmp.x * 0.5 + 0.5) * w + dx;
           const y = (-this.tmp.y * 0.5 + 0.5) * h;
           if (x < -40 || x > w + 40 || y < -20 || y > h + 20) visible = false;
           else l.el.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0)`;
         }
       }
       // Earth-system labels hidden behind the Earth disc.
-      if (visible && l.kind === 'earth' && l !== this.earthLabel) {
+      if (visible && ((l.kind === 'earth' && l !== this.earthLabel) || (l.kind === 'body' && earthAlpha > 0.5))) {
         const ray = new THREE.Ray(this.camera.position.clone(), l.pos.clone().sub(this.camera.position).normalize());
         const hit = ray.intersectSphere(new THREE.Sphere(new THREE.Vector3(), 1), new THREE.Vector3());
         if (hit && hit.distanceTo(this.camera.position) < l.pos.distanceTo(this.camera.position)) visible = false;
@@ -745,6 +1160,7 @@ export class CosmosEngine {
     this.canvas.removeEventListener('dblclick', this.onDbl);
     for (const l of this.labels) l.el.remove();
     disposeObject(this.scene);
+    for (const t of this.textures) t.dispose();
     this.renderer.dispose();
   }
 }

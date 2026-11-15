@@ -398,3 +398,24 @@ ephemerides.
 sentence). Headless Chrome on the production build: landing, `/explore` (EN and
 `?lang=es`, real WISE 0855 snapshot with Spanish verdict details), `/sky` placeholder;
 redirects return 307 with the query preserved.
+
+## StarChord feature integration — 2026-11-15 (branch `prism`)
+
+Merged (no conflicts) the five feature branches on top of the foundation: real-Earth landing
+(`components/cosmos/*`, NASA SVS textures in `public/cosmos/`), `/sky` time machine
+(`components/sky`, `lib/sky`, `public/sky/`), `/symphony` (`components/symphony`, `lib/symphony`),
+`/explore` redesign (`components/prism/*`, `lib/prism/probeSpectrum.ts`) and `/look`
+(`components/look`, `lib/look`). Provenance lives in each `public/<dir>/README.md` and
+`components/look/README.md`. Wiring done by the integrator:
+- `<SymphonyDock>` is mounted in the explorer's Listen tab (`components/symphony/ExploreSymphony.tsx`,
+  real SPHEREx probe spectrum, saturated points dropped, provenance `spherex`) and in the /sky side
+  panel (`components/symphony/SkySymphony.tsx`, visible-sky colour approximation, provenance
+  `computed`, retuned at most ~1/s).
+- `/sky` honours `?epoch=<preset id>`, `?epoch=<year>` (the year of "700 years ago" maps to that
+  preset; other years open the same calendar day at night) and `?date=YYYY-MM-DD[THH:MM]`
+  (approximate local time; night if no time given). `/symphony` links to `/sky?epoch=1326`.
+- Landing: "Four ways in" entry list (right column on wide screens, 2×2 in the panel on phones).
+- Verified: `uv run --locked pytest -q` (163 passed), lint, tsc, `test:symphony` 16/16, static
+  Vercel build (`VERCEL=1`, `NEXT_PUBLIC_PRISM_API_BASE` set): `/prism?…` → 307 `/explore?…`
+  keeping the query, `/classic` → `/explore`, snapshots served; /sky dock shows "Visible sky ·
+  1326-11-15 UTC · 556 stars" as computed; /explore Listen dock shows M101 as real SPHEREx.

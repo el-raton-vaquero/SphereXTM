@@ -268,7 +268,7 @@ export function FrameViewer() {
         {error && (
           <div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-slate-950/90 backdrop-blur-md p-6 text-center">
             <div className="w-12 h-12 rounded-full bg-rose-950 border border-rose-500/60 flex items-center justify-center text-rose-400 text-xl mb-3 shadow-lg shadow-rose-500/20">
-              ⚠️
+              !
             </div>
             <div className="text-sm font-bold text-rose-300 mb-1">
               Error al consultar datos SPHEREx

@@ -43,7 +43,7 @@ export const COSMOS_PRESETS: CosmosPreset[] = [
     dec: -7.2422032,
     epoch: 'MJD 61000 · /v2/targets',
     aliases: ['wise 0855', 'wise0855', 'wise j085510.83-071442.5', 'wise 0855-0714'],
-    kind: { es: 'enana marrón fría, 8.1″/año', en: 'cold brown dwarf, 8.1″/yr' },
+    kind: { es: 'enana marrón fría, 8.2″/año', en: 'cold brown dwarf, 8.2″/yr' },
   },
   {
     id: 'rw-aur',
@@ -85,26 +85,32 @@ export function findPreset(query: string): CosmosPreset | undefined {
 
 /** Resolve an arbitrary name with CDS Sesame (browser fetch, CORS-enabled mirrors). */
 export async function resolveWithSesame(name: string, signal?: AbortSignal): Promise<{ ra: number; dec: number; source: string } | null> {
+  // Query the mirrors in parallel and take the first answer that carries coordinates
+  // (cds.unistra.fr answers with a cross-origin redirect that some browsers abort).
   const mirrors = [
-    'https://cds.unistra.fr/cgi-bin/nph-sesame/-oxp/SNV?',
     'https://vizier.cfa.harvard.edu/viz-bin/nph-sesame/-oxp/SNV?',
+    'https://cds.unistra.fr/cgi-bin/nph-sesame/-oxp/SNV?',
   ];
-  for (const base of mirrors) {
-    try {
-      const ctl = new AbortController();
-      const timer = setTimeout(() => ctl.abort(), 5000);
-      signal?.addEventListener('abort', () => ctl.abort());
-      const res = await fetch(base + encodeURIComponent(name), { signal: ctl.signal });
-      clearTimeout(timer);
-      if (!res.ok) continue;
-      const text = await res.text();
-      const ra = text.match(/<jradeg>\s*([0-9.]+)\s*<\/jradeg>/);
-      const de = text.match(/<jdedeg>\s*([+-]?[0-9.]+)\s*<\/jdedeg>/);
-      if (ra && de) return { ra: parseFloat(ra[1]), dec: parseFloat(de[1]), source: 'CDS Sesame' };
-      return null;
-    } catch {
-      if (signal?.aborted) return null;
-    }
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), 8000);
+  const onAbort = () => ctl.abort();
+  signal?.addEventListener('abort', onAbort);
+  const one = async (base: string) => {
+    const res = await fetch(base + encodeURIComponent(name), { signal: ctl.signal });
+    if (!res.ok) throw new Error(String(res.status));
+    const text = await res.text();
+    const ra = text.match(/<jradeg>\s*([0-9.]+)\s*<\/jradeg>/);
+    const de = text.match(/<jdedeg>\s*([+-]?[0-9.]+)\s*<\/jdedeg>/);
+    if (!ra || !de) throw new Error('no coordinates');
+    return { ra: parseFloat(ra[1]), dec: parseFloat(de[1]), source: 'CDS Sesame' };
+  };
+  try {
+    return await Promise.any(mirrors.map(one));
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+    signal?.removeEventListener('abort', onAbort);
+    ctl.abort();
   }
-  return null;
 }

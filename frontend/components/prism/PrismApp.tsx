@@ -8,10 +8,11 @@ import {
   DEFAULT_FLAG_BITS, GOGGLES, computeLevels, goggleMap, gridAperture, matchedFrames, measureCentroid, medianStack,
   percentile, type GoggleId, type Stretch,
 } from '../../lib/prism/imaging';
+import { keepGreek } from '../../lib/prism/greek';
 import { PRISM_TEXT } from '../../lib/prism/i18n';
 import { PRESETS } from '../../lib/prism/presets';
 import { lambdaColor } from '../../lib/prism/ramp';
-import { findSnapshot, loadSnapshot, loadSnapshotIndex } from '../../lib/prism/snapshot';
+import { findSnapshot, loadSnapshot, loadSnapshotIndex, type SnapshotIndexEntry as SnapshotEntry } from '../../lib/prism/snapshot';
 import type {
   CatalogTarget, DataOrigin, Frame, GaiaResponse, Progress, SearchResult, SkybotObject, SpectrumPoint,
   SpectrumResponse, V2Target, VerdictResponse, ViewMode,
@@ -77,11 +78,22 @@ function nearestPos<T extends { mjd: number }>(arr: T[], mjd: number): T | undef
 export default function PrismApp({ initialQuery }: { initialQuery: string }) {
   const [url, setUrl] = useState<UrlState>(() => {
     const u = readUrl(initialQuery);
+    const q = new URLSearchParams(initialQuery);
+    const p0 = PRESETS.find((x) => x.id === (u.target ?? 'wise-0855'));
+    // Faint, unsaturated movers (WISE 0855, Eps Indi B) open on a co-add of their best detector:
+    // a single frame of a Y dwarf is mostly noise. An explicit ?mode= always wins.
+    const mode: ViewMode = !q.has('mode') && p0?.expected?.best_detectors && !p0.expected.saturated && p0.expected.pm_arcsec_yr ? 'coadd' : u.mode;
     if (u.ra === undefined || u.dec === undefined) {
-      const p = PRESETS.find((x) => x.id === (u.target ?? 'wise-0855')) ?? PRESETS[0];
-      return { ...u, ra: p.ra, dec: p.dec, target: p.id };
+      const p = p0 ?? PRESETS[0];
+      return { ...u, mode, ra: p.ra, dec: p.dec, target: p.id };
     }
-    return u;
+    return { ...u, mode };
+  });
+  // A shared link with unreadable coordinates must not silently show another target.
+  const [urlInvalid] = useState(() => {
+    const q = new URLSearchParams(initialQuery);
+    const u = readUrl(initialQuery);
+    return (q.has('ra') || q.has('dec')) && (u.ra === undefined || u.dec === undefined);
   });
   const text = PRISM_TEXT[url.lang];
   const [targets, setTargets] = useState<V2Target[]>(PRESETS);
@@ -109,6 +121,9 @@ export default function PrismApp({ initialQuery }: { initialQuery: string }) {
   const [failure, setFailure] = useState<Failure | null>(null);
   const [progress, setProgress] = useState<{ key: string; p: Progress } | null>(null);
   const [attempt, setAttempt] = useState(0);
+  // Presets with a saved real snapshot render it at once; live is queried only on request
+  // ("Consultar en vivo"), so a visitor never waits 30-90 s on a blank page.
+  const [liveFor, setLiveFor] = useState<string | null>(null);
   const initialUrl = useRef(url);
 
   useEffect(() => {
@@ -116,8 +131,27 @@ export default function PrismApp({ initialQuery }: { initialQuery: string }) {
     const ra = url.ra, dec = url.dec, fov = url.fov, target = url.target;
     const ctrl = new AbortController();
     const onP = (p: Progress) => setProgress({ key: reqKey, p });
+    const loadSnap = async (entry: SnapshotEntry, liveError: string | null) => {
+      const { snapshot, search } = await loadSnapshot(entry.id, onP, ctrl.signal);
+      if (ctrl.signal.aborted) return;
+      setLoaded({
+        key: reqKey, search, liveError,
+        origin: { kind: 'snapshot', id: snapshot.id, generated: snapshot.generated_utc },
+        gaia: snapshot.gaia ?? null, catalogTarget: snapshot.catalog_target ?? null,
+        spectrum: snapshot.spectrum ?? null, verdict: snapshot.verdict ?? null,
+      });
+    };
     (async () => {
       let liveError: string | null = null;
+      if (liveFor !== reqKey && target) {
+        try {
+          const idx = await loadSnapshotIndex();
+          const entry = idx.find((s) => s.id === target && angularSepArcsec(ra, dec, s.ra, s.dec) < 60 && s.fov === fov);
+          if (ctrl.signal.aborted) return;
+          if (entry) { await loadSnap(entry, null); return; }
+        } catch { /* no snapshot index: go live */ }
+        if (ctrl.signal.aborted) return;
+      }
       try {
         const search = await searchLive({ ra, dec, fov }, onP, ctrl.signal);
         if (ctrl.signal.aborted) return;
@@ -139,21 +173,14 @@ export default function PrismApp({ initialQuery }: { initialQuery: string }) {
           setFailure({ key: reqKey, message: entry ? `snapshot ${entry.id} is ${entry.fov}′; requested ${fov}′` : 'no snapshot', liveError });
           return;
         }
-        const { snapshot, search } = await loadSnapshot(entry.id, onP, ctrl.signal);
-        if (ctrl.signal.aborted) return;
-        setLoaded({
-          key: reqKey, search, liveError,
-          origin: { kind: 'snapshot', id: snapshot.id, generated: snapshot.generated_utc },
-          gaia: snapshot.gaia ?? null, catalogTarget: snapshot.catalog_target ?? null,
-          spectrum: snapshot.spectrum ?? null, verdict: snapshot.verdict ?? null,
-        });
+        await loadSnap(entry, liveError);
       } catch (e) {
         if (ctrl.signal.aborted) return;
         setFailure({ key: reqKey, message: e instanceof Error ? e.message : String(e), liveError });
       }
     })();
     return () => ctrl.abort();
-  }, [reqKey, attempt]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [reqKey, attempt, liveFor]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const data = loaded && loaded.key === reqKey ? loaded : null;
   const fail = !data && failure && failure.key === reqKey ? failure : null;
@@ -165,7 +192,9 @@ export default function PrismApp({ initialQuery }: { initialQuery: string }) {
   const preset = targets.find((t) => t.id === url.target) as (typeof PRESETS)[number] | undefined;
 
   // ---- Current frame ----
-  const [sel, setSel] = useState<{ key: string; index: number } | null>(null);
+  // `anchor` is the frame whose λ ± ½ band defines the matched set. Time steps and horizontal
+  // scrubs keep it, so blinking never drifts in wavelength; any λ change re-anchors.
+  const [sel, setSel] = useState<{ key: string; index: number; anchor: number } | null>(null);
   const currentIndex = useMemo(() => {
     if (!frames.length) return 0;
     if (sel && sel.key === reqKey && sel.index < frames.length) return sel.index;
@@ -174,7 +203,10 @@ export default function PrismApp({ initialQuery }: { initialQuery: string }) {
     return pickInitial(frames, useUrl ? first.t : undefined, useUrl ? first.lam : undefined, preset?.expected?.best_detectors);
   }, [frames, sel, reqKey, preset]);
   const current: Frame | null = frames[currentIndex] ?? null;
-  const select = useCallback((index: number) => setSel({ key: reqKey, index }), [reqKey]);
+  const select = useCallback((index: number, keepAnchor = false) => setSel((s) => ({
+    key: reqKey, index, anchor: keepAnchor && s && s.key === reqKey ? s.anchor : index,
+  })), [reqKey]);
+  const anchorFrame: Frame | null = sel && sel.key === reqKey && frames[sel.anchor] ? frames[sel.anchor] : current;
 
   useEffect(() => {
     if (!current) return;
@@ -182,7 +214,11 @@ export default function PrismApp({ initialQuery }: { initialQuery: string }) {
     setUrl((u) => (u.t === current.mjd && u.lam === current.lambda_um ? u : { ...u, t: current.mjd, lam: current.lambda_um }));
   }, [current]);
 
-  const matched = useMemo(() => (current ? matchedFrames(frames, current) : []), [frames, current]);
+  const matched = useMemo(() => {
+    if (!current || !anchorFrame) return [];
+    const m = matchedFrames(frames, anchorFrame);
+    return m.some((f) => f.index === current.index) ? m : [...m, current];
+  }, [frames, current, anchorFrame]);
   const matchedSet = useMemo(() => new Set(matched.map((f) => f.index)), [matched]);
   const seasons = useMemo(() => search?.seasons ?? [], [search]);
 
@@ -237,6 +273,8 @@ export default function PrismApp({ initialQuery }: { initialQuery: string }) {
 
   // ---- Overlays ----
   const [ov, setOv] = useState({ gaia: true, skybot: true, flags: false, centroid: true, target: true });
+  // ~185 rings on a 4' field hide the target; by default draw G < 17 or within 60" of the centre.
+  const [gaiaAll, setGaiaAll] = useState(false);
   const proj = useMemo(() => (search ? makeProjector(search.grid) : null), [search]);
   const pixscale = search?.grid.pixscale_arcsec ?? 6.15;
 
@@ -277,13 +315,22 @@ export default function PrismApp({ initialQuery }: { initialQuery: string }) {
     if (!ov.gaia || !gaia || !proj || !current) return [];
     return gaia.sources.flatMap((s) => {
       const p = nearestPos(s.positions, current.mjd) ?? { ra: s.ra, dec: s.dec };
+      if (!gaiaAll && !((s.phot_g_mean_mag ?? 99) < 17) && angularSepArcsec(p.ra, p.dec, search!.query.ra, search!.query.dec) > 60) return [];
       const px = proj.skyToPix(p.ra, p.dec);
       if (px.x < -2 || px.y < -2 || px.x > search!.grid.n + 1 || px.y > search!.grid.n + 1) return [];
       const dx = s.pmra != null ? -(s.pmra / 1000) * 10 / pixscale : undefined;
       const dy = s.pmdec != null ? -(s.pmdec / 1000) * 10 / pixscale : undefined;
       return [{ x: px.x, y: px.y, dx, dy, mag: s.phot_g_mean_mag, label: s.source_id }];
     });
-  }, [ov.gaia, gaia, proj, current, pixscale, search]);
+  }, [ov.gaia, gaia, proj, current, pixscale, search, gaiaAll]);
+  const gaiaInField = useMemo(() => {
+    if (!gaia || !proj || !current || !search) return 0;
+    return gaia.sources.filter((s) => {
+      const p = nearestPos(s.positions, current.mjd) ?? { ra: s.ra, dec: s.dec };
+      const px = proj.skyToPix(p.ra, p.dec);
+      return !(px.x < -2 || px.y < -2 || px.x > search.grid.n + 1 || px.y > search.grid.n + 1);
+    }).length;
+  }, [gaia, proj, current, search]);
 
   // Catalogue-predicted target track: snapshot registry track, else linear PM from the preset (labelled).
   const track = useMemo(() => {
@@ -325,6 +372,7 @@ export default function PrismApp({ initialQuery }: { initialQuery: string }) {
     const s = proj.pixToSky(x, y);
     setProbeSky({ key: reqKey, ra: s.ra, dec: s.dec });
   }, [proj, reqKey]);
+  const onProbeReset = useCallback(() => setProbeSky(null), []);
 
   // Centroid measured on the displayed image near the predicted target (or probe).
   const centroid = useMemo(() => {
@@ -358,6 +406,17 @@ export default function PrismApp({ initialQuery }: { initialQuery: string }) {
     return { det: current.detector, sA, sB, dtYr: (mjdB - mjdA) / 365.25, predArcsec, measured, nA: fa.length, nB: fb.length, sat };
   }, [current, search, track, proj, frames, pixscale]);
 
+  // Headline: measured shift between first and last season vs the catalogue prediction.
+  // Only for unsaturated movers with a real centroid in both co-adds; orange only when the
+  // measurement is significant (>= 3 sigma) and consistent with the prediction (within 2 sigma).
+  const hero = useMemo(() => {
+    if (!motion?.measured || motion.sat > 0 || !(preset?.expected?.pm_arcsec_yr && preset.expected.pm_arcsec_yr > 1)) return null;
+    const { arcsec: meas, err } = motion.measured;
+    if (!(err > 0) || !Number.isFinite(meas)) return null;
+    const ok = meas / err >= 3 && Math.abs(meas - motion.predArcsec) <= 2 * err;
+    return { meas, err, pred: motion.predArcsec, ok, det: motion.det, sA: motion.sA, sB: motion.sB };
+  }, [motion, preset]);
+
   // ---- Spectrum ----
   const nearCentre = probe && url.ra !== undefined && url.dec !== undefined ? angularSepArcsec(probe.ra, probe.dec, url.ra, url.dec) < 3 : false;
   const [specLive, setSpecLive] = useState<Aux<SpectrumResponse> | null>(null);
@@ -366,33 +425,47 @@ export default function PrismApp({ initialQuery }: { initialQuery: string }) {
     if (!isLive || !probe) return;
     const ctrl = new AbortController();
     const k = probeKey;
-    fetchSpectrum(probe.ra, probe.dec, APERTURE_ARCSEC, ctrl.signal)
-      .then((d) => setSpecLive({ key: k, status: 'ready', data: d }))
-      .catch((e) => !ctrl.signal.aborted && setSpecLive({ key: k, status: 'error', data: null, error: (e as Error).message }));
-    return () => ctrl.abort();
+    // Debounced: rapid clicks / arrow-key probe moves send one request; the previous one is aborted
+    // (the server drops it if it has not started yet).
+    const id = setTimeout(() => {
+      fetchSpectrum(probe.ra, probe.dec, APERTURE_ARCSEC, ctrl.signal)
+        .then((d) => setSpecLive({ key: k, status: 'ready', data: d }))
+        .catch((e) => !ctrl.signal.aborted && setSpecLive({ key: k, status: 'error', data: null, error: (e as Error).message }));
+    }, 600);
+    return () => { clearTimeout(id); ctrl.abort(); };
   }, [isLive, probeKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const clientSpectrum = useMemo<SpectrumResponse | null>(() => {
     if (!search || !probePix) return null;
     const n = search.grid.n;
-    const ix = Math.round(probePix.x), iy = Math.round(probePix.y);
-    const overflowBit = flagBits.OVERFLOW ?? 1;
+    const rAp = APERTURE_ARCSEC / pixscale;
+    // Same saturation category as the backend: OVERFLOW, NONLINEAR or BLOOM anywhere in the aperture.
+    let satMask = 0;
+    for (const k of ['OVERFLOW', 'NONLINEAR', 'BLOOM']) if (flagBits[k] !== undefined) satMask |= 1 << flagBits[k];
+    if (!satMask) satMask = 1 << (flagBits.OVERFLOW ?? 1);
+    const apPix: number[] = [];
+    for (let y = Math.floor(probePix.y - rAp); y <= Math.ceil(probePix.y + rAp); y++) {
+      for (let x = Math.floor(probePix.x - rAp); x <= Math.ceil(probePix.x + rAp); x++) {
+        if (x >= 0 && y >= 0 && x < n && y < n && (x - probePix.x) ** 2 + (y - probePix.y) ** 2 <= rAp * rAp) apPix.push(y * n + x);
+      }
+    }
     const points: SpectrumPoint[] = [];
     for (const f of frames) {
-      const r = gridAperture(f.pixels, n, probePix.x, probePix.y, APERTURE_ARCSEC / pixscale, pixscale);
+      const r = gridAperture(f.pixels, n, probePix.x, probePix.y, rAp, pixscale);
       if (!r) continue;
-      const fl = ix >= 0 && iy >= 0 && ix < n && iy < n ? f.flags[iy * n + ix] : 0;
+      let fl = 0;
+      for (const i of apPix) fl |= f.flags[i];
       const names = Object.entries(flagBits).filter(([, b]) => fl & (1 << b)).map(([k]) => k);
-      points.push({ lambda_um: f.lambda_um, flux: r.flux, err: r.err, unit: 'mJy', mjd: f.mjd, season: f.season, detector: f.detector, frame_id: f.id, flags: names, saturated: !!(fl & (1 << overflowBit)) });
+      points.push({ lambda_um: f.lambda_um, flux: r.flux, err: r.err, unit: 'mJy', mjd: f.mjd, season: f.season, detector: f.detector, frame_id: f.id, flags: names, saturated: (fl & satMask) !== 0 });
     }
     return {
       points, classification: null,
-      method: `r = ${APERTURE_ARCSEC}″, annulus +1.5…+4.5 px, bilinear-reprojected pixels`,
+      method: text.specClientMethod(APERTURE_ARCSEC),
       caveats: url.lang === 'es'
         ? ['Cada cuadro mide UNA longitud de onda en esta posición.', 'Sin corrección de apertura; la reproyección suaviza el flujo.']
         : ['Each frame samples ONE wavelength at this position.', 'No aperture correction; reprojection smooths flux.'],
     };
-  }, [search, probePix, frames, pixscale, flagBits, url.lang]);
+  }, [search, probePix, frames, pixscale, flagBits, url.lang, text]);
 
   let specData: SpectrumResponse | null = null;
   let specSource: SpectrumSource = 'client';
@@ -416,9 +489,10 @@ export default function PrismApp({ initialQuery }: { initialQuery: string }) {
   const [axis, setAxis] = useState<'time' | 'lambda'>('time');
   const stepTime = useCallback((dir: 1 | -1) => {
     if (!current) return;
-    const pool = mode === 'raw' ? frames : [...matched].sort((a, b) => a.mjd - b.mjd);
+    // Raw: every frame. Otherwise the anchored matched set, skipping frames with no valid pixels.
+    const pool = mode === 'raw' ? frames : matched.filter((f) => f.valid_fraction > 0 || f.index === current.index).sort((a, b) => a.mjd - b.mjd);
     const i = pool.findIndex((f) => f.index === current.index);
-    if (pool.length) select(pool[(i + dir + pool.length) % pool.length].index);
+    if (pool.length) select(pool[(i + dir + pool.length) % pool.length].index, mode !== 'raw');
   }, [current, frames, matched, mode, select]);
   const stepLambda = useCallback((dir: 1 | -1) => {
     if (!current) return;
@@ -441,6 +515,7 @@ export default function PrismApp({ initialQuery }: { initialQuery: string }) {
       if (el && (el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       if (el && el.closest && el.closest('[data-cube]') && e.key.startsWith('Arrow')) return; // the cube handles its own arrows
+      if (el && el.closest && el.closest('[data-probe]')) return; // the focused sky image moves the probe
       if (e.key === 'ArrowRight') { stepTime(1); e.preventDefault(); }
       else if (e.key === 'ArrowLeft') { stepTime(-1); e.preventDefault(); }
       else if (e.key === 'ArrowUp') { stepLambda(1); e.preventDefault(); }
@@ -451,6 +526,8 @@ export default function PrismApp({ initialQuery }: { initialQuery: string }) {
       else if (e.key === '-') setZoom((z) => Math.max(1, z / 2));
       else if (e.key === 'f') setOv((o) => ({ ...o, flags: !o.flags }));
       else if (e.key === 'g') setOv((o) => ({ ...o, gaia: !o.gaia }));
+      else return;
+      // λ changes from the keyboard re-anchor the matched set (handled in stepLambda/select).
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -488,7 +565,7 @@ export default function PrismApp({ initialQuery }: { initialQuery: string }) {
           <nav className="masthead-nav">
             <button type="button" className="lang" aria-pressed={url.lang === 'es'} onClick={() => setUrl((u) => ({ ...u, lang: 'es' }))}>ES</button>
             <button type="button" className="lang" aria-pressed={url.lang === 'en'} onClick={() => setUrl((u) => ({ ...u, lang: 'en' }))}>EN</button>
-            <a className="masthead-link" href="/classic">{text.classic}</a>
+            {LIVE_ENABLED && <a className="masthead-link" href="/classic">{text.classic}</a>}
           </nav>
         </header>
       )}
@@ -514,6 +591,12 @@ export default function PrismApp({ initialQuery }: { initialQuery: string }) {
             <i aria-hidden /> {originLabel}
           </span>
         )}
+        {data?.origin.kind === 'snapshot' && LIVE_ENABLED && (
+          <button type="button" className="btn chip-mini" onClick={() => { setSel(null); setLiveFor(reqKey); }} disabled={liveFor === reqKey}>
+            {liveFor === reqKey ? text.liveRefreshing : text.liveRefresh}
+          </button>
+        )}
+        {urlInvalid && <span className="notice" role="status">{text.urlInvalid(preset?.name ?? '')}</span>}
         {data?.liveError && <span className="origin-note p-data">{data.liveError === LIVE_OFF ? text.liveOffSnapshot : text.liveDown(data.liveError.replace(/^\/search(\/stream)?: /, ''))}</span>}
         {preset && (
           <span className="origin-note">
@@ -525,7 +608,7 @@ export default function PrismApp({ initialQuery }: { initialQuery: string }) {
 
       {data && satCount > 0 && satCount / Math.max(1, frames.length) >= 0.3 && (
         <div className="banner banner-bad" role="alert">
-          <span className="p-label">OVERFLOW</span> {text.saturated(satCount, frames.length)}
+          <span className="p-label">SAT</span> {text.saturated(satCount, frames.length)}
         </div>
       )}
 
@@ -599,6 +682,14 @@ export default function PrismApp({ initialQuery }: { initialQuery: string }) {
               </div>
             </div>
             <p className="mode-help">{text.modeHelp[mode]}</p>
+            {hero && (
+              <div className={`hero ${hero.ok ? 'hero-ok' : ''}`} role="status">
+                <span className="p-label">{text.heroMoved}</span>
+                <span className="hero-num">{hero.meas.toFixed(2)}″ ± {hero.err.toFixed(2)}″</span>
+                <span className="hero-pred">· {text.heroPred} {hero.pred.toFixed(2)}″</span>
+                <span className="hero-method p-data">{text.heroMethod(hero.det, hero.sA, hero.sB)}</span>
+              </div>
+            )}
 
             {mode === 'cube' ? (
               <div className="cube-wrap" data-cube>
@@ -626,6 +717,7 @@ export default function PrismApp({ initialQuery }: { initialQuery: string }) {
               captionColor={mode === 'goggles' || mode === 'coadd' ? 'transparent' : lambdaColor(current.lambda_um)}
               text={text}
               onProbe={onProbe}
+              onProbeReset={onProbeReset}
             />
             )}
 
@@ -634,10 +726,15 @@ export default function PrismApp({ initialQuery }: { initialQuery: string }) {
               {(['target', 'gaia', 'skybot', 'centroid', 'flags'] as const).map((k) => (
                 <button key={k} type="button" className={`chip chip-${k}`} aria-pressed={ov[k]} onClick={() => setOv((o) => ({ ...o, [k]: !o[k] }))}>
                   <i aria-hidden />{text.ov[k]}
-                  {k === 'gaia' && gaia && <span className="p-data chip-n">{gaiaRings.length}</span>}
+                  {k === 'gaia' && gaia && <span className="p-data chip-n">{gaiaRings.length}{gaiaAll ? '' : `/${gaiaInField}`}</span>}
                   {k === 'skybot' && !isLive && <span className="p-data chip-n">—</span>}
                 </button>
               ))}
+              {ov.gaia && gaia && gaiaInField > gaiaRings.length && !gaiaAll && (
+                <span className="layers-note">{text.gaiaSubset(gaiaRings.length, gaiaInField)}{' '}
+                  <button type="button" className="chip chip-mini" aria-pressed={false} onClick={() => setGaiaAll(true)}>{text.gaiaAll}</button>
+                </span>
+              )}
               <span className="layers-note">{text.predictedLegend}{ov.gaia ? (url.lang === 'es' ? ' Vector = 10 años de movimiento propio.' : ' Vector = 10 yr of proper motion.') : ''}</span>
               {!isLive && ov.skybot && <span className="layers-note">{url.lang === 'es' ? 'SkyBoT requiere la API en vivo.' : 'SkyBoT needs the live API.'}</span>}
               {isLive && skybot?.status === 'error' && <span className="layers-note">SkyBoT: {skybot.error}</span>}
@@ -669,14 +766,17 @@ export default function PrismApp({ initialQuery }: { initialQuery: string }) {
           <aside className="deck-side">
             <section className="panel readout" aria-labelledby="ro-h">
               <header className="panel-h">
-                <h2 id="ro-h" className="p-display">{current.provenance.obs_id}</h2>
-                <span className="p-data panel-sub">{current.collection}</span>
+                <h2 id="ro-h" className="p-display readout-title">
+                  <i className="sw" style={{ background: lambdaColor(current.lambda_um) }} aria-hidden />
+                  {keepGreek('λ')} {current.lambda_um.toFixed(3)} µm · D{current.detector} · {current.date.slice(0, 10)}
+                </h2>
+                <span className="p-data panel-sub readout-id">{current.provenance.obs_id} · {current.collection}</span>
               </header>
               <dl className="kv p-data">
                 <dt>{text.date}</dt><dd>{current.date.replace('T', ' ').slice(0, 19)} · MJD {current.mjd.toFixed(5)}</dd>
-                <dt>{text.lambda}</dt><dd><i className="sw" style={{ background: lambdaColor(current.lambda_um) }} />{current.lambda_um.toFixed(4)} µm · {text.band} {current.bandwidth_um.toFixed(4)} µm</dd>
+                <dt>{keepGreek(text.lambda)}</dt><dd><i className="sw" style={{ background: lambdaColor(current.lambda_um) }} />{current.lambda_um.toFixed(4)} µm · {text.band} {current.bandwidth_um.toFixed(4)} µm</dd>
                 <dt>{text.detector}</dt><dd>D{current.detector} · {text.season} S{current.season} ({formatMjdDate(seasons.find((s) => s.index === current.season)?.start_mjd ?? current.mjd)})</dd>
-                <dt>{text.valid}</dt><dd>{(current.valid_fraction * 100).toFixed(1)}%{current.saturated_at_center ? ' · OVERFLOW @ centre' : ''}</dd>
+                <dt>{text.valid}</dt><dd>{(current.valid_fraction * 100).toFixed(1)}%{current.saturated_at_center ? (url.lang === 'es' ? ' · saturado a ≤2 px del centro' : ' · saturated within 2 px of centre') : ''}</dd>
                 <dt>{text.matched}</dt><dd>{matched.length} {text.frames} · {new Set(matched.map((f) => f.season)).size} {text.seasons}</dd>
                 <dt>FITS</dt><dd><a href={current.provenance.url} target="_blank" rel="noreferrer">IRSA cutout</a></dd>
               </dl>
@@ -703,6 +803,7 @@ export default function PrismApp({ initialQuery }: { initialQuery: string }) {
               data={verdict}
               status={verdictStatus}
               error={verdictLive?.error}
+              lang={url.lang}
               sourceLabel={isLive ? '/v2/verdict' : verdict?.method ?? ''}
               text={text}
             />

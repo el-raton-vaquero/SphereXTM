@@ -52,6 +52,7 @@ export default function SpectrumPanel({ data, source, status, error, probe, curr
   const ref = useRef<HTMLDivElement>(null);
   const [W, setW] = useState(380);
   const [hidden, setHidden] = useState<Set<number>>(new Set());
+  const [showRaw, setShowRaw] = useState(false);
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
@@ -65,7 +66,12 @@ export default function SpectrumPanel({ data, source, status, error, probe, curr
   const pts = useMemo(() => (data?.points ?? []).filter((p) => p.flux != null && p.err != null && Number.isFinite(p.flux) && Number.isFinite(p.lambda_um)), [data]);
   const seasons = useMemo(() => [...new Set(pts.map((p) => p.season))].sort((a, b) => a - b), [pts]);
   const unit = pts[0]?.unit ?? 'mJy';
-  const visible = pts.filter((p) => !hidden.has(p.season));
+  // Points that carry usable flux: measured, unsaturated, no artifact flags.
+  const nUsable = pts.filter((p) => !p.saturated && !(p.artifact_flags && p.artifact_flags.length)).length;
+  const noFlux = pts.length > 0 && nUsable < 6;
+  const visible = useMemo(() => (noFlux && !showRaw ? [] : pts.filter((p) => !hidden.has(p.season))), [noFlux, showRaw, pts, hidden]);
+  const uncorrected = (p: { aperture_correction_method?: string }) => (p.aperture_correction_method ?? '').startsWith('none');
+  const anyUncorrected = visible.some(uncorrected) && visible.some((p) => !uncorrected(p));
   const yr = useMemo(() => {
     const ok = visible.filter((p) => !p.saturated && Number.isFinite(p.flux));
     const use = (ok.length >= 3 ? ok : visible).map((p) => p.flux).sort((a, b) => a - b);
@@ -90,6 +96,8 @@ export default function SpectrumPanel({ data, source, status, error, probe, curr
 
   const srcLabel = source === 'live' ? text.specLive : source === 'snapshot' ? text.specSnapshot : text.specClient;
   const cls = data?.classification?.best ? data.classification : null;
+  const best = cls?.best ?? null;
+  const notDetected = data?.classification?.detected === false;
   const clsCaveats = !cls && data?.classification?.caveats?.length ? data.classification.caveats.join(' ') : '';
 
   return (
@@ -99,7 +107,8 @@ export default function SpectrumPanel({ data, source, status, error, probe, curr
         <span className="p-data panel-sub">{text.spectrumAt} {formatRa(probe.ra, 1)} {formatDec(probe.dec, 0)}</span>
       </header>
       <div ref={ref} className="spec-plot">
-        {status === 'loading' && <div className="spec-state p-data">…</div>}
+        {status === 'loading' && <div className="spec-state p-data spec-loading">{text.specLoading}</div>}
+        {noFlux && !showRaw && <div className="spec-state p-data">{text.noUsableFlux(pts.length - nUsable, pts.length)}</div>}
         {status === 'error' && <div className="spec-state p-data spec-error">{error}</div>}
         {status === 'ready' && !pts.length && <div className="spec-state p-data">{data?.caveats?.[0] ?? '—'} · 0 pts</div>}
         <svg width={W} height={H} role="img" aria-label={`${text.spectrum}: ${pts.length} points`}>
@@ -118,8 +127,8 @@ export default function SpectrumPanel({ data, source, status, error, probe, curr
           <text x={W - M.right} y={H - 3} textAnchor="end" className="spec-label">λ [µm]</text>
           <text x={W - M.right} y={M.top - 4} textAnchor="end" className="spec-label">F [{unit}]</text>
           <line x1={M.left} x2={W - M.right} y1={H - M.bottom} y2={H - M.bottom} className="spec-axis" />
-          {cls?.best.curve && cls.best.curve.length > 1 && (
-            <polyline points={cls.best.curve.map((c) => `${x(c.lambda_um)},${clampY(y(c.flux))}`).join(' ')} className="spec-model" />
+          {best?.curve && best.curve.length > 1 && (
+            <polyline points={best.curve.map((c) => `${x(c.lambda_um)},${clampY(y(c.flux))}`).join(' ')} className="spec-model" />
           )}
           {visible.map((p, i) => {
             const cx = x(p.lambda_um), cy = clampY(y(p.flux));
@@ -132,7 +141,7 @@ export default function SpectrumPanel({ data, source, status, error, probe, curr
                 {cy !== y(p.flux) ? (
                   <path d={cy <= M.top ? `M${cx},${cy}l-3.5,6h7z` : `M${cx},${cy}l-3.5,-6h7z`} fill="none" stroke={c} strokeWidth={1} />
                 ) : (
-                  <path d={marker(kind, cx, cy, isCur ? 4.6 : 3.2)} fill={p.saturated ? 'none' : c} stroke={c} strokeWidth={p.saturated ? 1.3 : 0} />
+                  <path d={marker(kind, cx, cy, isCur ? 4.6 : 3.2)} fill={p.saturated ? 'none' : c} fillOpacity={anyUncorrected && uncorrected(p) ? 0.35 : 1} stroke={c} strokeWidth={p.saturated || (anyUncorrected && uncorrected(p)) ? 1.1 : 0} />
                 )}
                 {isCur && <circle cx={cx} cy={cy} r={8} className="spec-current" />}
               </g>
@@ -154,19 +163,21 @@ export default function SpectrumPanel({ data, source, status, error, probe, curr
           </button>
         ))}
         <span className="spec-hollow"><svg width={10} height={10} aria-hidden><circle cx={5} cy={5} r={3.4} fill="none" stroke="currentColor" /></svg> {text.saturatedPoint}</span>
+        {anyUncorrected && <span className="spec-hollow"><svg width={10} height={10} aria-hidden><circle cx={5} cy={5} r={3.4} fill="currentColor" fillOpacity={0.35} stroke="currentColor" /></svg> {text.uncorrectedPoint}</span>}
+        {noFlux && <button type="button" className="chip" aria-pressed={showRaw} onClick={() => setShowRaw((v) => !v)}>{showRaw ? text.hideSatPoints : text.showSatPoints}</button>}
       </div>
       <p className="panel-note">{srcLabel}{data?.method ? ` — ${data.method}` : ''}</p>
-      {cls ? (
+      {cls && best ? (
         <div className="spec-class">
           <div className="p-data spec-best">
             <span className="p-label">{text.bestFit}</span>{' '}
-            {cls.best.class} · {cls.best.template}
-            {cls.best.teff ? ` · Teff ${Math.round(cls.best.teff)} K` : ''} · χ²ᵣ {cls.best.chi2_red.toFixed(2)}
+            {best.class.replace(/_/g, ' ')} · {best.label ?? best.template}
+            {best.teff ? ` · Teff ${Math.round(best.teff)} K` : ''} · χ²ᵣ {best.chi2_red.toFixed(2)}
           </div>
           <ul className="rank">
             {cls.ranking.slice(0, 5).map((r) => (
               <li key={r.class + r.template}>
-                <span className="p-data rank-name">{r.class}</span>
+                <span className="p-data rank-name" title={r.template}>{r.spectral_type ? `${r.spectral_type} · ` : ''}{r.label ?? r.template}</span>
                 <span className="rank-bar"><i style={{ width: `${Math.round(r.prob * 100)}%` }} /></span>
                 <span className="p-data rank-p">{(r.prob * 100).toFixed(0)}%</span>
               </li>
@@ -175,7 +186,7 @@ export default function SpectrumPanel({ data, source, status, error, probe, curr
           <p className="panel-note">{cls.method}. {cls.caveats.join(' ')}</p>
         </div>
       ) : (
-        <p className="panel-note">{text.noClassification}{clsCaveats ? ` ${clsCaveats}` : ''}</p>
+        <p className="panel-note">{notDetected ? <strong className="spec-nodet">{text.noDetection}</strong> : text.noClassification}{clsCaveats ? ` ${clsCaveats}` : ''}</p>
       )}
       {data?.caveats && data.caveats.length > 0 && (
         <ul className="caveats">{data.caveats.map((c) => <li key={c}>{c}</li>)}</ul>

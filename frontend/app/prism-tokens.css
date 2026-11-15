@@ -19,7 +19,8 @@
   --p-bg-3: #1a1917;          /* hover / selected surface */
   --p-ink: #ece8e1;           /* paper white */
   --p-ink-2: #a8a39a;         /* secondary text */
-  --p-ink-3: #6d6961;         /* tertiary, tick labels */
+  --p-ink-3: #8f8a81;         /* tertiary text: 5.8:1 on bg (WCAG AA for small labels) */
+  --p-tick: #6d6961;          /* non-text tick marks and axes only */
   --p-rule: #2a2825;          /* hairlines */
   --p-rule-2: #3a3733;        /* stronger hairline */
 

@@ -31,6 +31,7 @@ export default function TargetBar({ targets, activeId, ra, dec, fov, locale, tex
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setMsg(null);
+    if (!q.trim()) { document.getElementById('prism-q')?.focus(); return; }
     const parsed = parseRaDec(q);
     if (parsed) { onPoint(parsed); return; }
     const preset = targets.find((t) => t.name.toLowerCase() === q.trim().toLowerCase() || t.id === q.trim().toLowerCase());
@@ -63,7 +64,7 @@ export default function TargetBar({ targets, activeId, ra, dec, fov, locale, tex
             autoComplete="off"
             spellCheck={false}
           />
-          <button type="submit" className="btn btn-primary" disabled={busy || !q.trim()}>{busy ? text.resolving : text.go}</button>
+          <button type="submit" className="btn btn-go" disabled={busy}>{busy ? text.resolving : text.go}</button>
         </div>
         <div className="tbar-now p-data" aria-live="polite">
           {msg ?? (ra !== undefined && dec !== undefined ? `${formatRa(ra)}  ${formatDec(dec)}  ·  ICRS` : '')}
@@ -82,7 +83,7 @@ export default function TargetBar({ targets, activeId, ra, dec, fov, locale, tex
                 title={(locale === 'en' && (t as { why_en?: string }).why_en) || t.why || ''}
               >
                 <span className="preset-name">{t.name}</span>
-                <span className="preset-cat p-data">{t.category.replace(/_/g, ' ')}{t.expected?.pm_arcsec_yr ? ` · ${t.expected.pm_arcsec_yr.toFixed(1)}″/yr` : ''}{t.expected?.saturated ? ' · SAT' : ''}</span>
+                <span className="preset-cat p-data">{text.categories[t.category] ?? t.category.replace(/_/g, ' ')}{t.expected?.pm_arcsec_yr && t.expected.pm_arcsec_yr >= 0.05 ? ` · ${t.expected.pm_arcsec_yr.toFixed(1)}″/${locale === 'en' ? 'yr' : 'año'}` : ''}{t.expected?.saturated ? ' · SAT' : ''}</span>
               </button>
             </li>
           ))}

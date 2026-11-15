@@ -21,7 +21,8 @@ const nextConfig: NextConfig = {
     proxyTimeout: 180_000,
   },
   env: {
-    NEXT_PUBLIC_USE_REAL_API: process.env.NEXT_PUBLIC_USE_REAL_API || 'true',
+    // /classic calls /api/frames through the proxy; without it, its labelled synthetic demo mode.
+    NEXT_PUBLIC_USE_REAL_API: process.env.NEXT_PUBLIC_USE_REAL_API || (proxyEnabled ? 'true' : 'false'),
     NEXT_PUBLIC_PRISM_LIVE: process.env.NEXT_PUBLIC_PRISM_LIVE || (liveEnabled ? '1' : '0'),
   },
   async rewrites() {

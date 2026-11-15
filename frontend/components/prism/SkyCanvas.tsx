@@ -33,6 +33,7 @@ interface Props {
   captionColor: string;
   text: PrismText;
   onProbe: (x: number, y: number) => void;
+  onProbeReset?: () => void;
 }
 
 const WIDE = { top: 26, right: 16, bottom: 30, left: 56 };
@@ -271,8 +272,28 @@ export default function SkyCanvas(props: Props) {
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
           onPointerLeave={() => setHover(null)}
-          role="img"
-          aria-label={props.caption}
+          onKeyDown={(e) => {
+            // Keyboard probe: arrows move it one pixel (Shift: 4), Enter re-measures, Esc returns to centre.
+            const step = e.shiftKey ? 4 : 1;
+            const p = props.probe ?? { x: (n - 1) / 2, y: (n - 1) / 2 };
+            const mv: Record<string, [number, number]> = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] };
+            if (mv[e.key]) {
+              const x = Math.min(n - 1, Math.max(0, Math.round(p.x) + mv[e.key][0]));
+              const y = Math.min(n - 1, Math.max(0, Math.round(p.y) + mv[e.key][1]));
+              props.onProbe(x, y);
+              setHover({ x, y });
+            } else if (e.key === 'Enter') props.onProbe(p.x, p.y);
+            else if (e.key === 'Escape') props.onProbeReset?.();
+            else return;
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+          onBlur={() => setHover(null)}
+          tabIndex={0}
+          data-probe
+          role="application"
+          aria-roledescription="sky image"
+          aria-label={`${props.caption}. ${t.probeHelp}`}
         />
         {!image && (
           <div className="pv-empty p-data" style={{ left: MARGIN.left, top: MARGIN.top, width: size, height: size }}>
@@ -333,7 +354,13 @@ export default function SkyCanvas(props: Props) {
                 return (
                   <g>
                     <circle cx={s.sx} cy={s.sy} r={psfR + 4} className="pv-target" />
-                    <text x={s.sx + psfR + 8} y={s.sy - psfR - 4} className="pv-label pv-label-signal">{props.target.label}</text>
+                    {(() => {
+                      // Flip the label left of the reticle when it would run past the plate (phones).
+                      const label = narrow ? props.target.label.replace(/\s*\(.*\)\s*$/, '') : props.target.label;
+                      const estW = label.length * 6.4;
+                      const flip = s.sx + psfR + 8 + estW > size;
+                      return <text x={flip ? s.sx - psfR - 8 : s.sx + psfR + 8} y={s.sy - psfR - 4} textAnchor={flip ? 'end' : 'start'} className="pv-label pv-label-signal">{label}</text>;
+                    })()}
                   </g>
                 );
               })()}

@@ -105,6 +105,8 @@
 .btn:disabled { opacity: 0.45; cursor: default; }
 .btn-primary { background: var(--p-ink); color: var(--p-bg); border-color: var(--p-ink); }
 .btn-primary:hover { background: #fff; border-color: #fff; }
+.btn-go { background: var(--p-signal); color: var(--p-signal-ink); border-color: var(--p-signal); font-weight: 500; }
+.btn-go:hover { background: #ff7a45; border-color: #ff7a45; }
 .select {
   background: var(--p-bg-2); color: var(--p-ink); font-size: 12px;
   border: 1px solid var(--p-rule-2); border-radius: var(--p-r); padding: 7px 6px;
@@ -178,7 +180,7 @@
   background-image: repeating-linear-gradient(135deg, var(--p-bg-2) 0 1px, transparent 1px 9px);
 }
 .pv-frame { fill: none; stroke: var(--p-rule-2); stroke-width: 1; }
-.pv-tick { stroke: var(--p-ink-3); stroke-width: 1; shape-rendering: crispEdges; }
+.pv-tick { stroke: var(--p-tick); stroke-width: 1; shape-rendering: crispEdges; }
 .pv-ticklabel { font: 10px var(--p-font-data); fill: var(--p-ink-3); }
 .pv-reticle { stroke: var(--p-ink); stroke-width: 1; opacity: 0.18; shape-rendering: crispEdges; }
 .pv-ghost { fill: none; stroke: var(--p-ink); stroke-width: 1; stroke-dasharray: 2 2; opacity: 0.55; }
@@ -214,14 +216,14 @@
 .pad-label { font: 10px var(--p-font-data); fill: var(--p-ink-3); }
 .pad-label-dim { fill: var(--p-rule-2); }
 .pad-gap { font: 9.5px var(--p-font-data); fill: var(--p-ink-3); }
-.pad-break { stroke: var(--p-ink-3); stroke-width: 1; }
-.pad-tick { stroke: var(--p-ink-3); stroke-width: 1; shape-rendering: crispEdges; }
+.pad-break { stroke: var(--p-tick); stroke-width: 1; }
+.pad-tick { stroke: var(--p-tick); stroke-width: 1; shape-rendering: crispEdges; }
 .pad-axis { stroke: var(--p-rule-2); stroke-width: 1; shape-rendering: crispEdges; }
-.pad-ref { fill: none; stroke: var(--p-ink-3); stroke-dasharray: 2 3; }
+.pad-ref { fill: none; stroke: var(--p-tick); stroke-dasharray: 2 3; }
 .pad-matchband { fill: var(--p-ink); opacity: 0.07; }
 .pad-cross line { stroke: var(--p-ink); stroke-width: 1; opacity: 0.25; shape-rendering: crispEdges; }
 .pad-current { fill: none; stroke: var(--p-signal); stroke-width: 1.5; }
-.pad-rawpath { fill: none; stroke: var(--p-ink-3); stroke-width: 0.8; opacity: 0.6; }
+.pad-rawpath { fill: none; stroke: var(--p-tick); stroke-width: 0.8; opacity: 0.6; }
 .pad-legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 11px; color: var(--p-ink-3); }
 .pad-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--p-ink-2); vertical-align: middle; margin-right: 3px; }
 .pad-dot-hollow { background: transparent; border: 1px solid var(--p-ink-2); }
@@ -257,6 +259,11 @@
 .check-na .check-label { color: var(--p-ink-2); }
 .check-detail { font-size: 11px; color: var(--p-ink-2); overflow-wrap: anywhere; }
 .check-src { font-size: 10px; color: var(--p-ink-3); }
+.check-pending { animation: none !important; opacity: 1 !important; transform: none !important; }
+.check-pending .check-status { color: var(--p-ink-3); }
+.check-pending .check-label { color: var(--p-ink-3); }
+.verdict-wait { margin-bottom: 6px; }
+.verdict-tent { font-size: 12px; color: var(--p-warn); }
 .verdict {
   margin-top: 10px; display: flex; justify-content: space-between; align-items: center; gap: 12px;
   padding: 10px 12px; border: 1px solid var(--p-rule-2); border-left-width: 3px;
@@ -274,12 +281,14 @@
 
 .spec-plot { position: relative; width: 100%; }
 .spec-plot svg { display: block; }
-.spec-state { position: absolute; left: 56px; top: 14px; font-size: 11px; color: var(--p-ink-3); }
+.spec-state { position: absolute; left: 56px; right: 12px; top: 14px; font-size: 11px; color: var(--p-ink-2); background: var(--p-bg-2); padding: 2px 4px; }
+.rank-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.spec-nodet { color: var(--p-ink); font-weight: 500; }
 .spec-error { color: var(--p-bad) !important; }
 .spec-grid { stroke: var(--p-rule); stroke-width: 1; shape-rendering: crispEdges; }
 .spec-zero { stroke: var(--p-rule-2); stroke-width: 1; shape-rendering: crispEdges; }
-.spec-axis { stroke: var(--p-ink-3); stroke-width: 1; shape-rendering: crispEdges; }
-.spec-tick { stroke: var(--p-ink-3); stroke-width: 1; }
+.spec-axis { stroke: var(--p-tick); stroke-width: 1; shape-rendering: crispEdges; }
+.spec-tick { stroke: var(--p-tick); stroke-width: 1; }
 .spec-label { font: 10px var(--p-font-data); fill: var(--p-ink-3); }
 .spec-model { fill: none; stroke: var(--p-ink); stroke-width: 1.2; opacity: 0.8; }
 .spec-current { fill: none; stroke: var(--p-signal); stroke-width: 1.2; }
@@ -289,7 +298,7 @@
 .spec-class { display: flex; flex-direction: column; gap: 6px; }
 .spec-best { font-size: 12px; }
 .rank { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
-.rank li { display: grid; grid-template-columns: 80px 1fr 40px; gap: 8px; align-items: center; font-size: 11px; }
+.rank li { display: grid; grid-template-columns: minmax(0, 1.6fr) 1fr 40px; gap: 8px; align-items: center; font-size: 11px; }
 .rank-bar { height: 3px; background: var(--p-rule); position: relative; }
 .rank-bar i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--p-ink-2); }
 .rank-p { text-align: right; color: var(--p-ink-2); }
@@ -334,3 +343,19 @@
   .prism-root *, .prism-root *::before, .prism-root *::after { transition: none !important; animation-duration: 0.001ms !important; animation-delay: 0ms !important; }
   .meter-indet { animation: none; width: 100%; opacity: 0.4; }
 }
+
+/* review fixes */
+.pv-canvas:focus-visible { outline: 1px solid var(--p-signal); outline-offset: 2px; }
+.pad-svg:focus-visible { outline: 1px solid var(--p-signal); outline-offset: 2px; }
+@media (max-width: 560px) {
+  .pv-caption { font-size: 10px; white-space: normal; line-height: 1.15; top: 0; }
+}
+.hero { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; margin: 4px 0 10px; }
+.hero-num { font-family: var(--p-font-display); font-size: clamp(28px, 4.2vw, 42px); line-height: 1; color: var(--p-ink); }
+.hero-ok .hero-num { color: var(--p-signal); }
+.hero-pred { font-family: var(--p-font-display); font-size: clamp(18px, 2.4vw, 24px); color: var(--p-ink-2); }
+.hero-method { flex-basis: 100%; font-size: 11px; color: var(--p-ink-3); }
+.readout-title { font-size: 22px; display: flex; align-items: center; gap: 8px; }
+.readout-id { font-size: 12px; color: var(--p-ink-2); }
+.notice { border: 1px solid var(--p-rule-2); padding: 6px 10px; font-size: 12px; color: var(--p-ink-2); }
+.chip-mini { font-size: 10.5px; padding: 1px 6px; }

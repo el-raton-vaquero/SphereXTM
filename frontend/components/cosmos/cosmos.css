@@ -198,7 +198,7 @@
 @media (max-width: 900px) {
   .cz-panel { top: 56px; left: 16px; width: calc(100vw - 32px); }
   .cz-title { font-size: 30px; margin-bottom: 10px; }
-  .cz-lede { display: none; }
+  .cz-lede { font-size: 14px; display: -webkit-box; -webkit-line-clamp: 3; line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; margin: 4px 0 8px; }
   .cz-presets thead { display: none; }
   .cz-presets td:last-child { display: none; }
   .cz-presets tbody th button { padding: 4px 0; }
@@ -218,7 +218,7 @@
   .cz-presets tbody th button { padding: 4px 0; }
 }
 @media (max-height: 700px) and (min-width: 901px) {
-  .cz-lede { display: none; }
+  .cz-lede { font-size: 14px; display: -webkit-box; -webkit-line-clamp: 3; line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; margin: 4px 0 8px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

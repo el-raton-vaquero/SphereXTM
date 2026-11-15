@@ -14,7 +14,8 @@ interface Props {
   raw: boolean;
   refSeason: number | null;
   text: PrismText;
-  onSelect: (index: number) => void;
+  /** keepAnchor: a horizontal (time) drag blinks within the anchored matched-λ set. */
+  onSelect: (index: number, keepAnchor?: boolean) => void;
 }
 
 const M = { top: 12, right: 34, bottom: 30, left: 46 };
@@ -95,7 +96,7 @@ export default function ScrubPad({ frames, seasons, current, matched, raw, refSe
     if (d.axis === 'lambda') cands = pts.filter((q) => q.f.season === current.season);
     if (!cands.length) return;
     const hit = d.axis === 'time' ? nearest(cands, p.x, p.y, 1, 0) : nearest(cands, p.x, p.y, 0, 1);
-    if (hit && hit.f.index !== current.index) onSelect(hit.f.index);
+    if (hit && hit.f.index !== current.index) onSelect(hit.f.index, d.axis === 'time' && !raw);
   };
   const onUp = () => { drag.current = null; };
 
@@ -113,7 +114,13 @@ export default function ScrubPad({ frames, seasons, current, matched, raw, refSe
         onPointerMove={onMove}
         onPointerUp={onUp}
         onPointerCancel={onUp}
-        role="presentation"
+        tabIndex={0}
+        role="slider"
+        aria-label={text.pad}
+        aria-valuemin={0}
+        aria-valuemax={Math.max(0, frames.length - 1)}
+        aria-valuenow={current.index}
+        aria-valuetext={`${current.date.slice(0, 16).replace('T', ' ')} UTC · λ ${current.lambda_um.toFixed(3)} µm · D${current.detector} · S${current.season}`}
       >
         {DETECTOR_RANGES.map(([a, b], i) => (
           <g key={i}>

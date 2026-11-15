@@ -124,13 +124,18 @@ export interface SpectrumPoint {
   frame_id: string;
   flags: string[];
   saturated: boolean;
+  status?: string;
+  snr?: number;
+  artifact_flags?: string[];
+  aperture_correction_method?: string;
 }
 
 export interface Classification {
-  best: { class: string; template: string; teff?: number; chi2_red: number; curve?: { lambda_um: number; flux: number }[] };
-  ranking: { class: string; template: string; prob: number }[];
+  best: { class: string; template: string; label?: string; spectral_type?: string | null; teff?: number; chi2_red: number; curve?: { lambda_um: number; flux: number }[] } | null;
+  ranking: { class: string; template: string; label?: string; spectral_type?: string | null; prob: number }[];
   method: string;
   caveats: string[];
+  detected?: boolean;
 }
 
 export interface SpectrumResponse {
@@ -145,7 +150,7 @@ export interface SpectrumResponse {
 export type CheckStatus = 'pass' | 'warn' | 'fail' | 'na';
 export interface VerdictCheck { id: string; label: string; status: CheckStatus; detail: string; evidence_source: string }
 export type VerdictKind = 'known_star' | 'known_asteroid' | 'artifact' | 'variable' | 'candidate' | 'inconclusive';
-export interface VerdictResponse { checks: VerdictCheck[]; verdict: VerdictKind; confidence: number; summary: string; method?: string }
+export interface VerdictResponse { checks: VerdictCheck[]; verdict: VerdictKind; confidence: number; summary: string; summary_es?: string; tentative?: boolean; method?: string }
 
 export interface CatalogTarget {
   id: string;

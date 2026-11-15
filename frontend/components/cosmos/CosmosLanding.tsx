@@ -9,6 +9,7 @@ import { COSMOS_TEXT } from './i18n';
 import { loadStarCatalog } from './stars';
 import type { CosmosEngine, CosmosMode, CosmosViewState } from './CosmosEngine';
 import Reticle from './Reticle';
+import { keepGreek } from '../../lib/prism/greek';
 
 const SURVEY_DAYS = 184; // 2025-05-01 → 2025-11-01
 const SURVEY_START_MS = Date.UTC(2025, 4, 1);
@@ -269,7 +270,7 @@ export default function CosmosLanding() {
       <header className="cz-top">
         <div className="cz-brand p-data">
           <span>PRISM</span>
-          <a className="cz-dim cz-classic" href="/classic">{locale === 'es' ? 'versión clásica' : 'classic view'}</a>
+          {process.env.NEXT_PUBLIC_PRISM_LIVE !== '0' && <a className="cz-dim cz-classic" href="/classic">{locale === 'es' ? 'versión clásica' : 'classic view'}</a>}
         </div>
         <div className="cz-top-r">
           {use3d && (
@@ -297,7 +298,7 @@ export default function CosmosLanding() {
 
         <form className="cz-search" onSubmit={onSubmit} role="search">
           <label htmlFor="cz-q" className="p-label">
-            {t.searchLabel}
+            {keepGreek(t.searchLabel)}
           </label>
           <div className="cz-search-row">
             <input

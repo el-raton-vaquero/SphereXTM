@@ -2,13 +2,14 @@
 
 import { useLocale, withLang, type Locale } from '../../lib/i18n';
 
-/** The five StarChord routes, in navigation order. */
+/** The six StarChord routes, in navigation order. */
 export const SITE_ROUTES = [
   { id: 'home', href: '/' },
   { id: 'explore', href: '/explore' },
   { id: 'sky', href: '/sky' },
   { id: 'symphony', href: '/symphony' },
   { id: 'look', href: '/look' },
+  { id: 'song', href: '/song' },
 ] as const;
 
 export type SiteRouteId = (typeof SITE_ROUTES)[number]['id'];

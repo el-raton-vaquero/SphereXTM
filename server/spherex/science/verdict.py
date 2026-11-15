@@ -213,7 +213,9 @@ def evaluate(*, points: Sequence[dict], gaia_match: dict | None = None, gaia_err
     # and, when centroids exist, they sit within the match radius (>= 1 px) of the prediction.
     motion_ok = bool(motion and motion.get("status") == "ok" and motion.get("consistent_with_prediction"))
     near_radius = max(match_radius_arcsec, 6.15)
-    seen = (q["n_detected"] >= 3 or motion_ok) and (
+    # A handful of clean frames out of 80 (the rest saturated or flagged) is not enough.
+    min_det = max(3, int(round(0.1 * q["n_frames"])))
+    seen = (q["n_detected"] >= min_det or motion_ok) and (
         centroid_offset_arcsec is None or centroid_offset_arcsec <= near_radius)
     n_pairs = int((variability or {}).get("n_pairs_total") or sum(
         pp.get("n_pairs", 0) for pp in (variability or {}).get("pairs", [])))
@@ -221,7 +223,12 @@ def evaluate(*, points: Sequence[dict], gaia_match: dict | None = None, gaia_err
     motion_bad = bool(motion and motion.get("consistent_with_prediction") is False)
     # Gaia DR3 also lists galaxy nuclei and quasars. Without a significant parallax or proper
     # motion (and no literature match) the counterpart is catalogued but not shown to be a star.
-    not_stellar = registry_match is None and gaia_match is not None and not _stellar_evidence(gaia_match)
+    # A SPHEREx-measured motion consistent with a non-zero catalogue prediction (>= 1 px) is
+    # itself evidence of a nearby (Galactic) source, e.g. when Gaia has only a 2-parameter solution.
+    moved = bool(motion_ok and (motion or {}).get("significant_motion")
+                 and float(((motion or {}).get("predicted") or {}).get("total_arcsec") or 0) >= 6.15)
+    not_stellar = (registry_match is None and gaia_match is not None and not _stellar_evidence(gaia_match)
+                   and not moved)
 
     if q["n_frames"] == 0:
         verdict, conf = "inconclusive", 0.1

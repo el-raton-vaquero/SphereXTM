@@ -157,3 +157,23 @@ def test_catalogue_match_without_detection_is_inconclusive():
     assert out["verdict"] == "inconclusive"
     assert out["seen_by_spherex"] is False
     assert "does not confirm" in out["summary"]
+
+
+def test_few_clean_frames_among_many_saturated_is_not_confirmed():
+    pts = [{"status": "ok", "lambda_um": 1.0 + i * 0.05, "flux": 100.0, "err": 1.0, "snr": 100.0,
+            "saturated": i >= 4, "artifact_flags": [], "detector": 1, "mjd": 60800.0 + i} for i in range(80)]
+    match = {"source": {"source_id": 1, "phot_g_mean_mag": 9.0, "parallax": 500.0, "parallax_error": 0.1},
+             "separation_arcsec": 0.2}
+    out = verdict.evaluate(points=pts, gaia_match=match)
+    assert out["verdict"] == "inconclusive" and out["seen_by_spherex"] is False
+
+
+def test_measured_motion_counts_as_stellar_evidence():
+    pts = det_points()
+    match = gaia_match()
+    match["source"] = {k: v for k, v in match["source"].items() if k not in ("parallax", "parallax_error", "pmra", "pmdec", "pmra_error", "pmdec_error")}
+    motion = {"status": "ok", "consistent_with_prediction": True, "significant_motion": True,
+              "season_a": 0, "season_b": 3, "predicted": {"total_arcsec": 6.3},
+              "measured": {"total_arcsec": 6.34, "total_pixels": 1.03, "err_ra_arcsec": 0.43, "err_dec_arcsec": 0.43}}
+    out = verdict.evaluate(points=pts, gaia_match=match, motion=motion)
+    assert out["verdict"] == "known_star" and "extragalactic" not in out["summary"]

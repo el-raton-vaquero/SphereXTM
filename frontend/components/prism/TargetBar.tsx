@@ -78,7 +78,7 @@ export default function TargetBar({ targets, activeId, fov, onPoint, onFov }: Pr
                 onClick={() => onPoint({ ra: p.ra, dec: p.dec, target: p.id })}
                 title={t.targets[p.id]?.blurb ?? ''}
               >
-                {p.name}
+                {t.targets[p.id]?.name ?? p.name}
               </button>
             </li>
           ))}

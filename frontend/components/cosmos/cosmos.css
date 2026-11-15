@@ -60,6 +60,9 @@
 .cz-panel {
   position: absolute; top: 68px; left: 20px; width: min(420px, calc(100vw - 40px));
   z-index: 2;
+  --cz-panel-top: 68px;
+  max-height: calc(100% - var(--cz-panel-top) - var(--cz-bottom-h, 120px) - 10px);
+  overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--p-rule-2) transparent;
 }
 .cz-panel > .p-label { margin: 0 0 10px; }
 .cz-title { font-size: clamp(34px, 4.2vw, 56px); line-height: 0.98; margin: 0 0 14px; color: var(--p-ink); }
@@ -244,8 +247,8 @@
   .cz-top { height: auto; flex-wrap: wrap; padding: 8px 16px 4px; gap: 4px 12px; }
   .cz-top-r { display: contents; }
   .cz-top .cz-nav { order: 3; width: 100%; justify-content: space-between; align-items: center; }
-  .cz-top .cz-nav ul { flex-wrap: nowrap; overflow-x: auto; }
-  .cz-panel { top: 100px; }
+  .cz-top .cz-nav ul { flex-wrap: wrap; overflow: visible; row-gap: 2px; }
+  .cz-panel { top: var(--cz-top-h, 100px); --cz-panel-top: var(--cz-top-h, 100px); }
   .cz-bottom { grid-template-columns: 1fr; gap: 10px; padding: 10px 16px 12px; }
   .cz-hint { display: none; }
   .cz-legend > li:not(.cz-credits-li) { display: none; }

@@ -362,6 +362,12 @@ export default function SkyCanvas(props: Props) {
                       const label = props.target.label.replace(/\s*\(.*\)\s*$/, '');
                       const estW = label.length * 6.4;
                       const flip = s.sx + psfR + 8 + estW > size;
+                      if (flip && s.sx - psfR - 8 - estW < 0) {
+                        // Neither side fits (narrow plates): centre it above the reticle, inside the plate.
+                        const cx = Math.min(Math.max(s.sx, estW / 2 + 2), size - estW / 2 - 2);
+                        const above = s.sy - psfR - 10 > 12;
+                        return <text x={cx} y={above ? s.sy - psfR - 10 : s.sy + psfR + 18} textAnchor="middle" className="pv-label pv-label-signal">{label}</text>;
+                      }
                       return <text x={flip ? s.sx - psfR - 8 : s.sx + psfR + 8} y={s.sy - psfR - 4} textAnchor={flip ? 'end' : 'start'} className="pv-label pv-label-signal">{label}</text>;
                     })()}
                   </g>

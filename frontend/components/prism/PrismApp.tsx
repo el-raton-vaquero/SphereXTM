@@ -574,7 +574,7 @@ export default function PrismApp({ initialQuery }: { initialQuery: string }) {
   const progressP = progress && progress.key === reqKey ? progress.p : null;
   const pct = progressP?.total ? Math.min(100, ((progressP.done ?? 0) / progressP.total) * 100) : null;
   const yrSpan = seasons.length ? (seasons[seasons.length - 1].end_mjd - seasons[0].start_mjd) / 365.25 : 0;
-  const targetName = preset?.name ?? (label && url.ra !== undefined && url.dec !== undefined && Math.abs(label.ra - url.ra) < 1e-6 && Math.abs(label.dec - url.dec) < 1e-6 ? label.name : text.customTarget);
+  const targetName = (preset ? t.targets[preset.id]?.name ?? preset.name : undefined) ?? (label && url.ra !== undefined && url.dec !== undefined && Math.abs(label.ra - url.ra) < 1e-6 && Math.abs(label.dec - url.dec) < 1e-6 ? label.name : text.customTarget);
 
   const caption = current
     ? mode === 'frame' || mode === 'raw'

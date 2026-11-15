@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { useLocale, withLang } from '../../lib/i18n';
 import { PRESETS } from '../../lib/prism/presets';
 import { loadSnapshot } from '../../lib/prism/snapshot';
@@ -8,6 +8,8 @@ import { analyseSpectrum, binToBands } from '../../lib/symphony/core';
 import type { SymphonySpectrum } from '../../lib/symphony/engine';
 import { brightestNearCentre, preparePlate, regionSpectrum, type Plate, type RegionMode } from '../../lib/symphony/region';
 import SiteHeader from '../site/SiteHeader';
+
+const noopSubscribe = () => () => {};
 import PlateCanvas from './PlateCanvas';
 import SpectralKeyboard from './SpectralKeyboard';
 import TimbreList, { featureSummary } from './TimbreList';
@@ -28,6 +30,8 @@ function readInitialTarget(): string {
 
 export default function SymphonyApp() {
   const { locale, t } = useLocale();
+  // "700 years ago" from today's year (the static prerender says 1326, the build year − 700).
+  const ago700 = useSyncExternalStore(noopSubscribe, () => new Date().getFullYear() - 700, () => 1326);
   const ts = t.symphony;
   const s = useSymphony();
   const { setSpectrum, getEngine } = s;
@@ -273,10 +277,10 @@ export default function SymphonyApp() {
             </ol>
           </section>
           <section className="sym-epoch" aria-labelledby="sym-epoch-title">
-            <p className="p-label">1326</p>
+            <p className="p-label">{ago700}</p>
             <h2 id="sym-epoch-title" className="sym-h2 p-display">{ts.epochTitle}</h2>
-            <p>{ts.epochBody}</p>
-            <a className="site-btn" href={withLang('/sky?epoch=1326', locale)}>{ts.epochCta}</a>
+            <p>{ts.epochBody(ago700)}</p>
+            <a className="site-btn" href={withLang('/sky?epoch=ago700', locale)}>{ts.epochCta(ago700)}</a>
           </section>
         </div>
       </main>

@@ -78,6 +78,9 @@ export default function SummaryCard(p: Props) {
         <Term id="verdict"><span className="xp-verdict-l">{text.verdictLabel}</span></Term>
         <span className={`xp-badge xp-badge-${tone}`} role="status">{verdictWord}</span>
       </div>
+      {p.hero?.ok && p.verdict && ['inconclusive', 'artifact', 'candidate'].includes(p.verdict.verdict) && (
+        <p className="xp-how">{text.verdictVsBrowser}</p>
+      )}
       {p.notices}
       {p.originKind && (
         <p className="xp-origin">

@@ -74,6 +74,7 @@ export default function CaptureResult({ captured, onBack }: { captured: Captured
           <h2 className="look-h2 p-display">{L.resultTitle}</h2>
           <p className="p-data look-dim">{L.resultPointing(pointedText)}</p>
           <p><span className="look-tag look-tag-computed">{captured.sensors ? L.approxPointing : L.manualPointing}</span></p>
+          {captured.pointed.alt < 0 && <p className="look-below" role="note">{L.belowHorizon}</p>}
         </div>
         <button type="button" className="look-btn" onClick={onBack}>{L.backToCamera}</button>
       </div>
@@ -101,14 +102,14 @@ export default function CaptureResult({ captured, onBack }: { captured: Captured
       {mode === 'side' ? (
         <div className="look-pair">
           <figure className="look-fig">
-            <div className="look-frame" style={{ aspectRatio: `${aspect}` }}>
+            <div className="look-frame" style={{ aspectRatio: `${aspect}`, ['--ar' as string]: aspect } as React.CSSProperties}>
               {left && <img src={left} alt={leftLabel} className="look-fill" />}
               {captured.photo && captured.overlay && labels && <img src={captured.overlay} alt="" className="look-fill" />}
             </div>
             <figcaption className="p-label">{leftLabel}</figcaption>
           </figure>
           <figure className="look-fig">
-            <div className="look-frame" style={{ aspectRatio: `${aspect}` }}>
+            <div className="look-frame" style={{ aspectRatio: `${aspect}`, ['--ar' as string]: aspect } as React.CSSProperties}>
               <HipsImage wcs={wcs} layer={layer} className="look-fill" alt={L.hipsTitle} onStatus={setHips} />
               {hips === 'loading' && <div className="look-frame-msg"><span className="look-spinner" aria-hidden="true" />{L.hipsLoading}</div>}
               {hips === 'failed' && region && (
@@ -122,7 +123,7 @@ export default function CaptureResult({ captured, onBack }: { captured: Captured
         </div>
       ) : (
         <figure className="look-fig look-fig-wide">
-          <div className="look-frame" style={{ aspectRatio: `${aspect}` }}>
+          <div className="look-frame" style={{ aspectRatio: `${aspect}`, ['--ar' as string]: aspect } as React.CSSProperties}>
             {left && <img src={left} alt={leftLabel} className="look-fill" />}
             <HipsImage wcs={wcs} layer={layer} className="look-fill" style={{ opacity }} alt={L.hipsTitle} onStatus={setHips} />
             {region && (hips === 'failed' || target) && (

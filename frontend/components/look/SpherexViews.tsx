@@ -40,10 +40,11 @@ export function HipsImage({ wcs, layer, className, style, onStatus, alt }: {
       return host + 1 < n ? { key, host: host + 1, status: 'loading' } : { key, host, status: 'failed' };
     });
   }, [key, n, setState]);
-  // A host that neither loads nor errors (outage pages that hang) counts as failed after 15 s.
+  // A host that neither loads nor errors (outage pages that hang) counts as failed after 8 s
+  // (hips2fits normally answers in 1-4 s), so a CDS outage reaches the fallback in ~16 s.
   useEffect(() => {
     if (cur.status !== 'loading') return;
-    const id = setTimeout(() => advance(cur.host), 15000);
+    const id = setTimeout(() => advance(cur.host), 8000);
     return () => clearTimeout(id);
   }, [cur.status, cur.host, advance]);
   if (cur.status === 'failed') return null;

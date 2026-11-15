@@ -97,6 +97,9 @@ export default function CosmosLanding() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const labelsRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const bottomRef = useRef<HTMLElement>(null);
+  const topRef = useRef<HTMLElement>(null);
   const engineRef = useRef<CosmosEngine | null>(null);
   const [ready, setReady] = useState(false);
   const [starCount, setStarCount] = useState(0);
@@ -299,11 +302,26 @@ export default function CosmosLanding() {
   const fmtLat = (v: number) => `${Math.abs(v).toFixed(1)}°${v >= 0 ? t.compass.n : t.compass.s}`;
   const fmtLon = (v: number) => `${Math.abs(v).toFixed(1)}°${v >= 0 ? t.compass.e : t.compass.w}`;
 
+  // The target panel scrolls above the bottom bar instead of sliding under it.
+  useEffect(() => {
+    const root = rootRef.current, bottom = bottomRef.current, top = topRef.current;
+    if (!root || !bottom || typeof ResizeObserver === 'undefined') return;
+    const sync = () => {
+      root.style.setProperty('--cz-bottom-h', `${Math.ceil(bottom.getBoundingClientRect().height)}px`);
+      if (top) root.style.setProperty('--cz-top-h', `${Math.ceil(top.getBoundingClientRect().bottom) + 10}px`);
+    };
+    sync();
+    const ro = new ResizeObserver(sync);
+    ro.observe(bottom);
+    if (top) ro.observe(top);
+    return () => ro.disconnect();
+  }, []);
+
   const mode = view.mode;
   const showReticle = !!locked && !view.flying;
 
   return (
-    <div className="cz-root" data-mode={mode} data-locked={locked ? '' : undefined}>
+    <div className="cz-root" ref={rootRef} data-mode={mode} data-locked={locked ? '' : undefined}>
       <div className="cz-stage" ref={stageRef}>
         {use3d ? (
           <>
@@ -323,7 +341,7 @@ export default function CosmosLanding() {
         {showReticle && use3d && <Reticle fov={view.fov} ra={locked.ra} dec={locked.dec} reduced={reduced} />}
       </div>
 
-      <header className="cz-top">
+      <header className="cz-top" ref={topRef}>
         <BrandMark size="sm" href={null} className="cz-brand" />
         <div className="cz-top-r">
           {use3d && (
@@ -452,7 +470,7 @@ export default function CosmosLanding() {
         </aside>
       )}
 
-      <footer className="cz-bottom">
+      <footer className="cz-bottom" ref={bottomRef}>
         <div className="cz-readout p-data" aria-live="off">
           {use3d && ready ? (
             <>

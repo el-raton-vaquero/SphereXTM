@@ -14,7 +14,7 @@ export default function PresetSuggestions({ targets, onPick }: { targets: V2Targ
         {targets.map((p) => (
           <li key={p.id}>
             <button type="button" onClick={() => onPick(p)}>
-              <span className="xp-suggest-name p-display">{p.name}</span>
+              <span className="xp-suggest-name p-display">{t.targets[p.id]?.name ?? p.name}</span>
               <span className="xp-suggest-kind">{t.targets[p.id]?.kind ?? t.explore.categories[p.category] ?? p.category}</span>
               <span className="xp-suggest-blurb">{t.targets[p.id]?.blurb ?? ''}</span>
             </button>

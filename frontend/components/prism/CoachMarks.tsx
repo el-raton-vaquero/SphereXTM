@@ -41,7 +41,14 @@ export default function CoachMarks({ open, onClose }: { open: boolean; onClose: 
     const h = cardRef.current?.offsetHeight ?? 170;
     let top: number;
     let left = Math.min(Math.max(16, r.left + Math.min(24, r.width / 4)), vw - width - 16);
-    if (r.height > vh * 0.45) {
+    if (vw < 600) {
+      // Phones: never above the target (the search, Point and field-of-view controls sit
+      // above it); over the target's top edge, or below a short target near the top.
+      top = r.top + r.height / 2 < vh / 2 && r.height < vh * 0.45
+        ? Math.min(r.bottom + 12, vh - h - 16)
+        : Math.min(Math.max(12, r.top + 12), vh - h - 16);
+      left = 16;
+    } else if (r.height > vh * 0.45) {
       // Large targets (the sky player): sit inside their top-left corner, over the image.
       top = Math.min(Math.max(12, r.top + 16), vh - h - 16);
       left = Math.min(Math.max(16, r.left + 16), vw - width - 16);

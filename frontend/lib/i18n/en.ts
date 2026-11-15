@@ -853,6 +853,9 @@ export const en = {
     stop: 'Stop',
     playing: 'Playing',
     songMeta: (key: string, bpm: number, s: number) => `${key} · ${bpm} bpm · ${s} s`,
+    noteNames: ['C', 'C♯', 'D', 'E♭', 'E', 'F', 'F♯', 'G', 'A♭', 'A', 'B♭', 'B'],
+    modeNames: { major: 'major', minor: 'minor', dorian: 'dorian' },
+    pieceLine: (key: string, bpm: number, prog: string, s: number) => `${key} · ${bpm} BPM · ${prog} · ${s} s`,
     featuresHeard: (f: string) => `Spectral features heard: ${f}`,
     noFeatures: 'No strong ice, gas or PAH feature detected in this patch.',
     spherexTitle: 'What SPHEREx saw there',
@@ -883,7 +886,7 @@ export const en = {
     ],
     integrityTitle: 'What is real here',
     integrity:
-      'Positions computed for your date and place (ephemeris). The colours and music come from what SPHEREx actually measured in that patch of sky during its 2025–26 survey (DR1 all-sky cube, IRSA) — not on that exact night. Music is generated algorithmically from the data, not by generative AI.',
+      'Positions computed for your date and place (ephemeris). The colours and music come from what SPHEREx actually measured in that patch of sky during its 2025–26 survey (DR1 all-sky cube, IRSA) — not on that exact night. The data chooses the key, mode, tempo, chord progression, the melody’s motif and its dynamics; the composition rules (form, voice leading, register) are ours. Algorithmic, not generative AI.',
     integrityDetail:
       'Spectrum: mean of the cube’s display-stretched pixels (asinh, 0–40 MJy/sr) within about 7′ of the zenith, HiPS order 3; the two blank dichroic frames stay silent. A picture of the data, not calibrated fluxes. Stars: Yale Bright Star Catalogue; Moon and planets: astronomy-engine.',
     credit: 'NASA/JPL-Caltech/IPAC SPHEREx DR1 · IRSA',

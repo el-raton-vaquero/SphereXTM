@@ -5,7 +5,8 @@ import { useLocale, withLang, type Messages } from '../../lib/i18n';
 import { useMounted } from '../../lib/look/hooks';
 import { loadPlace } from '../../lib/look/places';
 import type { StarCatalog } from '../../components/cosmos/stars';
-import { composeSong, downloadBlob, playScore, renderScoreToWav, scoreToMidi, songSlug, type SongScore } from '../../lib/symphony/export';
+import { downloadBlob, playScore, renderScoreToWav, scoreToMidi, songSlug, type SongNote, type SongScore } from '../../lib/symphony/export';
+import { composeSkySong, songFrames, type SkySong } from '../../lib/song/compose';
 import { encodeQr } from '../../lib/song/qr';
 import {
   DEDICATION_MAX, SONG_CITIES, WHERE_MAX, defaultZone, formatDecDms, formatLatLon, formatRaHms, formatUtcOffset,
@@ -13,7 +14,6 @@ import {
   starCatalog, visibleSky, zenithOf, type SongSpec, type VisibleSky, type Zenith,
 } from '../../lib/song/sky';
 import { CUBE_DEPTH, isAbort, zenithImage, zenithSpectrum } from '../../lib/song/spherex';
-import { noteFrameMap } from '../../lib/song/notes';
 import { canvasToBlob, drawPoster, drawSkyChart, ensureFonts, resolveFonts, type PosterData, type PosterFormat, type PosterTheme } from '../../lib/song/poster';
 import SiteHeader from '../site/SiteHeader';
 import SongKeyboard, { KeyStore } from './SongKeyboard';
@@ -41,8 +41,11 @@ interface Result {
   lambda: number[];
   value: (number | null)[];
   score: SongScore;
+  /** The composed piece (key, mode, progression...) behind `score`. */
+  piece: SkySong;
   image: HTMLCanvasElement | null;
-  frames: (midi: number) => number[];
+  /** Cube frames behind a melody note (lights the spectral keyboard). */
+  frames: (n: SongNote) => number[];
 }
 
 function useReducedMotion() {
@@ -237,10 +240,11 @@ function SongStudio() {
       store.value = s.value.slice();
       const c = cat ?? (await starCatalog().catch(() => null));
       const sky = visibleSky(c, place, date);
-      const score = composeSong({ lambda_um: s.lambda_um, intensity: s.value, seed: specSeed(spec), label: t.songLabel(placeName(spec, all) || formatLatLon(spec.lat, spec.lon), localDateInput(spec.ms, specOffsetHours(spec))) }, 45);
+      const piece = composeSkySong({ lambda_um: s.lambda_um, intensity: s.value, seed: specSeed(spec), label: t.songLabel(placeName(spec, all) || formatLatLon(spec.lat, spec.lon), localDateInput(spec.ms, specOffsetHours(spec))) });
+      const score = piece.score;
       const img = await imgP;
       if (ctrl.signal.aborted) return;
-      setResult({ spec, zenith, sky, lambda: s.lambda_um, value: s.value, score, image: img?.canvas ?? null, frames: noteFrameMap(s.lambda_um, s.value) });
+      setResult({ spec, zenith, sky, lambda: s.lambda_um, value: s.value, score, piece, image: img?.canvas ?? null, frames: songFrames(piece, s.lambda_um, s.value) });
       setPhase('ready');
     } catch (e) {
       if (isAbort(e) || ctrl.signal.aborted) return;
@@ -379,7 +383,7 @@ function SongStudio() {
       startAt: t0,
       onNote: (n) => {
         if (n.voice !== 'lead' && n.voice !== 'ice') return;
-        const fs = result.frames(n.midi);
+        const fs = result.frames(n);
         const now = performance.now();
         for (const f of fs) store.lit[f] = now;
         if (fs.length) store.playhead = fs[Math.floor(fs.length / 2)];
@@ -480,7 +484,7 @@ function SongStudio() {
             <div className="sg-kb-wrap">
               <div className="sg-kb-head">
                 <p className="p-label">{keepMicro(phase === 'tuning' ? t.tuningTitle : t.posterBarcode)}</p>
-                <p className="p-data sg-micro" aria-live="polite">{phase === 'tuning' ? t.tuningStatus(arrived, CUBE_DEPTH) : result ? t.songMeta(result.score.key, result.score.bpm, Math.round(result.score.seconds)) : ''}</p>
+                <p className="p-data sg-micro" aria-live="polite">{phase === 'tuning' ? t.tuningStatus(arrived, CUBE_DEPTH) : result ? t.pieceLine(`${t.noteNames[result.piece.tonic]} ${t.modeNames[result.piece.mode]}`, result.piece.bpm, result.piece.progression.join('–'), Math.round(result.score.seconds)) : ''}</p>
               </div>
               <SongKeyboard store={store} label={t.keyboardLabel} reducedMotion={reduced} />
               {phase === 'tuning' && <p className="sg-micro">{t.tuningHint}</p>}

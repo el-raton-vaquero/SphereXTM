@@ -845,6 +845,9 @@ export const es: Messages = {
     stop: 'Detener',
     playing: 'Sonando',
     songMeta: (key: string, bpm: number, s: number) => `${key} · ${bpm} bpm · ${s} s`,
+    noteNames: ['Do', 'Do♯', 'Re', 'Mi♭', 'Mi', 'Fa', 'Fa♯', 'Sol', 'La♭', 'La', 'Si♭', 'Si'],
+    modeNames: { major: 'mayor', minor: 'menor', dorian: 'dórico' },
+    pieceLine: (key: string, bpm: number, prog: string, s: number) => `${key} · ${bpm} BPM · ${prog} · ${s} s`,
     featuresHeard: (f: string) => `Rasgos espectrales que se escuchan: ${f}`,
     noFeatures: 'No se detectan rasgos fuertes de hielo, gas o PAH en este trozo de cielo.',
     spherexTitle: 'Lo que SPHEREx vio ahí',
@@ -875,7 +878,7 @@ export const es: Messages = {
     ],
     integrityTitle: 'Qué es real aquí',
     integrity:
-      'Posiciones calculadas para tu fecha y lugar (efemérides). Los colores y la música vienen de lo que SPHEREx realmente midió en ese trozo de cielo durante su sondeo 2025–26 (cubo de todo el cielo DR1, IRSA), no en esa noche exacta. La música se genera algorítmicamente a partir de los datos, no con IA generativa.',
+      'Posiciones calculadas para tu fecha y lugar (efemérides). Los colores y la música vienen de lo que SPHEREx realmente midió en ese trozo de cielo durante su sondeo 2025–26 (cubo de todo el cielo DR1, IRSA), no en esa noche exacta. Los datos eligen la tonalidad, el modo, el tempo, la progresión de acordes, el motivo de la melodía y su dinámica; las reglas de composición (forma, conducción de voces, registro) son nuestras. Algorítmica, no IA generativa.',
     integrityDetail:
       'Espectro: promedio de los píxeles del cubo con estiramiento de visualización (asinh, 0–40 MJy/sr) a unos 7′ del cenit, HiPS orden 3; los dos cuadros dicroicos vacíos quedan en silencio. Es una imagen de los datos, no flujos calibrados. Estrellas: Catálogo de Estrellas Brillantes de Yale; Luna y planetas: astronomy-engine.',
     credit: 'NASA/JPL-Caltech/IPAC SPHEREx DR1 · IRSA',

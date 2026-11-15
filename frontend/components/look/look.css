@@ -184,3 +184,4 @@
   .look-result-head { flex-direction: column; }
   .look-table th, .look-table td { padding-right: 8px; }
 }
+.look-align-pick { position: absolute; width: 28px; height: 28px; margin: -14px 0 0 -14px; border: 2px solid var(--p-signal); border-radius: 50%; pointer-events: none; }

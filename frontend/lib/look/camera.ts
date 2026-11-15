@@ -37,7 +37,11 @@ const apply = (m: V3[], v: V3): V3 => [dot(m[0], v), dot(m[1], v), dot(m[2], v)]
  * (absolute orientation or iOS compass); `screenAngle` is screen.orientation.angle (0/90/180/270).
  */
 export function basisFromOrientation(alphaNorth: number, beta: number, gamma: number, screenAngle: number): CamBasis {
-  const m = deviceMatrix(alphaNorth, beta, gamma);
+  return basisFromMatrix(deviceMatrix(alphaNorth, beta, gamma), screenAngle);
+}
+
+/** Camera basis from a device->ENU rotation matrix (see lib/look/orientation.ts). */
+export function basisFromMatrix(m: V3[], screenAngle: number): CamBasis {
   const th = screenAngle * D2R;
   // Screen axes expressed in device coordinates after the UI rotates by screenAngle.
   const upDev: V3 = [Math.sin(th), Math.cos(th), 0];

@@ -5,9 +5,10 @@ import { useLocale } from '../../lib/i18n';
 import { formatDec, formatRa } from '../../lib/prism/coords';
 import { PRESETS } from '../../lib/prism/presets';
 import {
-  basisFromAltAz, basisFromOrientation, cross, pitchBasis, unit, yawBasis, type CamBasis, type View,
+  basisFromAltAz, basisFromMatrix, pitchBasis, unproject, yawBasis, type CamBasis, type View,
 } from '../../lib/look/camera';
 import type { StarField } from '../../lib/look/hooks';
+import { OrientationTracker } from '../../lib/look/orientation';
 import { drawOverlay, type OverlayLayers } from '../../lib/look/overlay';
 import type { SavedPlace } from '../../lib/look/places';
 import { bodyStates, enuToAltAz, enuToRadec, eqjToEnuMatrix, type BodyState, type M3 } from '../../lib/look/sky';
@@ -16,10 +17,12 @@ import CaptureResult, { type Captured } from './CaptureResult';
 type Perm = 'off' | 'waiting' | 'ok' | 'denied' | 'unavailable';
 type Compass = 'waiting' | 'ok' | 'relative';
 
-interface OriSample { alpha: number; beta: number; gamma: number; absolute: boolean; t: number }
 
 const OFFSET_KEY = 'starchord.look.offset';
 const FOV_KEY = 'starchord.look.vfov';
+/** Field of view of the LONG side of the camera stream (deg). Typical phone main camera: 63-70. */
+const LENS_KEY = 'starchord.look.lens';
+const LENS_DEFAULT = 66;
 const TARGETS = PRESETS.map((p) => ({ id: p.id, name: p.name, ra: p.ra, dec: p.dec }));
 
 function readJson<T>(key: string, fallback: T): T {
@@ -37,17 +40,6 @@ function screenAngle(): number {
   return typeof legacy === 'number' ? (legacy + 360) % 360 : 0;
 }
 
-/** Low-pass filter on the camera basis, re-orthonormalised. */
-function smooth(prev: CamBasis | null, next: CamBasis, k: number): CamBasis {
-  if (!prev) return next;
-  const mix = (a: number[], b: number[]) => unit([a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k]);
-  const f = mix(prev.f, next.f);
-  const u0 = mix(prev.u, next.u);
-  const r = unit(cross(f, u0));
-  const u = unit(cross(r, f));
-  return { f, u, r };
-}
-
 export default function CameraView({ place, field, locate, active }: {
   place: SavedPlace; field: StarField | null; locate: () => Promise<SavedPlace | null>; active: boolean;
 }) {
@@ -60,7 +52,9 @@ export default function CameraView({ place, field, locate, active }: {
   const [insecure] = useState(() => typeof window !== 'undefined' && !window.isSecureContext);
   const [layers, setLayers] = useState<OverlayLayers>({ stars: true, planets: true, targets: true, grid: true });
   const [vfov, setVfov] = useState<number>(() => (typeof window === 'undefined' ? 60 : readJson<number>(FOV_KEY, 0) || (window.innerHeight > window.innerWidth ? 60 : 40)));
+  const [lens, setLens] = useState<number>(() => (typeof window === 'undefined' ? LENS_DEFAULT : readJson<number>(LENS_KEY, 0) || LENS_DEFAULT));
   const [aligning, setAligning] = useState(false);
+  const [alignPick, setAlignPick] = useState<{ x: number; y: number } | null>(null);
   const [offset, setOffset] = useState<{ az: number; alt: number }>(() => (typeof window === 'undefined' ? { az: 0, alt: 0 } : readJson(OFFSET_KEY, { az: 0, alt: 0 })));
   const [readout, setReadout] = useState<{ alt: number; az: number; ra: number; dec: number } | null>(null);
   const [captured, setCaptured] = useState<Captured | null>(null);
@@ -69,8 +63,9 @@ export default function CameraView({ place, field, locate, active }: {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const oriRef = useRef<OriSample | null>(null);
-  const basisRef = useRef<CamBasis | null>(null);
+  const trackerRef = useRef<OrientationTracker | null>(null);
+  const lensRef = useRef(lens);
+  const [effVfov, setEffVfov] = useState<number | null>(null);
   const effRef = useRef<CamBasis>(basisFromAltAz(35, 180));
   const manualRef = useRef({ alt: 35, az: 180 });
   const viewRef = useRef<View>({ w: 1, h: 1, vfov: 60 });
@@ -85,6 +80,7 @@ export default function CameraView({ place, field, locate, active }: {
   const fieldRef = useRef(field);
   useEffect(() => { offsetRef.current = offset; writeJson(OFFSET_KEY, offset); }, [offset]);
   useEffect(() => { vfovRef.current = vfov; }, [vfov]);
+  useEffect(() => { lensRef.current = lens; }, [lens]);
   useEffect(() => { layersRef.current = layers; }, [layers]);
   useEffect(() => { placeRef.current = place; mRef.current = null; bodiesRef.current.at = 0; }, [place]);
   useEffect(() => { fieldRef.current = field; }, [field]);
@@ -96,28 +92,15 @@ export default function CameraView({ place, field, locate, active }: {
   const listenersRef = useRef<(() => void) | null>(null);
   const attachOrientation = useCallback(() => {
     if (listenersRef.current) return;
-    let lastAbs = 0;
-    const take = (alpha: number | null, beta: number | null, gamma: number | null, absolute: boolean) => {
-      if (alpha === null || beta === null || gamma === null || !Number.isFinite(alpha) || !Number.isFinite(beta)) return;
-      oriRef.current = { alpha, beta, gamma: gamma ?? 0, absolute, t: performance.now() };
-      setOri((s) => (s === 'ok' ? s : 'ok'));
-      setCompass((s) => { const n: Compass = absolute ? 'ok' : 'relative'; return s === n ? s : n; });
-    };
-    const onAbs = (e: DeviceOrientationEvent) => { lastAbs = performance.now(); take(e.alpha, e.beta, e.gamma, true); };
-    const onRel = (e: DeviceOrientationEvent) => {
-      const heading = (e as DeviceOrientationEvent & { webkitCompassHeading?: number }).webkitCompassHeading;
-      if (typeof heading === 'number' && Number.isFinite(heading)) return take(360 - heading, e.beta, e.gamma, true);
-      if (e.absolute) return take(e.alpha, e.beta, e.gamma, true);
-      if (performance.now() - lastAbs > 1500) take(e.alpha, e.beta, e.gamma, false);
-    };
-    const hasAbs = 'ondeviceorientationabsolute' in window;
-    if (hasAbs) window.addEventListener('deviceorientationabsolute', onAbs as EventListener);
-    window.addEventListener('deviceorientation', onRel);
-    const timer = setTimeout(() => setOri((s) => (s === 'waiting' ? 'unavailable' : s)), 3000);
+    const tr = new OrientationTracker();
+    trackerRef.current = tr;
+    tr.onFirstSample = () => setOri((st) => (st === 'ok' ? st : 'ok'));
+    tr.start();
+    const timer = setTimeout(() => setOri((st) => (st === 'waiting' ? 'unavailable' : st)), 3000);
     listenersRef.current = () => {
       clearTimeout(timer);
-      if (hasAbs) window.removeEventListener('deviceorientationabsolute', onAbs as EventListener);
-      window.removeEventListener('deviceorientation', onRel);
+      tr.stop();
+      trackerRef.current = null;
     };
   }, []);
 
@@ -198,7 +181,17 @@ export default function CameraView({ place, field, locate, active }: {
       if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) {
         canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr);
       }
-      const view: View = { w, h, vfov: vfovRef.current };
+      // With a live camera the overlay must use the field of view actually shown on screen: the
+      // stream (long side = lens FOV) is scaled with object-fit: cover, which crops it.
+      let vf = vfovRef.current;
+      const vid = videoRef.current;
+      if (streamRef.current && vid && vid.videoWidth && vid.videoHeight) {
+        const vw = vid.videoWidth, vh = vid.videoHeight;
+        const fStream = (Math.max(vw, vh) / 2) / Math.tan((lensRef.current * Math.PI) / 360);
+        const cover = Math.max(w / vw, h / vh);
+        vf = (2 * Math.atan((h / 2) / (fStream * cover)) * 180) / Math.PI;
+      }
+      const view: View = { w, h, vfov: vf };
       viewRef.current = view;
       const date = new Date();
       if (!mRef.current || now - mRef.current.at > 1000) mRef.current = { m: eqjToEnuMatrix(placeRef.current, date), at: now };
@@ -206,11 +199,11 @@ export default function CameraView({ place, field, locate, active }: {
 
       // pointing
       let basis: CamBasis;
-      const o = oriRef.current;
+      const o = trackerRef.current?.read(now) ?? null;
       if (o) {
-        const raw = basisFromOrientation(o.alpha, o.beta, o.gamma, screenAngle());
-        basisRef.current = smooth(basisRef.current, raw, 0.22);
-        basis = pitchBasis(yawBasis(basisRef.current, offsetRef.current.az), offsetRef.current.alt);
+        const cs: Compass = o.heading === 'compass' ? 'ok' : 'relative';
+        setCompass((st) => (st === cs ? st : cs));
+        basis = pitchBasis(yawBasis(basisFromMatrix(o.m, screenAngle()), offsetRef.current.az), offsetRef.current.alt);
       } else {
         basis = basisFromAltAz(manualRef.current.alt, manualRef.current.az);
       }
@@ -224,6 +217,7 @@ export default function CameraView({ place, field, locate, active }: {
       });
       if (now - lastReadout > 250) {
         lastReadout = now;
+        setEffVfov((pv) => (pv !== null && Math.abs(pv - vf) < 0.5 ? pv : vf));
         const { alt, az } = enuToAltAz(basis.f);
         const { ra, dec } = enuToRadec(mRef.current.m, basis.f);
         setReadout({ alt, az, ra, dec });
@@ -278,7 +272,7 @@ export default function CameraView({ place, field, locate, active }: {
     const target = targetId ? TARGETS.find((x) => x.id === targetId) : undefined;
     setCaptured({
       photo, overlay, basis, view: { ...view }, m, date, place: placeRef.current,
-      pointed: { ...pointed, alt, az }, sensors: Boolean(oriRef.current), targetId: target?.id,
+      pointed: { ...pointed, alt, az }, sensors: Boolean(trackerRef.current), targetId: target?.id,
     });
     setPhase('captured');
     videoRef.current?.pause();
@@ -315,9 +309,27 @@ export default function CameraView({ place, field, locate, active }: {
   const onPointerUp = (e: React.PointerEvent) => {
     const d = dragRef.current;
     dragRef.current = null;
-    if (!d || d.moved > 8 || aligning) return;
+    if (!d || d.moved > 8) return;
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     const x = e.clientX - rect.left, y = e.clientY - rect.top;
+    if (aligning) {
+      // Two taps: 1) a label (star, planet, Moon), 2) where that object really is in the photo.
+      if (!alignPick) {
+        const hit = hitsRef.current.find((h) => Math.hypot(h.x - x, h.y - y) < 32);
+        if (hit) setAlignPick({ x: hit.x, y: hit.y });
+        return;
+      }
+      const v = viewRef.current, b = effRef.current;
+      const from = enuToAltAz(unproject(b, v, alignPick.x, alignPick.y));
+      const to = enuToAltAz(unproject(b, v, x, y));
+      setOffset((o) => ({
+        az: ((o.az + (to.az - from.az) + 540) % 360) - 180,
+        alt: Math.max(-30, Math.min(30, o.alt + (to.alt - from.alt))),
+      }));
+      setAlignPick(null);
+      setAligning(false);
+      return;
+    }
     const hit = hitsRef.current.find((h) => Math.hypot(h.x - x, h.y - y) < 24);
     if (hit) capture(hit.id);
   };
@@ -395,7 +407,8 @@ export default function CameraView({ place, field, locate, active }: {
             {messages.map((m) => <p key={m}>{m}</p>)}
           </div>
         )}
-        {aligning && <p className="look-align-hint" role="status">{L.alignOn}</p>}
+        {aligning && <p className="look-align-hint" role="status">{alignPick ? L.alignPlace : L.alignOn}</p>}
+        {aligning && alignPick && <span className="look-align-pick" style={{ left: alignPick.x, top: alignPick.y }} aria-hidden="true" />}
       </div>
       {phase === 'live' && (
         <div className="look-controls">
@@ -414,13 +427,23 @@ export default function CameraView({ place, field, locate, active }: {
           </button>
           <div className="look-tune">
             <label className="look-field">
-              <span className="p-label">{L.fovLabel} <span className="p-data">{vfov.toFixed(0)}°</span></span>
-              <input type="range" min={10} max={110} step={1} value={vfov} title={L.fovHelp}
-                onChange={(e) => { const v = Number(e.target.value); setVfov(v); writeJson(FOV_KEY, v); }} />
+              {videoLive ? (
+                <>
+                  <span className="p-label">{L.lensLabel} <span className="p-data">{lens.toFixed(0)}°</span>{effVfov !== null && <span className="look-dim"> · {L.shownField(effVfov.toFixed(0))}</span>}</span>
+                  <input type="range" min={40} max={110} step={1} value={lens} title={L.lensHelp}
+                    onChange={(e) => { const v = Number(e.target.value); setLens(v); writeJson(LENS_KEY, v); }} />
+                </>
+              ) : (
+                <>
+                  <span className="p-label">{L.fovLabel} <span className="p-data">{vfov.toFixed(0)}°</span></span>
+                  <input type="range" min={10} max={110} step={1} value={vfov} title={L.fovHelp}
+                    onChange={(e) => { const v = Number(e.target.value); setVfov(v); writeJson(FOV_KEY, v); }} />
+                </>
+              )}
             </label>
             {sensorsLive && (
               <div className="look-align">
-                <button type="button" className={`look-btn${aligning ? ' look-btn-primary' : ''}`} aria-pressed={aligning} onClick={() => setAligning((a) => !a)}>
+                <button type="button" className={`look-btn${aligning ? ' look-btn-primary' : ''}`} aria-pressed={aligning} onClick={() => { setAligning((a) => !a); setAlignPick(null); }}>
                   {aligning ? L.alignDone : L.align}
                 </button>
                 {(offset.az !== 0 || offset.alt !== 0) && (

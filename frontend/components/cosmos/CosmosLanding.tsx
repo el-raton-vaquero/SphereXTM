@@ -17,6 +17,7 @@ const SURVEY_DAYS = 184; // 2025-05-01 → 2025-11-01
 const SURVEY_START_MS = Date.UTC(2025, 4, 1);
 const AUTO_NAV_S = 4;
 const LOCK_FOV = 6;
+const ENTRY_IDS = ['explore', 'sky', 'symphony', 'look'] as const;
 
 interface Target {
   id?: CosmosPresetId;
@@ -24,6 +25,29 @@ interface Target {
   ra: number;
   dec: number;
   epoch: string;
+}
+
+/** Entry points to the four sections. Rendered twice (side column on wide screens, inline in the
+ * panel on narrow ones); CSS shows exactly one, so only one is in the accessibility tree. */
+function EntryList({ variant }: { variant: 'side' | 'inline' }) {
+  const { locale, t: all } = useLocale();
+  const t = all.cosmos;
+  return (
+    <nav className={`cz-entries cz-entries-${variant}`} aria-label={t.entriesLabel}>
+      <p className="p-label">{t.entriesLabel}</p>
+      <ol>
+        {ENTRY_IDS.map((id, i) => (
+          <li key={id}>
+            <a href={withLang(`/${id}`, locale)}>
+              <span className="cz-entry-n p-data">{String(i + 1).padStart(2, '0')}</span>
+              <span className="cz-entry-name">{all.nav[id]}</span>
+              <span className="cz-entry-desc">{t.entries[id]}</span>
+            </a>
+          </li>
+        ))}
+      </ol>
+    </nav>
+  );
 }
 
 function useReducedMotion() {
@@ -316,12 +340,16 @@ export default function CosmosLanding() {
         </div>
       </header>
 
+      <EntryList variant="side" />
+
       <section className="cz-panel" aria-labelledby="cz-title">
         <p className="p-label">{t.kicker}</p>
         <h1 id="cz-title" className="cz-title p-display">
           {t.title}
         </h1>
         <p className="cz-lede">{t.lede}</p>
+        <EntryList variant="inline" />
+
 
         <form className="cz-search" onSubmit={onSubmit} role="search">
           <label htmlFor="cz-q" className="p-label">

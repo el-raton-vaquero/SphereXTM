@@ -103,6 +103,26 @@
 .cz-presets tbody tr[data-active] th { box-shadow: inset 2px 0 0 var(--p-signal); }
 .cz-presets tbody tr[data-active] th button { padding-left: 8px; }
 
+/* ---------- entry points to the four sections ---------- */
+.cz-entries > .p-label { margin: 0 0 4px; }
+.cz-entries ol { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--p-rule-2); }
+.cz-entries li { border-bottom: 1px solid var(--p-rule); }
+.cz-entries a { display: grid; align-items: baseline; gap: 0 10px; color: var(--p-ink); text-decoration: none; }
+.cz-entry-n { font-size: 11.5px; color: var(--p-ink-3); }
+.cz-entry-name { font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cz-entry-desc { font-size: 13px; line-height: 1.4; color: var(--p-ink-2); }
+.cz-entries a:hover .cz-entry-name, .cz-entries a:focus-visible .cz-entry-name { color: var(--p-signal); }
+.cz-entries a:hover { background: var(--p-bg-2); }
+/* wide screens: a column on the right, under the header */
+.cz-entries-side {
+  position: absolute; right: 20px; top: 68px; width: 320px; z-index: 2;
+  background: color-mix(in srgb, var(--p-bg) 82%, transparent); padding: 10px 12px 4px;
+}
+.cz-entries-side a { grid-template-columns: 24px minmax(0, 1fr); padding: 7px 0; }
+.cz-entries-side .cz-entry-desc { grid-column: 2; }
+.cz-root[data-locked] .cz-entries-side { display: none; }
+.cz-entries-inline { display: none; }
+
 /* ---------- reticle ---------- */
 .cz-reticle {
   position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
@@ -214,6 +234,13 @@
   .cz-presets td:last-child { display: none; }
   .cz-presets tbody th button { padding: 4px 0; }
   .cz-pkind { display: none; }
+  .cz-entries-side { display: none; }
+  .cz-entries-inline { display: block; margin: 0 0 10px; }
+  .cz-entries-inline ol { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 12px; }
+  .cz-entries-inline a { grid-template-columns: 22px minmax(0, 1fr); padding: 5px 0; }
+  .cz-entries-inline .cz-entry-desc { display: none; }
+  .cz-entry-name { font-size: 14px; }
+  .cz-presets tbody tr:nth-child(n+4) { display: none; }
   .cz-top { height: auto; flex-wrap: wrap; padding: 8px 16px 4px; gap: 4px 12px; }
   .cz-top-r { display: contents; }
   .cz-top .cz-nav { order: 3; width: 100%; justify-content: space-between; align-items: center; }
@@ -233,6 +260,7 @@
 }
 @media (max-height: 940px) and (min-width: 901px) {
   .cz-title { font-size: 46px; }
+  .cz-entries-side a { padding: 5px 0; }
   .cz-presets tbody th button { padding: 4px 0; }
 }
 @media (max-height: 700px) and (min-width: 901px) {

@@ -9,9 +9,10 @@ import { useLocale, withLang } from '../../lib/i18n';
  * there) and set BRAND_HAS_LOGO = true. Until then the wordmark is plain Fraunces text.
  */
 export const BRAND_NAME = 'StarChord';
-export const BRAND_LOGO = '/brand/logo.svg';
-export const BRAND_LOGO_MARK = '/brand/logo-mark.svg';
-export const BRAND_HAS_LOGO = false;
+export const BRAND_LOGO = '/brand/logo-mark.png';
+export const BRAND_LOGO_MARK = '/brand/logo-mark.png';
+export const BRAND_LOGO_FULL = '/brand/logo-full.png';
+export const BRAND_HAS_LOGO = true;
 
 export type BrandSize = 'sm' | 'md' | 'lg';
 
@@ -30,7 +31,7 @@ export default function BrandMark({ href = '/', size = 'md', hideName = false, c
   const inner = (
     <>
       {BRAND_HAS_LOGO && (
-        // eslint-disable-next-line @next/next/no-img-element -- static SVG logo, intrinsic size from CSS
+        // eslint-disable-next-line @next/next/no-img-element -- static PNG logo (transparent), intrinsic size from CSS
         <img className="brandmark-logo" src={BRAND_LOGO} alt={showName ? '' : BRAND_NAME} />
       )}
       {showName && <span className="brandmark-name">{BRAND_NAME}</span>}

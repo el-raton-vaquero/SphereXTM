@@ -2,13 +2,15 @@
 
 import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useState } from 'react';
-import { useLocale } from '../useLocale';
+import { MESSAGES, readLocale, useLocale } from '../../lib/i18n';
+import BrandMark from '../brand/BrandMark';
+import SiteNav from '../site/SiteNav';
 import { COSMOS_PRESETS } from './presets';
 import type { CubeFrame } from './SpectralCube3D';
 
 const SpectralCube3D = dynamic(() => import('./SpectralCube3D'), {
   ssr: false,
-  loading: () => <div className="cz-cube-loading p-data">three.js…</div>,
+  loading: () => <div className="cz-cube-loading p-data">{MESSAGES[readLocale()].cube.loading3d}</div>,
 });
 
 function b64ToFloat32(b64: string): Float32Array {
@@ -48,8 +50,8 @@ interface SearchFrame {
 }
 
 export default function CubeDemo() {
-  const { locale } = useLocale();
-  const es = locale === 'es';
+  const { t: all } = useLocale();
+  const t = all.cube;
   const [target, setTarget] = useState(COSMOS_PRESETS[2]);
   const [frames, setFrames] = useState<CubeFrame[]>([]);
   const [current, setCurrent] = useState(0);
@@ -68,7 +70,7 @@ export default function CubeDemo() {
       const body = (await res.json()) as { grid: { n: number }; frames: SearchFrame[] };
       const n = body.grid.n;
       const fr = body.frames.map((f) => ({ pixels: b64ToFloat32(f.pixels_b64), n, lambda_um: f.lambda_um, mjd: f.mjd, season: f.season, detector: f.detector, id: f.id }));
-      if (!fr.length) throw new Error(es ? 'sin cuadros para esta posición' : 'no frames at this position');
+      if (!fr.length) throw new Error(MESSAGES[readLocale()].cube.noFrames);
       setFrames(fr);
       setCurrent(0);
       setState('real');
@@ -77,7 +79,7 @@ export default function CubeDemo() {
       setState('error');
       setMsg(e instanceof Error ? e.message : String(e));
     }
-  }, [es]);
+  }, []);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- initial fetch on mount
@@ -87,17 +89,17 @@ export default function CubeDemo() {
   return (
     <div className="cz-cube-bg">
     <main className="cz-cube-page">
+      <div className="cz-cube-top">
+        <BrandMark size="sm" />
+        <SiteNav />
+      </div>
       <header>
-        <p className="p-label">PRISM · SpectralCube3D</p>
-        <h1 className="p-display">{es ? 'Cubo espectral' : 'Spectral cube'}</h1>
-        <p className="cz-cube-lede">
-          {es
-            ? 'Cada corte es un cuadro SPHEREx reproyectado; su posición en el eje es su λ (o su fecha). No se interpola entre cuadros.'
-            : 'Each slice is one reprojected SPHEREx frame; its position on the axis is its λ (or date). Nothing is interpolated between frames.'}
-        </p>
+        <p className="p-label">{t.kicker}</p>
+        <h1 className="p-display">{t.title}</h1>
+        <p className="cz-cube-lede">{t.lede}</p>
         <div className="cz-cube-controls p-data">
           <label>
-            {es ? 'objetivo' : 'target'}{' '}
+            {t.target}{' '}
             <select value={target.id} onChange={(e) => setTarget(COSMOS_PRESETS.find((p) => p.id === e.target.value) ?? COSMOS_PRESETS[0])}>
               {COSMOS_PRESETS.map((p) => (
                 <option key={p.id} value={p.id}>{p.name}</option>
@@ -105,16 +107,16 @@ export default function CubeDemo() {
             </select>
           </label>
           <span>
-            {state === 'loading' && (es ? 'consultando /api/v2/search…' : 'querying /api/v2/search…')}
-            {state === 'real' && `${frames.length} ${es ? 'cuadros reales · IRSA SPHEREx' : 'real frames · IRSA SPHEREx'}`}
-            {state === 'synthetic' && (es ? 'patrón sintético de prueba' : 'synthetic test pattern')}
+            {state === 'loading' && t.querying}
+            {state === 'real' && t.realFrames(frames.length)}
+            {state === 'synthetic' && t.syntheticPattern}
           </span>
         </div>
       </header>
 
       {state === 'error' && (
         <div className="cz-cube-error p-data" role="alert">
-          <p>{es ? 'No hay datos reales disponibles:' : 'No real data available:'} {msg}</p>
+          <p>{t.noReal} {msg}</p>
           <button
             type="button"
             className="cz-ghost"
@@ -124,13 +126,13 @@ export default function CubeDemo() {
               setState('synthetic');
             }}
           >
-            {es ? 'Mostrar patrón SINTÉTICO de prueba' : 'Show SYNTHETIC test pattern'}
+            {t.showSynthetic}
           </button>
         </div>
       )}
 
       {frames.length > 0 && (
-        <SpectralCube3D frames={frames} current={current} onSelect={setCurrent} height="min(70vh, 640px)" locale={locale} />
+        <SpectralCube3D frames={frames} current={current} onSelect={setCurrent} height="min(70vh, 640px)" />
       )}
     </main>
     </div>

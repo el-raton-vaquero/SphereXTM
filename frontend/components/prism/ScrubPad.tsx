@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { formatMjdDate } from '../../lib/prism/coords';
 import { DETECTOR_RANGES, LAMBDA_MAX, LAMBDA_MIN, detectorColor, lambdaColor } from '../../lib/prism/ramp';
-import type { PrismText } from '../../lib/prism/i18n';
+import type { ExploreText } from '../../lib/i18n';
 import type { Frame, Season } from '../../lib/prism/types';
 
 interface Props {
@@ -13,7 +13,7 @@ interface Props {
   matched: Set<number>;
   raw: boolean;
   refSeason: number | null;
-  text: PrismText;
+  text: ExploreText;
   /** keepAnchor: a horizontal (time) drag blinks within the anchored matched-λ set. */
   onSelect: (index: number, keepAnchor?: boolean) => void;
 }

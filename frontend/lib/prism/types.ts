@@ -135,6 +135,8 @@ export interface Classification {
   ranking: { class: string; template: string; label?: string; spectral_type?: string | null; prob: number }[];
   method: string;
   caveats: string[];
+  method_en?: string; method_es?: string;
+  caveats_en?: string[]; caveats_es?: string[];
   detected?: boolean;
 }
 
@@ -148,9 +150,15 @@ export interface SpectrumResponse {
 }
 
 export type CheckStatus = 'pass' | 'warn' | 'fail' | 'na';
-export interface VerdictCheck { id: string; label: string; status: CheckStatus; detail: string; evidence_source: string }
+/** A verdict check. `label`/`detail`/`evidence_source` are in the requested language; the
+ *  optional *_en / *_es copies (backend lang support, localized snapshots) allow switching. */
+export interface VerdictCheck {
+  id: string; label: string; status: CheckStatus; detail: string; evidence_source: string;
+  label_en?: string; label_es?: string; detail_en?: string; detail_es?: string;
+  evidence_source_en?: string; evidence_source_es?: string;
+}
 export type VerdictKind = 'known_star' | 'known_asteroid' | 'artifact' | 'variable' | 'candidate' | 'inconclusive';
-export interface VerdictResponse { checks: VerdictCheck[]; verdict: VerdictKind; confidence: number; summary: string; summary_es?: string; tentative?: boolean; method?: string }
+export interface VerdictResponse { checks: VerdictCheck[]; verdict: VerdictKind; confidence: number; summary: string; summary_en?: string; summary_es?: string; tentative?: boolean; method?: string; lang?: 'en' | 'es' }
 
 export interface CatalogTarget {
   id: string;

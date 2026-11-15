@@ -2,10 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { useRouter } from 'next/navigation';
-import { useLocale } from '../useLocale';
+import { useLocale, withLang } from '../../lib/i18n';
+import BrandMark from '../brand/BrandMark';
+import SiteNav from '../site/SiteNav';
 import { formatDec, formatRA, parseRaDec, sunEclipticLongitude } from './astro';
 import { COSMOS_PRESETS, findPreset, resolveWithSesame, type CosmosPresetId } from './presets';
-import { COSMOS_TEXT } from './i18n';
 import { loadStarCatalog } from './stars';
 import type { CosmosEngine, CosmosMode, CosmosViewState } from './CosmosEngine';
 import Reticle from './Reticle';
@@ -48,8 +49,8 @@ function hasWebGL() {
 const isoDay = (day: number) => new Date(SURVEY_START_MS + day * 86400000).toISOString().slice(0, 10);
 
 export default function CosmosLanding() {
-  const { locale, setLocale } = useLocale();
-  const t = COSMOS_TEXT[locale];
+  const { locale, t: all } = useLocale();
+  const t = all.cosmos;
   const router = useRouter();
   const reduced = useReducedMotion();
   const [force3d, setForce3d] = useState(false);
@@ -158,8 +159,7 @@ export default function CosmosLanding() {
     (tg: Target) => {
       const p = new URLSearchParams({ ra: tg.ra.toFixed(6), dec: tg.dec.toFixed(6) });
       if (tg.id) p.set('target', tg.id);
-      if (locale === 'en') p.set('lang', 'en');
-      return `/explore?${p.toString()}`;
+      return withLang(`/explore?${p.toString()}`, locale);
     },
     [locale],
   );
@@ -268,10 +268,7 @@ export default function CosmosLanding() {
       </div>
 
       <header className="cz-top">
-        <div className="cz-brand p-data">
-          <span>PRISM</span>
-          {process.env.NEXT_PUBLIC_PRISM_LIVE !== '0' && <a className="cz-dim cz-classic" href="/classic">{locale === 'es' ? 'versión clásica' : 'classic view'}</a>}
-        </div>
+        <BrandMark size="sm" href={null} className="cz-brand" />
         <div className="cz-top-r">
           {use3d && (
             <div className="cz-seg" role="group" aria-label={t.modeLabel}>
@@ -283,9 +280,7 @@ export default function CosmosLanding() {
               </button>
             </div>
           )}
-          <button type="button" className="cz-lang p-data" aria-label={t.langLabel} onClick={() => setLocale(locale === 'es' ? 'en' : 'es')}>
-            {t.lang}
-          </button>
+          <SiteNav current="home" className="cz-nav" />
         </div>
       </header>
 
@@ -337,7 +332,7 @@ export default function CosmosLanding() {
                     onClick={() => lockOn({ id: p.id, name: p.name, ra: p.ra, dec: p.dec, epoch: p.epoch })}
                   >
                     <span className="cz-pname">{p.name}</span>
-                    <span className="cz-pkind">{p.kind[locale]}</span>
+                    <span className="cz-pkind">{all.targets[p.id]?.kind ?? ''}</span>
                   </button>
                 </th>
                 <td className="p-data">{formatRA(p.ra, 0)}</td>
@@ -362,7 +357,7 @@ export default function CosmosLanding() {
               <dd>{formatDec(locked.dec, 1)}</dd>
             </div>
             <div>
-              <dt>deg</dt>
+              <dt>{t.degLabel}</dt>
               <dd>
                 {locked.ra.toFixed(5)} {locked.dec >= 0 ? '+' : '−'}
                 {Math.abs(locked.dec).toFixed(5)}

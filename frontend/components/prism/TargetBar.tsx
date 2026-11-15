@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { resolveTargetName } from '../../lib/sesame';
 import { formatDec, formatRa, parseRaDec } from '../../lib/prism/coords';
-import type { PrismText } from '../../lib/prism/i18n';
+import { useLocale, type ExploreText } from '../../lib/i18n';
 import type { V2Target } from '../../lib/prism/types';
 
 interface Props {
@@ -12,8 +12,7 @@ interface Props {
   ra?: number;
   dec?: number;
   fov: number;
-  locale: 'es' | 'en';
-  text: PrismText;
+  text: ExploreText;
   embedUrl: string;
   onPoint: (p: { ra: number; dec: number; target?: string; label?: string }) => void;
   onFov: (fov: number) => void;
@@ -21,7 +20,8 @@ interface Props {
 
 const FOVS = [2, 4, 6, 10];
 
-export default function TargetBar({ targets, activeId, ra, dec, fov, locale, text, embedUrl, onPoint, onFov }: Props) {
+export default function TargetBar({ targets, activeId, ra, dec, fov, text, embedUrl, onPoint, onFov }: Props) {
+  const targetText = useLocale().t.targets;
   const [q, setQ] = useState('');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -41,14 +41,14 @@ export default function TargetBar({ targets, activeId, ra, dec, fov, locale, tex
       const r = await resolveTargetName(q);
       if (r) {
         onPoint({ ra: r.ra, dec: r.dec, label: r.name });
-        setMsg(`${r.name} → ${formatRa(r.ra, 1)} ${formatDec(r.dec, 0)} · ${r.source}`);
+        setMsg(`${r.name} → ${formatRa(r.ra, 1)} ${formatDec(r.dec, 0)} · ${text.resolvedVia[r.source] ?? r.source}`);
       } else setMsg(text.notResolved);
     } finally {
       setBusy(false);
     }
   };
 
-  const snippet = `<iframe src="${embedUrl}" width="960" height="720" style="border:0" title="PRISM · SPHEREx"></iframe>`;
+  const snippet = `<iframe src="${embedUrl}" width="960" height="720" style="border:0" title="${text.embedTitle}"></iframe>`;
 
   return (
     <div className="tbar">
@@ -80,10 +80,10 @@ export default function TargetBar({ targets, activeId, ra, dec, fov, locale, tex
                 className="preset"
                 aria-pressed={activeId === t.id}
                 onClick={() => onPoint({ ra: t.ra, dec: t.dec, target: t.id })}
-                title={(locale === 'en' && (t as { why_en?: string }).why_en) || t.why || ''}
+                title={targetText[t.id]?.why ?? t.why ?? ''}
               >
                 <span className="preset-name">{t.name}</span>
-                <span className="preset-cat p-data">{text.categories[t.category] ?? t.category.replace(/_/g, ' ')}{t.expected?.pm_arcsec_yr && t.expected.pm_arcsec_yr >= 0.05 ? ` · ${t.expected.pm_arcsec_yr.toFixed(1)}″/${locale === 'en' ? 'yr' : 'año'}` : ''}{t.expected?.saturated ? ' · SAT' : ''}</span>
+                <span className="preset-cat p-data">{text.categories[t.category] ?? t.category.replace(/_/g, ' ')}{t.expected?.pm_arcsec_yr && t.expected.pm_arcsec_yr >= 0.05 ? ` · ${t.expected.pm_arcsec_yr.toFixed(1)}″/${text.perYear}` : ''}{t.expected?.saturated ? ` · ${text.satTag}` : ''}</span>
               </button>
             </li>
           ))}

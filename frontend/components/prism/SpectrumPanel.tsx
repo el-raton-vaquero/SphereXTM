@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { formatDec, formatRa } from '../../lib/prism/coords';
 import { LAMBDA_MAX, LAMBDA_MIN, lambdaColor } from '../../lib/prism/ramp';
-import type { PrismText } from '../../lib/prism/i18n';
+import { useLocale, type ExploreText } from '../../lib/i18n';
 import type { SpectrumResponse } from '../../lib/prism/types';
 
 export type SpectrumSource = 'live' | 'snapshot' | 'client';
@@ -15,7 +15,7 @@ interface Props {
   error?: string;
   probe: { ra: number; dec: number };
   currentFrameId?: string;
-  text: PrismText;
+  text: ExploreText;
 }
 
 const MARKERS = ['circle', 'square', 'triangle', 'diamond'] as const;
@@ -98,7 +98,13 @@ export default function SpectrumPanel({ data, source, status, error, probe, curr
   const cls = data?.classification?.best ? data.classification : null;
   const best = cls?.best ?? null;
   const notDetected = data?.classification?.detected === false;
-  const clsCaveats = !cls && data?.classification?.caveats?.length ? data.classification.caveats.join(' ') : '';
+  const { locale } = useLocale();
+  // Backend/snapshot sentences come with *_es copies when localized; otherwise English.
+  const caveatsOf = (c: { caveats: string[]; caveats_en?: string[]; caveats_es?: string[] }) =>
+    (locale === 'es' && c.caveats_es?.length ? c.caveats_es : c.caveats_en ?? c.caveats);
+  const methodOf = (c: { method: string; method_en?: string; method_es?: string }) =>
+    (locale === 'es' && c.method_es ? c.method_es : c.method_en ?? c.method);
+  const clsCaveats = !cls && data?.classification?.caveats?.length ? caveatsOf(data.classification).join(' ') : '';
 
   return (
     <section className="panel" aria-labelledby="spec-h">
@@ -110,8 +116,8 @@ export default function SpectrumPanel({ data, source, status, error, probe, curr
         {status === 'loading' && <div className="spec-state p-data spec-loading">{text.specLoading}</div>}
         {noFlux && !showRaw && <div className="spec-state p-data">{text.noUsableFlux(pts.length - nUsable, pts.length)}</div>}
         {status === 'error' && <div className="spec-state p-data spec-error">{error}</div>}
-        {status === 'ready' && !pts.length && <div className="spec-state p-data">{data?.caveats?.[0] ?? '—'} · 0 pts</div>}
-        <svg width={W} height={H} role="img" aria-label={`${text.spectrum}: ${pts.length} points`}>
+        {status === 'ready' && !pts.length && <div className="spec-state p-data">{data?.caveats?.[0] ?? '—'} · {text.zeroPoints}</div>}
+        <svg width={W} height={H} role="img" aria-label={`${text.spectrum}: ${text.spectrumPoints(pts.length)}`}>
           {niceTicks(yr[0], yr[1]).map((v) => (
             <g key={v}>
               <line x1={M.left} x2={W - M.right} y1={y(v)} y2={y(v)} className={v === 0 ? 'spec-zero' : 'spec-grid'} />
@@ -183,7 +189,7 @@ export default function SpectrumPanel({ data, source, status, error, probe, curr
               </li>
             ))}
           </ul>
-          <p className="panel-note">{cls.method}. {cls.caveats.join(' ')}</p>
+          <p className="panel-note">{methodOf(cls)}. {caveatsOf(cls).join(' ')}</p>
         </div>
       ) : (
         <p className="panel-note">{notDetected ? <strong className="spec-nodet">{text.noDetection}</strong> : text.noClassification}{clsCaveats ? ` ${clsCaveats}` : ''}</p>

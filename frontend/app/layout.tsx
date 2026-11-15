@@ -1,16 +1,26 @@
-import type { Metadata } from "next";
-import { IBM_Plex_Mono, IBM_Plex_Sans, Instrument_Serif } from "next/font/google";
+import type { Metadata, Viewport } from "next";
+import { Figtree, Fraunces, JetBrains_Mono } from "next/font/google";
+import HtmlLang from "../components/site/HtmlLang";
+import { en } from "../lib/i18n/en";
 import "./prism-tokens.css";
 import "./globals.css";
+import "./site.css";
 
-// PRISM type system (prism-tokens.css): Instrument Serif / IBM Plex Sans / IBM Plex Mono.
-const display = Instrument_Serif({ subsets: ["latin"], weight: "400", style: ["normal", "italic"], variable: "--p-font-display-loaded", display: "swap" });
-const body = IBM_Plex_Sans({ subsets: ["latin"], weight: ["400", "500", "600"], variable: "--p-font-body-loaded", display: "swap" });
-const data = IBM_Plex_Mono({ subsets: ["latin"], weight: ["400", "500"], variable: "--p-font-data-loaded", display: "swap" });
+// StarChord type system (prism-tokens.css): Fraunces (display, titles only) / Figtree (UI, body) /
+// JetBrains Mono (data). Each loads into a --p-font-*-loaded variable consumed by the tokens.
+const display = Fraunces({ subsets: ["latin"], axes: ["opsz"], variable: "--p-font-display-loaded", display: "swap" });
+const body = Figtree({ subsets: ["latin", "latin-ext"], variable: "--p-font-body-loaded", display: "swap" });
+const data = JetBrains_Mono({ subsets: ["latin", "greek"], variable: "--p-font-data-loaded", display: "swap" });
 
 export const metadata: Metadata = {
-  title: "PRISM · SPHEREx Time Machine",
-  description: "Cada cuadro de SPHEREx es de un color distinto. PRISM separa color y movimiento con observaciones reales de SPHEREx (NASA/IPAC IRSA).",
+  title: en.common.metaTitle,
+  description: en.common.metaDescription,
+  applicationName: en.common.brand,
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0b0a09",
+  colorScheme: "dark",
 };
 
 export default function RootLayout({
@@ -20,17 +30,9 @@ export default function RootLayout({
 }>) {
   const fonts = [display, body, data].map((f) => f.variable).join(" ");
   return (
-    <html lang="es" className={`h-full ${fonts}`}>
-      <body
-        style={{
-          minHeight: "100%",
-          display: "flex",
-          flexDirection: "column",
-          backgroundColor: "var(--bg)",
-          color: "var(--ink)",
-          margin: 0,
-        }}
-      >
+    <html lang="en" className={fonts}>
+      <body>
+        <HtmlLang />
         {children}
       </body>
     </html>

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { formatDec, formatRa, makeProjector } from '../../lib/prism/coords';
 import { flagNames, renderDepth, renderDiverging, renderGray, type Levels, type Stretch } from '../../lib/prism/imaging';
-import type { PrismText } from '../../lib/prism/i18n';
+import type { ExploreText } from '../../lib/i18n';
 import type { Grid } from '../../lib/prism/types';
 
 export type RenderKind = 'gray' | 'diverging' | 'depth';
@@ -31,7 +31,7 @@ interface Props {
   zoom: number;
   caption: string;
   captionColor: string;
-  text: PrismText;
+  text: ExploreText;
   onProbe: (x: number, y: number) => void;
   onProbeReset?: () => void;
 }
@@ -398,8 +398,8 @@ export default function SkyCanvas(props: Props) {
       <div className="pv-readout p-data" aria-live="off">
         {hoverInfo ? (
           <>
-            <span><em>RA</em> {formatRa(hoverInfo.sky.ra)}</span>
-            <span><em>Dec</em> {formatDec(hoverInfo.sky.dec)}</span>
+            <span><em>{t.ra}</em> {formatRa(hoverInfo.sky.ra)}</span>
+            <span><em>{t.dec}</em> {formatDec(hoverInfo.sky.dec)}</span>
             <span><em>{t.pixel}</em> {Number.isFinite(hoverInfo.v) ? `${hoverInfo.v.toPrecision(4)} ${props.unit}` : '—'}</span>
             <span><em>{t.flagsAt}</em> {hoverInfo.names.length ? hoverInfo.names.join(' ') : t.none}</span>
           </>

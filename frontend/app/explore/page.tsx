@@ -1,6 +1,6 @@
 import PrismApp from '../../components/prism/PrismApp';
 
-export default async function PrismPage({
+export default async function ExplorePage({
   searchParams,
 }: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;

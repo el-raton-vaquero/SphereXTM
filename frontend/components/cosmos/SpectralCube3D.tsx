@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { useLocale } from '../../lib/i18n';
 
 /**
  * SpectralCube3D — SPHEREx frames as stacked textured slices.
@@ -41,7 +42,6 @@ export interface SpectralCube3DProps {
   /** Show the built-in λ/time toggle. Default true. */
   showAxisToggle?: boolean;
   height?: number | string;
-  locale?: 'es' | 'en';
   className?: string;
 }
 
@@ -105,11 +105,6 @@ function frameToRGBA(f: CubeFrame): Uint8Array {
   return out;
 }
 
-const TXT = {
-  es: { lambda: 'λ', time: 'tiempo', axis: 'Eje', synthetic: 'SINTÉTICO — no son observaciones', frames: 'cortes', hint: 'arrastra para girar · clic elige un corte · ← → recorre' },
-  en: { lambda: 'λ', time: 'time', axis: 'Axis', synthetic: 'SYNTHETIC — not observations', frames: 'slices', hint: 'drag to orbit · click picks a slice · ← → steps' },
-};
-
 const AXIS_LEN = 3.2;
 
 export default function SpectralCube3D({
@@ -120,10 +115,9 @@ export default function SpectralCube3D({
   onAxisChange,
   showAxisToggle = true,
   height = 420,
-  locale = 'es',
   className,
 }: SpectralCube3DProps) {
-  const t = TXT[locale];
+  const t = useLocale().t.cube;
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const labelsRef = useRef<HTMLDivElement>(null);
@@ -355,7 +349,7 @@ export default function SpectralCube3D({
       tabIndex={0}
       onKeyDown={onKey}
       role="group"
-      aria-label={`SpectralCube3D · ${frames.length} ${t.frames}`}
+      aria-label={`SpectralCube3D · ${frames.length} ${t.slices}`}
     >
       <canvas ref={canvasRef} className="sc-canvas" />
       <div ref={labelsRef} className="sc-labels" aria-hidden="true" />
@@ -374,7 +368,7 @@ export default function SpectralCube3D({
           </div>
         )}
       </div>
-      {synthetic && <div className="sc-synth">{t.synthetic}</div>}
+      {synthetic && <div className="sc-synth">{t.syntheticBadge}</div>}
       <div className="sc-hint">{t.hint}</div>
       <style>{CUBE_CSS}</style>
     </div>

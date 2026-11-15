@@ -1,0 +1,68 @@
+/*
+ * Shared site chrome: BrandMark, SiteNav, LangToggle, SiteHeader and the plain content-page
+ * shell (used by the placeholder routes). Tokens: prism-tokens.css.
+ */
+
+/* ---------- brand ---------- */
+.brandmark {
+  display: inline-flex; align-items: center; gap: 10px;
+  color: var(--p-ink); text-decoration: none !important;
+  font-family: var(--p-font-display); font-weight: 400; font-optical-sizing: auto;
+  letter-spacing: -0.02em; line-height: 1; white-space: nowrap;
+}
+.brandmark:hover .brandmark-name { color: var(--p-ink); }
+.brandmark-logo { height: 1.15em; width: auto; display: block; }
+.brandmark-sm { font-size: 20px; }
+.brandmark-md { font-size: 26px; }
+.brandmark-lg { font-size: 40px; }
+
+/* ---------- navigation ---------- */
+.site-nav { display: flex; align-items: center; gap: 18px; min-width: 0; }
+.site-nav ul {
+  display: flex; gap: 18px; margin: 0; padding: 0; list-style: none;
+  overflow-x: auto; scrollbar-width: none; min-width: 0;
+}
+.site-nav ul::-webkit-scrollbar { display: none; }
+.site-nav .site-nav-a {
+  display: inline-block; padding: 6px 0 5px;
+  font-family: var(--p-font-body); font-size: 14px; font-weight: 500; letter-spacing: 0;
+  color: var(--p-ink-2); text-decoration: none !important; white-space: nowrap;
+  border-bottom: 1px solid transparent;
+  transition: color var(--p-t-fast) linear, border-color var(--p-t-fast) linear;
+}
+.site-nav .site-nav-a:hover { color: var(--p-ink); border-bottom-color: var(--p-rule-2); }
+.site-nav .site-nav-a[aria-current="page"] { color: var(--p-ink); border-bottom-color: var(--p-signal); }
+.site-nav :focus-visible, .site-lang :focus-visible { outline: 1px solid var(--p-signal); outline-offset: 2px; }
+
+.site-lang { display: inline-flex; flex: none; border: 1px solid var(--p-rule-2); border-radius: var(--p-r); }
+.site-lang .site-lang-b {
+  font-family: var(--p-font-data); font-size: 12px; letter-spacing: 0.08em;
+  padding: 4px 9px; min-height: 28px; color: var(--p-ink-2); background: none; border: 0; cursor: pointer;
+}
+.site-lang .site-lang-b + .site-lang-b { border-left: 1px solid var(--p-rule-2); }
+.site-lang .site-lang-b[aria-pressed="true"] { background: var(--p-ink); color: var(--p-bg); }
+
+/* ---------- content-page shell ---------- */
+.site-header {
+  display: flex; align-items: center; justify-content: space-between; gap: 24px;
+  padding: 18px 28px 14px; border-bottom: 1px solid var(--p-rule);
+}
+.site-page { min-height: 100vh; display: flex; flex-direction: column; }
+.site-main { flex: 1; width: 100%; max-width: 760px; margin: 0 auto; padding: 56px 28px; display: flex; flex-direction: column; gap: 18px; }
+.site-h1 { font-size: var(--p-fs-h1); line-height: 1.05; }
+.site-lead { font-size: var(--p-fs-lead); color: var(--p-ink-2); max-width: 60ch; }
+.site-note { font-size: var(--p-fs-small); color: var(--p-ink-3); border-left: 2px solid var(--p-rule-2); padding-left: 12px; }
+.site-btn {
+  display: inline-block; padding: 10px 16px; border: 1px solid var(--p-ink); border-radius: var(--p-r);
+  font-weight: 500; color: var(--p-ink); text-decoration: none !important;
+}
+.site-btn:hover { background: var(--p-ink); color: var(--p-bg); }
+.site-footer { padding: 16px 28px; border-top: 1px solid var(--p-rule); font-size: 12px; color: var(--p-ink-3); }
+
+@media (max-width: 720px) {
+  .site-header { flex-wrap: wrap; padding: 14px 16px 10px; gap: 10px 16px; }
+  .site-header .site-nav { order: 3; width: 100%; justify-content: space-between; }
+  .site-nav, .site-nav ul { gap: 14px; }
+  .site-main { padding: 36px 16px; }
+  .site-footer { padding: 14px 16px; }
+}

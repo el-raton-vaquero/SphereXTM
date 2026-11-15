@@ -14,7 +14,6 @@ export interface CosmosPreset {
   dec: number; // deg
   epoch: string;
   aliases: string[];
-  kind: { es: string; en: string };
 }
 
 export const COSMOS_PRESETS: CosmosPreset[] = [
@@ -25,7 +24,6 @@ export const COSMOS_PRESETS: CosmosPreset[] = [
     dec: 4.7678988,
     epoch: 'MJD 61000 · /v2/targets',
     aliases: ['barnard', 'estrella de barnard', "barnard's star", 'gj 699'],
-    kind: { es: 'movimiento propio 10.4″/año', en: 'proper motion 10.4″/yr' },
   },
   {
     id: 'eps-indi-b',
@@ -34,7 +32,6 @@ export const COSMOS_PRESETS: CosmosPreset[] = [
     dec: -56.8005859,
     epoch: 'MJD 61000 · /v2/targets',
     aliases: ['eps indi b', 'epsilon indi b', 'eps ind b', 'ε indi b'],
-    kind: { es: 'enanas marrones binarias', en: 'binary brown dwarfs' },
   },
   {
     id: 'wise-0855',
@@ -43,7 +40,6 @@ export const COSMOS_PRESETS: CosmosPreset[] = [
     dec: -7.2422032,
     epoch: 'MJD 61000 · /v2/targets',
     aliases: ['wise 0855', 'wise0855', 'wise j085510.83-071442.5', 'wise 0855-0714'],
-    kind: { es: 'enana marrón fría, 8.2″/año', en: 'cold brown dwarf, 8.2″/yr' },
   },
   {
     id: 'rw-aur',
@@ -52,7 +48,6 @@ export const COSMOS_PRESETS: CosmosPreset[] = [
     dec: 30.4012920,
     epoch: 'MJD 61000 · /v2/targets',
     aliases: ['rw aur', 'rw aurigae'],
-    kind: { es: 'variable T Tauri', en: 'T Tauri variable' },
   },
   {
     id: 'r-dra',
@@ -61,7 +56,6 @@ export const COSMOS_PRESETS: CosmosPreset[] = [
     dec: 66.7550236,
     epoch: 'MJD 61000 · /v2/targets',
     aliases: ['r dra', 'r draconis'],
-    kind: { es: 'variable Mira', en: 'Mira variable' },
   },
   {
     id: 'm101',
@@ -70,7 +64,6 @@ export const COSMOS_PRESETS: CosmosPreset[] = [
     dec: 54.3487500,
     epoch: 'MJD 61000 · /v2/targets',
     aliases: ['m101', 'm 101', 'ngc 5457', 'pinwheel', 'molinete'],
-    kind: { es: 'galaxia espiral (fija)', en: 'spiral galaxy (static)' },
   },
 ];
 

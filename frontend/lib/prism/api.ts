@@ -142,8 +142,10 @@ export const fetchGaia = (ra: number, dec: number, radiusArcmin: number, mjds: n
 export const fetchSkybot = (ra: number, dec: number, radiusArcmin: number, mjd: number, signal?: AbortSignal) =>
   getJson<SkybotResponse>('/skybot', { ra: ra.toFixed(6), dec: dec.toFixed(6), radius_arcmin: radiusArcmin.toFixed(2), mjd: mjd.toFixed(5) }, { signal, timeoutMs: 30000 });
 
-export const fetchSpectrum = (ra: number, dec: number, aperture = 9, signal?: AbortSignal) =>
-  getJson<SpectrumResponse>('/spectrum', { ra: ra.toFixed(6), dec: dec.toFixed(6), aperture_arcsec: aperture }, { signal, timeoutMs: 150000 });
+// lang selects the language of human-readable sentences; responses also carry *_en / *_es
+// copies of every translated field, so switching language later needs no new request.
+export const fetchSpectrum = (ra: number, dec: number, aperture = 9, signal?: AbortSignal, lang: 'en' | 'es' = 'en') =>
+  getJson<SpectrumResponse>('/spectrum', { ra: ra.toFixed(6), dec: dec.toFixed(6), aperture_arcsec: aperture, lang }, { signal, timeoutMs: 150000 });
 
-export const fetchVerdict = (ra: number, dec: number, fov: number, signal?: AbortSignal) =>
-  getJson<VerdictResponse>('/verdict', { ra: ra.toFixed(6), dec: dec.toFixed(6), fov }, { signal, timeoutMs: 150000 });
+export const fetchVerdict = (ra: number, dec: number, fov: number, signal?: AbortSignal, lang: 'en' | 'es' = 'en') =>
+  getJson<VerdictResponse>('/verdict', { ra: ra.toFixed(6), dec: dec.toFixed(6), fov, lang }, { signal, timeoutMs: 150000 });

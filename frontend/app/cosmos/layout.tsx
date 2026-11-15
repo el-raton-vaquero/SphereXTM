@@ -1,10 +1,10 @@
 import type { Metadata } from 'next';
-import '../prism-tokens.css';
+import { en } from '../../lib/i18n/en';
 import '../../components/cosmos/cosmos.css';
 
 export const metadata: Metadata = {
-  title: 'PRISM · Cosmos — SPHEREx Time Machine',
-  description: 'Vistas 3D de PRISM: cubo espectral de cuadros reales de SPHEREx.',
+  title: en.cube.metaTitle,
+  description: en.cube.lede,
 };
 
 export default function CosmosLayout({ children }: { children: React.ReactNode }) {

@@ -9,7 +9,7 @@ import {
   percentile, type GoggleId, type Stretch,
 } from '../../lib/prism/imaging';
 import { keepGreek } from '../../lib/prism/greek';
-import { PRISM_TEXT } from '../../lib/prism/i18n';
+import { useLocale, withLang } from '../../lib/i18n';
 import { PRESETS } from '../../lib/prism/presets';
 import { lambdaColor } from '../../lib/prism/ramp';
 import { findSnapshot, loadSnapshot, loadSnapshotIndex, type SnapshotIndexEntry as SnapshotEntry } from '../../lib/prism/snapshot';
@@ -18,6 +18,8 @@ import type {
   SpectrumResponse, V2Target, VerdictResponse, ViewMode,
 } from '../../lib/prism/types';
 import { readUrl, writeUrl, type UrlState } from '../../lib/prism/url';
+import BrandMark from '../brand/BrandMark';
+import SiteNav from '../site/SiteNav';
 import ScrubPad from './ScrubPad';
 import SkyCanvas, { type Ring } from './SkyCanvas';
 import SpectrumPanel, { type SpectrumSource } from './SpectrumPanel';
@@ -95,16 +97,19 @@ export default function PrismApp({ initialQuery }: { initialQuery: string }) {
     const u = readUrl(initialQuery);
     return (q.has('ra') || q.has('dec')) && (u.ra === undefined || u.dec === undefined);
   });
-  const text = PRISM_TEXT[url.lang];
+  const { locale, t } = useLocale();
+  const text = t.explore;
   const [targets, setTargets] = useState<V2Target[]>(PRESETS);
 
   // ---- URL sync (replaceState; the URL is the shareable state) ----
   useEffect(() => {
-    const qs = writeUrl(url);
+    // The language lives in the shared i18n module; keep it in the shareable URL too.
+    const params = new URLSearchParams(writeUrl(url));
+    if (locale !== 'en') params.set('lang', locale);
+    const qs = params.toString();
     const next = `${window.location.pathname}${qs ? `?${qs}` : ''}`;
     if (next !== window.location.pathname + window.location.search) window.history.replaceState(null, '', next);
-    document.documentElement.lang = url.lang;
-  }, [url]);
+  }, [url, locale]);
 
   useEffect(() => {
     if (!LIVE_ENABLED) return; // static deployment: built-in presets (same coordinates as /v2/targets)
@@ -243,7 +248,7 @@ export default function PrismApp({ initialQuery }: { initialQuery: string }) {
       return { image: img, kind: 'gray' as const, unit: 'MJy/sr', note: `D${current.detector} · S${current.season} · ${set.length} ${text.frames} · λ ${Math.min(...lams).toFixed(3)}–${Math.max(...lams).toFixed(3)} µm`, frames: set };
     }
     if (mode === 'diff') {
-      if (refSeason === null) return { image: null, kind: 'diverging' as const, unit: 'MJy/sr', note: url.lang === 'es' ? 'No hay cuadros a λ emparejada en otra temporada.' : 'No matched-λ frames in another season.', frames: [] };
+      if (refSeason === null) return { image: null, kind: 'diverging' as const, unit: 'MJy/sr', note: text.noMatchedRef, frames: [] };
       const a = matched.filter((f) => f.season === current.season);
       const b = matched.filter((f) => f.season === refSeason);
       const A = medianStack(a), B = medianStack(b);
@@ -258,7 +263,7 @@ export default function PrismApp({ initialQuery }: { initialQuery: string }) {
       return { image: g.map, kind: 'depth' as const, unit: '', note: g.map ? `${recipe} · ${g.counts.band}/${g.counts.blue}/${g.counts.red} ${text.frames}` : text.gogglesNeed(g.counts), frames: [] };
     }
     return { image: current.pixels, kind: 'gray' as const, unit: 'MJy/sr', note: '', frames: [current] };
-  }, [mode, current, frames, search, matched, refSeason, goggle, text, url.lang]);
+  }, [mode, current, frames, search, matched, refSeason, goggle, text]);
 
   const levels = useMemo(() => (view?.image && view.kind === 'gray' ? computeLevels(view.image, stretch) : { lo: 0, hi: 1 }), [view, stretch]);
   const divScale = useMemo(() => {
@@ -291,7 +296,7 @@ export default function PrismApp({ initialQuery }: { initialQuery: string }) {
     fetchGaia(url.ra, url.dec, url.fov * 0.75, mjds, ctrl.signal)
       .then((d) => setGaiaLive({ key: k, status: 'ready', data: d }))
       .catch((e) => !ctrl.signal.aborted && setGaiaLive({ key: k, status: 'error', data: null, error: (e as Error).message }));
-    fetchVerdict(url.ra, url.dec, url.fov, ctrl.signal)
+    fetchVerdict(url.ra, url.dec, url.fov, ctrl.signal, locale)
       .then((d) => setVerdictLive({ key: k, status: 'ready', data: d }))
       .catch((e) => !ctrl.signal.aborted && setVerdictLive({ key: k, status: 'error', data: null, error: (e as Error).message }));
     return () => ctrl.abort();
@@ -428,7 +433,7 @@ export default function PrismApp({ initialQuery }: { initialQuery: string }) {
     // Debounced: rapid clicks / arrow-key probe moves send one request; the previous one is aborted
     // (the server drops it if it has not started yet).
     const id = setTimeout(() => {
-      fetchSpectrum(probe.ra, probe.dec, APERTURE_ARCSEC, ctrl.signal)
+      fetchSpectrum(probe.ra, probe.dec, APERTURE_ARCSEC, ctrl.signal, locale)
         .then((d) => setSpecLive({ key: k, status: 'ready', data: d }))
         .catch((e) => !ctrl.signal.aborted && setSpecLive({ key: k, status: 'error', data: null, error: (e as Error).message }));
     }, 600);
@@ -461,11 +466,9 @@ export default function PrismApp({ initialQuery }: { initialQuery: string }) {
     return {
       points, classification: null,
       method: text.specClientMethod(APERTURE_ARCSEC),
-      caveats: url.lang === 'es'
-        ? ['Cada cuadro mide UNA longitud de onda en esta posición.', 'Sin corrección de apertura; la reproyección suaviza el flujo.']
-        : ['Each frame samples ONE wavelength at this position.', 'No aperture correction; reprojection smooths flux.'],
+      caveats: text.clientCaveats,
     };
-  }, [search, probePix, frames, pixscale, flagBits, url.lang, text]);
+  }, [search, probePix, frames, pixscale, flagBits, text]);
 
   let specData: SpectrumResponse | null = null;
   let specSource: SpectrumSource = 'client';
@@ -542,7 +545,7 @@ export default function PrismApp({ initialQuery }: { initialQuery: string }) {
   // ---- Derived labels ----
   const satCount = frames.filter((f) => f.saturated_at_center).length;
   const originLabel = data ? (data.origin.kind === 'live' ? text.originLive : text.originSnapshot(data.origin.generated.slice(0, 10))) : '';
-  const embedUrl = typeof window === 'undefined' ? '' : `${window.location.origin}/explore?${writeUrl({ ...url, embed: true })}`;
+  const embedUrl = typeof window === 'undefined' ? '' : `${window.location.origin}${withLang(`/explore?${writeUrl({ ...url, embed: true })}`, locale)}`;
   const progressP = progress && progress.key === reqKey ? progress.p : null;
   const pct = progressP?.total ? Math.min(100, ((progressP.done ?? 0) / progressP.total) * 100) : null;
   const yrSpan = seasons.length ? (seasons[seasons.length - 1].end_mjd - seasons[0].start_mjd) / 365.25 : 0;
@@ -558,15 +561,11 @@ export default function PrismApp({ initialQuery }: { initialQuery: string }) {
       {!url.embed && (
         <header className="masthead">
           <div className="masthead-id">
-            <a className="wordmark p-display" href={url.lang === 'en' ? '/?lang=en' : '/'} title={url.lang === 'en' ? 'Sky view' : 'Vista del cielo'}>PRISM</a>
-            <span className="masthead-sub p-label">SPHEREx · NASA Space Apps 2026</span>
+            <BrandMark size="lg" className="wordmark" />
+            <span className="masthead-sub p-label">{t.common.subline}</span>
           </div>
           <p className="masthead-tag">{text.tagline}</p>
-          <nav className="masthead-nav">
-            <button type="button" className="lang" aria-pressed={url.lang === 'es'} onClick={() => setUrl((u) => ({ ...u, lang: 'es' }))}>ES</button>
-            <button type="button" className="lang" aria-pressed={url.lang === 'en'} onClick={() => setUrl((u) => ({ ...u, lang: 'en' }))}>EN</button>
-            {LIVE_ENABLED && <a className="masthead-link" href="/classic">{text.classic}</a>}
-          </nav>
+          <SiteNav current="explore" className="masthead-nav" />
         </header>
       )}
 
@@ -577,7 +576,6 @@ export default function PrismApp({ initialQuery }: { initialQuery: string }) {
           ra={url.ra}
           dec={url.dec}
           fov={url.fov}
-          locale={url.lang}
           text={text}
           embedUrl={embedUrl}
           onPoint={point}
@@ -601,21 +599,21 @@ export default function PrismApp({ initialQuery }: { initialQuery: string }) {
         {preset && (
           <span className="origin-note">
             <span className="p-display preset-title">{preset.name}</span>{' '}
-            {url.lang === 'en' ? (preset as (typeof PRESETS)[number]).blurb_en ?? preset.blurb : preset.blurb}
+            {t.targets[preset.id]?.blurb ?? preset.blurb}
           </span>
         )}
       </div>
 
       {data && satCount > 0 && satCount / Math.max(1, frames.length) >= 0.3 && (
         <div className="banner banner-bad" role="alert">
-          <span className="p-label">SAT</span> {text.saturated(satCount, frames.length)}
+          <span className="p-label">{text.satTag}</span> {text.saturated(satCount, frames.length)}
         </div>
       )}
 
       {loading && (
         <div className="state state-loading" role="status" aria-live="polite">
           <span className="p-label">{text.loading}</span>
-          <span className="p-data">{progressP ? `${text.stage[progressP.stage] ?? progressP.stage}${progressP.message ? ` · ${progressP.message}` : ''}` : 'SIA2 · spherex_dr1, spherex_qr3'}</span>
+          <span className="p-data">{progressP ? `${text.stage[progressP.stage] ?? progressP.stage}${progressP.message ? ` · ${progressP.message}` : ''}` : text.loadingDefault}</span>
           <span className="meter" aria-hidden><i className={pct === null ? 'meter-indet' : ''} style={pct === null ? undefined : { width: `${pct}%` }} /></span>
         </div>
       )}
@@ -624,7 +622,7 @@ export default function PrismApp({ initialQuery }: { initialQuery: string }) {
         <div className="state state-error" role="alert">
           <h2 className="p-display">{fail.noCoverage ? text.emptyTitle : fail.liveError === LIVE_OFF ? text.liveOffTitle : text.errorTitle}</h2>
           <p>{fail.noCoverage ? text.emptyBody : fail.liveError === LIVE_OFF ? text.liveOffBody : text.errorBody}</p>
-          <p className="p-data state-detail">{fail.liveError === LIVE_OFF ? `snapshot: ${fail.message}` : `live: ${fail.liveError ?? fail.message}${fail.liveError ? ` · snapshot: ${fail.message}` : ''}`}</p>
+          <p className="p-data state-detail">{fail.liveError === LIVE_OFF ? `${text.detailSnapshot}: ${fail.message}` : `${text.detailLive}: ${fail.liveError ?? fail.message}${fail.liveError ? ` · ${text.detailSnapshot}: ${fail.message}` : ''}`}</p>
           {fail.liveError !== LIVE_OFF && <button type="button" className="btn" onClick={() => setAttempt((a) => a + 1)}>{text.retry}</button>}
         </div>
       )}
@@ -640,8 +638,8 @@ export default function PrismApp({ initialQuery }: { initialQuery: string }) {
       {data && current && search && view && (
         <main className="deck">
           <section className="deck-main">
-            <div className="toolbar" role="toolbar" aria-label="mode">
-              <div className="seg" role="radiogroup" aria-label="mode">
+            <div className="toolbar" role="toolbar" aria-label={text.modeAria}>
+              <div className="seg" role="radiogroup" aria-label={text.modeAria}>
                 {MODES.map((m, i) => (
                   <button key={m} type="button" role="radio" aria-checked={mode === m} className="seg-b" onClick={() => setMode(m)}>
                     <span className="seg-k p-data">{i + 1}</span>{text.modes[m]}
@@ -653,9 +651,7 @@ export default function PrismApp({ initialQuery }: { initialQuery: string }) {
                   <label className="mini">
                     <span className="p-label">{text.stretch}</span>
                     <select className="select p-data" value={stretch} onChange={(e) => setStretch(e.target.value as Stretch)}>
-                      <option value="asinh">asinh</option>
-                      <option value="zscale">zscale</option>
-                      <option value="linear">linear</option>
+                      {(['asinh', 'zscale', 'linear'] as const).map((k) => <option key={k} value={k}>{text.stretches[k]}</option>)}
                     </select>
                   </label>
                 )}
@@ -668,7 +664,7 @@ export default function PrismApp({ initialQuery }: { initialQuery: string }) {
                   </label>
                 )}
                 {mode === 'goggles' && (
-                  <div className="seg seg-small" role="radiogroup" aria-label="goggles">
+                  <div className="seg seg-small" role="radiogroup" aria-label={text.gogglesAria}>
                     {(Object.keys(GOGGLES) as GoggleId[]).map((g) => (
                       <button key={g} type="button" role="radio" aria-checked={goggle === g} className="seg-b" onClick={() => setGoggle(g)}>{g.replace('4', '₄').replace('2', '₂')}</button>
                     ))}
@@ -693,7 +689,7 @@ export default function PrismApp({ initialQuery }: { initialQuery: string }) {
 
             {mode === 'cube' ? (
               <div className="cube-wrap" data-cube>
-                <SpectralCube3D frames={cubeFrames} current={currentIndex} onSelect={select} locale={url.lang} height="min(70vh, 640px)" />
+                <SpectralCube3D frames={cubeFrames} current={currentIndex} onSelect={select} height="min(70vh, 640px)" />
               </div>
             ) : (
             <SkyCanvas
@@ -735,8 +731,8 @@ export default function PrismApp({ initialQuery }: { initialQuery: string }) {
                   <button type="button" className="chip chip-mini" aria-pressed={false} onClick={() => setGaiaAll(true)}>{text.gaiaAll}</button>
                 </span>
               )}
-              <span className="layers-note">{text.predictedLegend}{ov.gaia ? (url.lang === 'es' ? ' Vector = 10 años de movimiento propio.' : ' Vector = 10 yr of proper motion.') : ''}</span>
-              {!isLive && ov.skybot && <span className="layers-note">{url.lang === 'es' ? 'SkyBoT requiere la API en vivo.' : 'SkyBoT needs the live API.'}</span>}
+              <span className="layers-note">{text.predictedLegend}{ov.gaia ? text.pmVector : ''}</span>
+              {!isLive && ov.skybot && <span className="layers-note">{text.skybotNeedsLive}</span>}
               {isLive && skybot?.status === 'error' && <span className="layers-note">SkyBoT: {skybot.error}</span>}
             </div>
 
@@ -776,9 +772,9 @@ export default function PrismApp({ initialQuery }: { initialQuery: string }) {
                 <dt>{text.date}</dt><dd>{current.date.replace('T', ' ').slice(0, 19)} · MJD {current.mjd.toFixed(5)}</dd>
                 <dt>{keepGreek(text.lambda)}</dt><dd><i className="sw" style={{ background: lambdaColor(current.lambda_um) }} />{current.lambda_um.toFixed(4)} µm · {text.band} {current.bandwidth_um.toFixed(4)} µm</dd>
                 <dt>{text.detector}</dt><dd>D{current.detector} · {text.season} S{current.season} ({formatMjdDate(seasons.find((s) => s.index === current.season)?.start_mjd ?? current.mjd)})</dd>
-                <dt>{text.valid}</dt><dd>{(current.valid_fraction * 100).toFixed(1)}%{current.saturated_at_center ? (url.lang === 'es' ? ' · saturado a ≤2 px del centro' : ' · saturated within 2 px of centre') : ''}</dd>
+                <dt>{text.valid}</dt><dd>{(current.valid_fraction * 100).toFixed(1)}%{current.saturated_at_center ? text.satNearCentre : ''}</dd>
                 <dt>{text.matched}</dt><dd>{matched.length} {text.frames} · {new Set(matched.map((f) => f.season)).size} {text.seasons}</dd>
-                <dt>FITS</dt><dd><a href={current.provenance.url} target="_blank" rel="noreferrer">IRSA cutout</a></dd>
+                <dt>{text.fits}</dt><dd><a href={current.provenance.url} target="_blank" rel="noreferrer">{text.irsaCutout}</a></dd>
               </dl>
               <div className="motion">
                 <span className="p-label">{text.motion}</span>
@@ -787,10 +783,10 @@ export default function PrismApp({ initialQuery }: { initialQuery: string }) {
                 ) : null}
                 {motion ? (
                   <>
-                    <p className="p-data">{text.predictedShift} D{motion.det} S{motion.sA}→S{motion.sB} ({motion.dtYr.toFixed(2)} yr): {motion.predArcsec.toFixed(2)}″ = {(motion.predArcsec / pixscale).toFixed(2)} px</p>
+                    <p className="p-data">{text.predictedShift} D{motion.det} S{motion.sA}→S{motion.sB} ({motion.dtYr.toFixed(2)} {text.yr}): {motion.predArcsec.toFixed(2)}″ = {(motion.predArcsec / pixscale).toFixed(2)} px</p>
                     <p className="p-data">
-                      {text.measuredShift}: {motion.measured ? `${motion.measured.arcsec.toFixed(2)}″ ± ${motion.measured.err.toFixed(2)}″ (co-adds ${motion.nA}+${motion.nB})` : text.noCentroid}
-                      {motion.sat ? ` · ${motion.sat} sat.` : ''}
+                      {text.measuredShift}: {motion.measured ? `${motion.measured.arcsec.toFixed(2)}″ ± ${motion.measured.err.toFixed(2)}″ (${text.coadds} ${motion.nA}+${motion.nB})` : text.noCentroid}
+                      {motion.sat ? ` · ${motion.sat} ${text.satAbbr}` : ''}
                     </p>
                   </>
                 ) : (
@@ -803,7 +799,7 @@ export default function PrismApp({ initialQuery }: { initialQuery: string }) {
               data={verdict}
               status={verdictStatus}
               error={verdictLive?.error}
-              lang={url.lang}
+              lang={locale}
               sourceLabel={isLive ? '/v2/verdict' : verdict?.method ?? ''}
               text={text}
             />
@@ -839,7 +835,7 @@ export default function PrismApp({ initialQuery }: { initialQuery: string }) {
           <div>
             <span className="p-label">{text.queries}</span>
             <ul className="p-data">{search.provenance.query_urls.map((q) => <li key={q}><a href={q} target="_blank" rel="noreferrer">{q.replace('https://', '')}</a></li>)}</ul>
-            <p className="p-data">generated {search.provenance.generated_utc}</p>
+            <p className="p-data">{text.generated} {search.provenance.generated_utc}</p>
           </div>
         </footer>
       )}

@@ -1,5 +1,5 @@
 /*
- * PRISM design tokens — shared by /prism (explorer) and /cosmos (3D landing).
+ * StarChord design tokens — shared by every route (imported once in app/layout.tsx).
  *
  * Direction: "instrument logbook". A real observatory control room, not a SaaS
  * dashboard. Warm photographic black, paper-white ink, hairline rules, tick
@@ -8,10 +8,12 @@
  * the one thing the user must look at. No glassmorphism, no purple/blue
  * gradients, no emoji, no glowing blobs, no pill-shaped everything.
  *
- * Fonts (loaded in app/layout.tsx via next/font or Google Fonts):
- *   display: "Instrument Serif"  — titles, target names, big numbers
- *   body:    "IBM Plex Sans"     — UI text
- *   data:    "IBM Plex Mono"     — coordinates, dates, λ, flags, tables
+ * Fonts (loaded in app/layout.tsx via next/font/google into --p-font-*-loaded):
+ *   display: "Fraunces"        — titles only (weight 400, optical size axis)
+ *   body:    "Figtree"         — UI and running text (base 15px, line-height 1.5)
+ *   data:    "JetBrains Mono"  — coordinates, dates, λ, flags, tables
+ * Type scale: --p-fs-label (11.5px, uppercase mono labels) · --p-fs-small (13px) ·
+ * --p-fs-body (15px) · --p-fs-lead (17px) · --p-fs-h2 (24px) · --p-fs-h1 (clamp 32–52px).
  */
 :root {
   --p-bg: #0b0a09;            /* warm black, like exposed plate */
@@ -39,9 +41,17 @@
   --p-l5: #f29a3e;  /* D5 3.83–4.41 µm */
   --p-l6: #e5533d;  /* D6 4.42–5.00 µm */
 
-  --p-font-display: var(--p-font-display-loaded, "Instrument Serif"), "Times New Roman", serif;
-  --p-font-body: var(--p-font-body-loaded, "IBM Plex Sans"), system-ui, sans-serif;
-  --p-font-data: var(--p-font-data-loaded, "IBM Plex Mono"), ui-monospace, monospace;
+  --p-font-display: var(--p-font-display-loaded, "Fraunces"), Georgia, "Times New Roman", serif;
+  --p-font-body: var(--p-font-body-loaded, "Figtree"), system-ui, -apple-system, "Segoe UI", sans-serif;
+  --p-font-data: var(--p-font-data-loaded, "JetBrains Mono"), ui-monospace, "Cascadia Mono", monospace;
+
+  --p-fs-label: 11.5px;
+  --p-fs-small: 13px;
+  --p-fs-body: 15px;
+  --p-fs-lead: 17px;
+  --p-fs-h2: 24px;
+  --p-fs-h1: clamp(32px, 5vw, 52px);
+  --p-lh: 1.5;
 
   --p-r: 2px;                 /* one radius. Instruments have corners. */
   --p-gap: 8px;               /* 8px grid */
@@ -51,6 +61,6 @@
 }
 
 .p-data { font-family: var(--p-font-data); font-feature-settings: "tnum" 1, "zero" 1; letter-spacing: 0; }
-.p-display { font-family: var(--p-font-display); font-weight: 400; letter-spacing: -0.01em; }
-.p-label { font-family: var(--p-font-data); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--p-ink-3); }
+.p-display { font-family: var(--p-font-display); font-weight: 400; font-optical-sizing: auto; letter-spacing: -0.015em; }
+.p-label { font-family: var(--p-font-data); font-size: var(--p-fs-label); text-transform: uppercase; letter-spacing: 0.08em; color: var(--p-ink-3); }
 .p-rule { border-color: var(--p-rule); }

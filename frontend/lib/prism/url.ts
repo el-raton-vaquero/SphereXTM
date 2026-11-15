@@ -1,5 +1,6 @@
 import type { ViewMode } from './types';
 
+/** Explorer view state carried in the URL. The language (?lang=) is owned by lib/i18n. */
 export interface UrlState {
   ra?: number;
   dec?: number;
@@ -9,7 +10,6 @@ export interface UrlState {
   mode: ViewMode;
   target?: string;
   embed: boolean;
-  lang: 'es' | 'en';
 }
 
 const MODES: ViewMode[] = ['frame', 'coadd', 'diff', 'goggles', 'raw', 'cube'];
@@ -35,7 +35,6 @@ export function readUrl(search: string): UrlState {
     mode: mode && MODES.includes(mode) ? mode : 'frame',
     target: target && /^[a-z0-9-]{1,40}$/.test(target) ? target : undefined,
     embed: p.get('embed') === '1',
-    lang: p.get('lang') === 'en' ? 'en' : 'es',
   };
 }
 
@@ -49,6 +48,5 @@ export function writeUrl(s: UrlState): string {
   if (s.lam !== undefined) p.set('lam', s.lam.toFixed(4));
   if (s.mode !== 'frame') p.set('mode', s.mode);
   if (s.embed) p.set('embed', '1');
-  if (s.lang === 'en') p.set('lang', 'en');
   return p.toString();
 }
